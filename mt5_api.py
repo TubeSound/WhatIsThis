@@ -15,9 +15,13 @@ def server_time(begin_month, begin_sunday, end_month, end_sunday, delta_hour_fro
     #print('SeverTime GMT+', dt, tz)
     return dt, tz  
   
-def adjust_summer_time(time: datetime):
+def server_time_to_utc(time: datetime):
     dt, tz = server_time(3, 2, 11, 1, 3.0)
     return time - dt
+
+def utc_to_server_time(utc: datetime): 
+    dt, tz = server_time(3, 2, 11, 1, 3.0)
+    return utc + dt
 
 def adjust(time):
     utc = []
@@ -25,7 +29,7 @@ def adjust(time):
     for ts in time:
         t0 = pd.to_datetime(ts)
         t0 = t0.replace(tzinfo=UTC)
-        t = adjust_summer_time(t0)
+        t = server_time_to_utc(t0)
         utc.append(t)
         tj = t.astimezone(JST)
         jst.append(tj)  
@@ -72,6 +76,17 @@ class Mt5Api:
             raise Exception('get_rates error')
         return self.parse_rates(rates)
 
+    def get_rates_jst(self, symbol: str, timeframe: str, jst_from: datetime, jst_to: datetime ):
+        #print(symbol, timeframe)
+        utc_from = jst_from.astimezone(tz=UTC)
+        utc_to = jst_to.astimezone(tz=UTC)
+        t_from = utc_to_server_time(utc_from)
+        t_to = utc_to_server_time(utc_to)
+        rates = mt5.copy_rates_range(symbol, TimeFrame.const(timeframe), t_from, t_to)
+        if rates is None:
+            raise Exception('get_rates error')
+        return self.parse_rates(rates)
+
     def parse_rates(self, rates):
         df = pd.DataFrame(rates)
         t0 = pd.to_datetime(df['time'], unit='s') 
@@ -84,7 +99,7 @@ class Mt5Api:
         dic['high'] = df['high'].to_list()
         dic['low'] = df['low'].to_list()
         dic['close'] = df['close'].to_list()
-        dic['tick_volume'] = df['tick_volume'].to_list()        
+        dic['volume'] = df['tick_volume'].to_list()        
         return dic
         
 

@@ -430,7 +430,7 @@ def VWAP(data: dict, begin_hour_list, pivot_threshold, pivot_left_len, pivot_cen
     n = len(jst)
     MID(data)
     mid = data[Columns.MID]
-    volume = data['tick_volume']
+    volume = data['volume']
     
     vwap = full(np.nan, n)
     power_acc = full(np.nan, n)

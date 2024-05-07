@@ -281,7 +281,7 @@ def create_chart1(symbol, data, num_bars):
                          name='VWAP lower'))
 
     colors = ['green' if data['open'][i] - data['close'][i] >= 0 else 'red' for i in range(n)]
-    fig.add_trace(go.Bar(x=jst, y=data['tick_volume'], marker_color=colors), row=2, col=1)
+    fig.add_trace(go.Bar(x=jst, y=data['volume'], marker_color=colors), row=2, col=1)
     
     fig.add_trace(go.Scatter(x=jst, y=data['VWAP_SLOPE'], line=dict(color='Green', width=2)), row=3, col=1)
     
@@ -337,7 +337,7 @@ def create_chart2(data, num_bars):
     
     colors = ['green' if data['open'][i] - data['close'][i] >= 0 else 'red' for i in range(n)]
     fig.add_trace(go.Bar(x=jst, 
-                     y=data['tick_volume'],
+                     y=data['volume'],
                      marker_color=colors
                     ), row=2, col=1)
     
