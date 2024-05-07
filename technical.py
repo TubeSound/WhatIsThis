@@ -353,7 +353,7 @@ def pivot2(signal, threshold, left_length=2, right_length=2):
                         out_mid[i] = Signal.LONG 
     return out, out_mid
 
-def vwap_rate(price, vwap, std):
+def vwap_rate(price, vwap, std, median_window, ma_window):
     n = len(price)
     rate = nans(n)
     i = -1
@@ -364,8 +364,8 @@ def vwap_rate(price, vwap, std):
         if s != 0.0:
             r = (p - v) / s * 100.0
             rate[i] = r #20 * int(r / 20)        
-    med = median(rate, 10)        
-    ma = moving_average(med, 20)
+    med = median(rate, median_window)        
+    ma = moving_average(med, ma_window)
     return ma
 
 def vwap_pivot(signal, threshold, left_length, center_length, right_length):
@@ -425,7 +425,7 @@ def vwap_pivot(signal, threshold, left_length, center_length, right_length):
         out[i] = sig
     return out
 
-def VWAP(data: dict, begin_hour_list, pivot_threshold, pivot_left_len, pivot_center_len, pivot_right_len):
+def VWAP(data: dict, begin_hour_list, pivot_threshold, pivot_left_len, pivot_center_len, pivot_right_len, median_window, ma_window):
     jst = data[Columns.JST]
     n = len(jst)
     MID(data)
@@ -459,7 +459,7 @@ def VWAP(data: dict, begin_hour_list, pivot_threshold, pivot_left_len, pivot_cen
                 else:
                     std[i] = 0
     data[Indicators.VWAP] = vwap
-    rate = vwap_rate(mid, vwap, std)
+    rate = vwap_rate(mid, vwap, std, median_window, ma_window)
     data[Indicators.VWAP_RATE] = rate
     
     dt = jst[1] - jst[0]

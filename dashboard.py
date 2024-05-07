@@ -37,11 +37,13 @@ MINUTES = list(range(0, 60))
 
 INTERVAL_MSEC = 30 * 1000
 
-technical_param1 = {'vwap_begin_hour_list': [8, 16, 20], 
-                    'pivot_threshold':0.6, 
-                    'pivot_left_len':4,
-                    'pivot_center_len':4,
-                    'pivot_right_len':4,
+technical_param1 = {'vwap': {'begin_hour_list': [8, 16, 20], 
+                            'pivot_threshold':0.6, 
+                            'pivot_left_len':4,
+                            'pivot_center_len':4,
+                            'pivot_right_len':4,
+                            'median_window': 10,
+                            'ma_window': 10}
                     }
 technical_param2 = {'atr_window': 50, 'atr_multiply': 2.0, 'peak_hold_term': 10}
 VWAP_BEGIN_HOUR = [8, 16, 20]
@@ -207,17 +209,20 @@ def update_chart(interval,
     return create_graph(symbol1, timeframe1, fig1, data1), create_graph(symbol2, timeframe2, fig2, data2)
 
 def indicators1(symbol, data, param):
+    vwap_param = param['vwap']
     if symbol.lower() == 'usdjpy':
         hours = VWAP_BEGIN_HOUR_FX
     else:
-        hours = param['vwap_begin_hour_list']
+        hours = vwap_param['begin_hour_list']
     
     VWAP(data,
          hours,
-         param['pivot_threshold'],
-         param['pivot_left_len'],
-         param['pivot_center_len'],
-         param['pivot_right_len']
+         vwap_param['pivot_threshold'],
+         vwap_param['pivot_left_len'],
+         vwap_param['pivot_center_len'],
+         vwap_param['pivot_right_len'],
+         vwap_param['median_window'],
+         vwap_param['ma_window']
          )
     #ADX(data, 20, 20, 100)
     
