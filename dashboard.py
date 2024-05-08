@@ -100,6 +100,20 @@ def select_symbol(number: int):
     return [header, symbol, timeframe, barsize] 
 
 
+pivot_threshold = dcc.Input(id='pivot_threshold',type="number", min=0.1, max=10, step=0.1, value=technical_param1['vwap']['pivot_threshold'])
+pivot_left_len = dcc.Input(id='pivot_left_len',type="number", min=1, max=30, step=1, value=technical_param1['vwap']['pivot_left_len'])
+pivot_center_len = dcc.Input(id='pivot_center_len',type="number", min=1, max=30, step=1, value=technical_param1['vwap']['pivot_center_len'])
+pivot_right_len = dcc.Input(id='pivot_right_len',type="number", min=1, max=30, step=1, value=technical_param1['vwap']['pivot_right_len'])
+median_window = dcc.Input(id='median_window',type="number", min=1, max=50, step=1, value=technical_param1['vwap']['median_window'])
+ma_window = dcc.Input(id='ma_window',type="number", min=1, max=50, step=1, value=technical_param1['vwap']['ma_window'])
+
+param1 = html.Div([html.P('Pivot threshold'), pivot_threshold])
+param2 = html.Div([html.P('Pivot left len'), pivot_left_len])
+param3 = html.Div([html.P('Pivot center len'), pivot_center_len])
+param4 = html.Div([html.P('Pivot right len'), pivot_right_len])
+param5 = html.Div([html.P('VWAP median window'), median_window])
+param6 = html.Div([html.P('VWAP ma window'), ma_window])
+
 symbol1 = select_symbol(1)
 sidebar1 =  html.Div([
                         symbol1[0],
@@ -108,6 +122,12 @@ sidebar1 =  html.Div([
                                     symbol1[2],
                                     symbol1[3],
                                     html.Hr(),
+                                    param1,
+                                    param2,
+                                    param3,
+                                    param4,
+                                    param5,
+                                    param6,
                                     html.Hr()],
                                 style={'height': '50vh', 'margin': '8px'})
                     ])
@@ -116,9 +136,9 @@ atr_window = dcc.Input(id='atr_window',type="number", min=10, max=100, step=10, 
 atr_multiply = dcc.Input(id='atr_multiply',type="number", min=1, max=4, step=0.1, value=technical_param2['atr_multiply'])
 peak_hold_term = dcc.Input(id='peak_hold_term',type="number", min=10, max=100, step=1, value=technical_param2['peak_hold_term'])
 
-param6 = html.Div([html.P('ATR window'), atr_window])
-param7 = html.Div([html.P('ATR Multiply'), atr_multiply])
-param8 = html.Div([html.P('Peakhold'), peak_hold_term]) 
+param7 = html.Div([html.P('ATR window'), atr_window])
+param8 = html.Div([html.P('ATR Multiply'), atr_multiply])
+param9 = html.Div([html.P('Peakhold'), peak_hold_term]) 
 symbol2 = select_symbol(2)
 sidebar2 =  html.Div([
                         symbol2[0],
@@ -127,9 +147,9 @@ sidebar2 =  html.Div([
                                     symbol2[2],
                                     symbol2[3],
                                     html.Hr(),
-                                    param6,
                                     param7,
                                     param8,
+                                    param9,
                                     html.Hr()],
                                 style={'height': '50vh', 'margin': '8px'})
                     ])
@@ -174,6 +194,12 @@ app.layout = dbc.Container([
     State('symbol_dropdown1', 'value'), 
     State('timeframe_dropdown1', 'value'), 
     State('barsize_dropdown1', 'value'),
+    State('pivot_threshold', 'value'),
+    State('pivot_left_len', 'value'),
+    State('pivot_center_len', 'value'),
+    State('pivot_right_len', 'value'),
+    State('median_window', 'value'),
+    State('ma_window', 'value'),
     
     State('symbol_dropdown2', 'value'), 
     State('timeframe_dropdown2', 'value'), 
@@ -186,6 +212,12 @@ def update_chart(interval,
                  symbol1,
                  timeframe1,
                  num_bars1,
+                 pivot_threshold,
+                 pivot_left_len,
+                 pivot_center_len,
+                 pivot_right_len,
+                 median_window,
+                 ma_window,
                  symbol2,
                  timeframe2,
                  num_bars2,
@@ -198,6 +230,14 @@ def update_chart(interval,
     num_bars1 = int(num_bars1)
     data1 = api.get_rates(symbol1, timeframe1, num_bars1 + 60 * 8)
     fig1 = create_chart1(symbol1, data1, num_bars1)
+
+
+    technical_param1['vwap']['pivot_threshold'] = pivot_threshold
+    technical_param1['vwap']['pivot_left_len'] = pivot_left_len
+    technical_param1['vwap']['pivot_center_len'] = pivot_center_len
+    technical_param1['vwap']['pivot_right_len'] = pivot_right_len
+    technical_param1['vwap']['median_window'] =  median_window
+    technical_param1['vwap']['ma_window'] =  ma_window
 
     technical_param2['atr_window'] = atr_window
     technical_param2['atr_multiply'] = atr_multiply
