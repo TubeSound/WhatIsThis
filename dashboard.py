@@ -10,7 +10,7 @@ import shutil
 
 import numpy as np
 import pandas as pd
-from datetime import datetime, date
+from datetime import datetime, timedelta
 import time
 
 import dash
@@ -21,6 +21,11 @@ from dash.dependencies import Input, Output, State
 import plotly
 import plotly.graph_objs as go
 from plotly.figure_factory import create_candlestick
+
+from dateutil import tz
+
+JST = tz.gettz('Asia/Tokyo')
+UTC = tz.gettz('utc')
 
 from ta.trend import MACD
 from ta.momentum import StochasticOscillator
@@ -38,12 +43,12 @@ MINUTES = list(range(0, 60))
 INTERVAL_MSEC = 30 * 1000
 
 technical_param1 = {'vwap': {'begin_hour_list': [8, 16, 20], 
-                            'pivot_threshold':0.6, 
-                            'pivot_left_len':4,
-                            'pivot_center_len':4,
-                            'pivot_right_len':4,
-                            'median_window': 10,
-                            'ma_window': 10}
+                            'pivot_threshold':20, 
+                            'pivot_left_len':7,
+                            'pivot_center_len':7,
+                            'pivot_right_len':7,
+                            'median_window': 5,
+                            'ma_window': 20}
                     }
 technical_param2 = {'atr_window': 50, 'atr_multiply': 2.0, 'peak_hold_term': 10}
 VWAP_BEGIN_HOUR = [8, 16, 20]
@@ -51,6 +56,15 @@ VWAP_BEGIN_HOUR_FX = [8]
 
 api = Mt5Api()
 app = Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
+
+
+mode = 2
+
+year = 2020
+month = 2
+day = 21
+
+
 
 # ----
 
@@ -100,7 +114,7 @@ def select_symbol(number: int):
     return [header, symbol, timeframe, barsize] 
 
 
-pivot_threshold = dcc.Input(id='pivot_threshold',type="number", min=0.1, max=10, step=0.1, value=technical_param1['vwap']['pivot_threshold'])
+pivot_threshold = dcc.Input(id='pivot_threshold',type="number", min=1, max=70, step=1, value=technical_param1['vwap']['pivot_threshold'])
 pivot_left_len = dcc.Input(id='pivot_left_len',type="number", min=1, max=30, step=1, value=technical_param1['vwap']['pivot_left_len'])
 pivot_center_len = dcc.Input(id='pivot_center_len',type="number", min=1, max=30, step=1, value=technical_param1['vwap']['pivot_center_len'])
 pivot_right_len = dcc.Input(id='pivot_right_len',type="number", min=1, max=30, step=1, value=technical_param1['vwap']['pivot_right_len'])
@@ -228,8 +242,18 @@ def update_chart(interval,
 
     
     num_bars1 = int(num_bars1)
-    data1 = api.get_rates(symbol1, timeframe1, num_bars1 + 60 * 8)
-    fig1 = create_chart1(symbol1, data1, num_bars1)
+    
+    print('Mode', mode)
+    if mode == 1:
+        data1 = api.get_rates(symbol1, timeframe1, num_bars1 + 60 * 8)
+    elif mode == 2:
+        jst = datetime(year, month, day, 7)
+        jst = jst.replace(tzinfo=JST)
+        data1 = api.get_rates_jst(symbol1, timeframe1, jst, jst + timedelta(hours=48))
+    
+    size = len(data1['time'])
+    print('Data... time ', data1['time'][0], size)
+    fig1 = create_chart1(symbol1, data1, size)
 
 
     technical_param1['vwap']['pivot_threshold'] = pivot_threshold
