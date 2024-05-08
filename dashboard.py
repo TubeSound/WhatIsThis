@@ -43,12 +43,12 @@ MINUTES = list(range(0, 60))
 INTERVAL_MSEC = 30 * 1000
 
 technical_param1 = {'vwap': {'begin_hour_list': [8, 16, 20], 
-                            'pivot_threshold':20, 
-                            'pivot_left_len':7,
+                            'pivot_threshold':10, 
+                            'pivot_left_len':6,
                             'pivot_center_len':7,
-                            'pivot_right_len':7,
+                            'pivot_right_len':6,
                             'median_window': 5,
-                            'ma_window': 20}
+                            'ma_window': 15}
                     }
 technical_param2 = {'atr_window': 50, 'atr_multiply': 2.0, 'peak_hold_term': 10}
 VWAP_BEGIN_HOUR = [8, 16, 20]
@@ -58,7 +58,7 @@ api = Mt5Api()
 app = Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
 
 
-mode = 2
+mode = 1
 
 year = 2020
 month = 2
