@@ -204,35 +204,45 @@ def update_chart(interval,
                  ma_window,
                  ):
 
-    
     num_bars = int(num_bars)
     
-    values = date.split('T')
-    values = values[0].split('-')
-    year = int(values[0])
-    month = int(values[1])
-    day = int(values[2])
-    print('Date', year, month, day)
     print('Mode', mode_select)
     if mode_select == 'Live':
         data = api.get_rates(symbol, timeframe, num_bars + 60 * 8)
     elif mode_select == 'Fix':
-        jst = datetime(year, month, day, 7)
-        jst = jst.replace(tzinfo=JST)
-        data = api.get_rates_jst(symbol, timeframe, jst, jst + timedelta(hours=48))
+        jst = calc_date(date, timeframe, num_bars)
+        data = api.get_rates_jst(symbol, timeframe, jst[0], jst[1])
     
     size = len(data['time'])
     print('Data... time ', data['time'][0], size)
     fig1 = create_chart1(symbol, data, size)
-
     technical_param1['vwap']['pivot_threshold'] = pivot_threshold
     technical_param1['vwap']['pivot_left_len'] = pivot_left_len
     technical_param1['vwap']['pivot_center_len'] = pivot_center_len
     technical_param1['vwap']['pivot_right_len'] = pivot_right_len
     technical_param1['vwap']['median_window'] =  median_window
     technical_param1['vwap']['ma_window'] =  ma_window
-
     return create_graph(symbol, timeframe, fig1, data)
+
+def calc_date(date, timeframe, barsize):
+    def dt_bar(timeframe):
+        if timeframe[0] == 'M':
+            return int(timeframe[1:])
+        elif timeframe[0] == 'H':
+            return int(timeframe[1:]) * 60
+    
+    values = date.split('T')
+    values = values[0].split('-')
+    year = int(values[0])
+    month = int(values[1])
+    day = int(values[2])
+    tfrom = datetime(year, month, day, 7, tzinfo=JST)
+    dt = dt_bar(timeframe)
+    tto = tfrom + timedelta(minutes=dt * barsize)
+    print('from', tfrom, '-', tto)
+    return tfrom, tto
+    
+    
 
 def indicators1(symbol, data, param):
     vwap_param = param['vwap']
