@@ -50,69 +50,72 @@ technical_param1 = {'vwap': {'begin_hour_list': [8, 16, 20],
                             'median_window': 5,
                             'ma_window': 15}
                     }
-technical_param2 = {'atr_window': 50, 'atr_multiply': 2.0, 'peak_hold_term': 10}
-VWAP_BEGIN_HOUR = [8, 16, 20]
+
 VWAP_BEGIN_HOUR_FX = [8]
+
+MODE = ['Live', 'Fix', 'Slide']
 
 api = Mt5Api()
 app = Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
 
-
-mode = 1
 
 year = 2020
 month = 2
 day = 21
 
 
-
 # ----
-
-
     
-def select_symbol(number: int):
-    number = str(number)   
-    header = dbc.Row([
-                    html.H5('Chart' + number ,
-                    style={'margin-top': '2px', 'margin-left': '24px'})
-                    ],
-                    style={"height": "3vh"},
-                    className='bg-primary text-white')                        
-    
-    symbol_dropdown = dcc.Dropdown(id='symbol_dropdown' + number,
-                             multi=False,
-                             value=TICKERS[0],
-                             options=[{'label': x, 'value': x} for x in TICKERS],
-                             style={'width': '140px'})
-
-    symbol = html.Div([ html.P('Ticker Symbol',
-                           style={'margin-top': '8px', 'margin-bottom': '4px'}, 
-                           className='font-weight-bold'),
-                           symbol_dropdown])
  
-    timeframe_dropdown = dcc.Dropdown(id='timeframe_dropdown' + number, 
-                                  multi=False, 
-                                  value=TIMEFRAMES[0], 
-                                  options=[{'label': x, 'value': x} for x in TIMEFRAMES],
-                                  style={'width': '120px'})                
-    timeframe =  html.Div([
-                                html.P('Time Frame',
-                                       style={'margin-top': '16px', 'margin-bottom': '4px'},
-                                       className='font-weight-bold'),
-                                        timeframe_dropdown])
+symbol_dropdown = dcc.Dropdown( id='symbol_dropdown',
+                                    multi=False,
+                                    value=TICKERS[0],
+                                    options=[{'label': x, 'value': x} for x in TICKERS],
+                                    style={'width': '140px'})
 
-    barsize_dropdown = dcc.Dropdown(id='barsize_dropdown' + number, 
-                                multi=False, 
-                                value=BARSIZE[2],
-                                options=[{'label': x, 'value': x} for x in BARSIZE],
-                                style={'width': '120px'})
+symbol = html.Div([ html.P('Ticker Symbol', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'), symbol_dropdown])
+timeframe_dropdown = dcc.Dropdown(  id='timeframe_dropdown', 
+                                        multi=False, 
+                                        value=TIMEFRAMES[0], 
+                                        options=[{'label': x, 'value': x} for x in TIMEFRAMES],
+                                        style={'width': '120px'})                
+timeframe =  html.Div(  [   html.P('Time Frame',
+                                style={'margin-top': '16px', 'margin-bottom': '4px'},
+                                className='font-weight-bold'),
+                                timeframe_dropdown])
 
-    barsize = html.Div([    html.P('Display Bar Size',
+barsize_dropdown = dcc.Dropdown(id='barsize_dropdown', 
+                                    multi=False, 
+                                    value=BARSIZE[2],
+                                    options=[{'label': x, 'value': x} for x in BARSIZE],
+                                    style={'width': '120px'})
+
+barsize = html.Div([    html.P('Display Bar Size',
                                style={'margin-top': '16px', 'margin-bottom': '4px'},
                                className='font-weight-bold'),
                                 barsize_dropdown])
-    return [header, symbol, timeframe, barsize] 
 
+data_picker = html.Div(     [   
+                                html.P('Start Date', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'),
+                                dcc.DatePickerSingle(   id='start_date', 
+                                                        min_date_allowed = datetime(2018,1,1), 
+                                                        max_date_allowed = datetime.today(), 
+                                                        date= datetime.today(),
+                                                        month_format='YYYY MM DD',
+                                                        placeholder='YYYY MM DD'
+                                                    )
+                            ]
+                    )
+
+mode_select = html.Div(     [   
+                        html.P('Mode', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'),
+                       dcc.Dropdown(id='mode_select', 
+                                    multi=False, 
+                                    value=MODE[0],
+                                    options=[{'label': x, 'value': x} for x in MODE],
+                                    style={'width': '120px'})
+                            ]
+                    )
 
 pivot_threshold = dcc.Input(id='pivot_threshold',type="number", min=1, max=70, step=1, value=technical_param1['vwap']['pivot_threshold'])
 pivot_left_len = dcc.Input(id='pivot_left_len',type="number", min=1, max=30, step=1, value=technical_param1['vwap']['pivot_left_len'])
@@ -128,13 +131,9 @@ param4 = html.Div([html.P('Pivot right len'), pivot_right_len])
 param5 = html.Div([html.P('VWAP median window'), median_window])
 param6 = html.Div([html.P('VWAP ma window'), ma_window])
 
-symbol1 = select_symbol(1)
-sidebar1 =  html.Div([
-                        symbol1[0],
-                        html.Div([
-                                    symbol1[1],
-                                    symbol1[2],
-                                    symbol1[3],
+
+sidebar =  html.Div([   html.Div([
+                                    mode_select,
                                     html.Hr(),
                                     param1,
                                     param2,
@@ -143,59 +142,34 @@ sidebar1 =  html.Div([
                                     param5,
                                     param6,
                                     html.Hr()],
-                                style={'height': '50vh', 'margin': '8px'})
-                    ])
- 
-atr_window = dcc.Input(id='atr_window',type="number", min=10, max=100, step=10, value=technical_param2['atr_window'])
-atr_multiply = dcc.Input(id='atr_multiply',type="number", min=1, max=4, step=0.1, value=technical_param2['atr_multiply'])
-peak_hold_term = dcc.Input(id='peak_hold_term',type="number", min=10, max=100, step=1, value=technical_param2['peak_hold_term'])
-
-param7 = html.Div([html.P('ATR window'), atr_window])
-param8 = html.Div([html.P('ATR Multiply'), atr_multiply])
-param9 = html.Div([html.P('Peakhold'), peak_hold_term]) 
-symbol2 = select_symbol(2)
-sidebar2 =  html.Div([
-                        symbol2[0],
-                        html.Div([
-                                    symbol2[1],
-                                    symbol2[2],
-                                    symbol2[3],
-                                    html.Hr(),
-                                    param7,
-                                    param8,
-                                    param9,
-                                    html.Hr()],
-                                style={'height': '50vh', 'margin': '8px'})
-                    ])
-    
-contents = html.Div([    
-                        dbc.Row([
-                                    html.H5('MetaTrader', style={'margin-top': '2px', 'margin-left': '24px'})
-                                ],
-                                style={"height": "3vh"}, className='bg-primary text-white'),
-                        dbc.Row([
-                                    html.Div(id='chart'),
-                                ],
-                                style={"height": "400vh"}, className='bg-white'),
-                        dbc.Row([
-                                    html.Div(id='table_container')
-                                ],
-                                #style={"height": "20vh"}, className='bg-primary text-white'
-                                ),
-                        dcc.Interval(
-                                        id='timer',
-                                        interval=INTERVAL_MSEC,
-                                        n_intervals=0)
+                        style={'height': '50vh', 'margin': '8px'})
                     ])
 
-app.layout = dbc.Container([
-                            dbc.Row(
-                                    [
-                                        dbc.Col(sidebar1, width=1, className='bg-light'),
-                                        dbc.Col(sidebar2, width=1, className='bg-light'),
-                                        dbc.Col(contents, width=9)
-                                    ],
-                                    style={"height": "150vh"}),
+
+
+     
+header = html.Div(  [  dbc.Row([                                              
+                                    dbc.Col(symbol, width=2),
+                                    dbc.Col(timeframe, width=2),
+                                    dbc.Col(barsize, width=2),
+                                    dbc.Col(data_picker, width=2)
+                                ])
+                    ]
+                )
+
+contents = html.Div([   
+                        #dbc.Row([html.H5('MetaTrader', style={'margin-top': '2px', 'margin-left': '24px'})], style={"height": "3vh"}, className='bg-primary text-white'),
+                        dbc.Row([header], style={"height": "7vh"}, className='bg-primary text-white'),
+                        dbc.Row([html.Div(id='chart')], style={"height": "400vh"}, className='bg-white'),
+                        dbc.Row([html.Div(id='table_container')]),
+                        dcc.Interval(id='timer', interval=INTERVAL_MSEC, n_intervals=0)
+                    ])
+
+app.layout = dbc.Container( [dbc.Row(   [
+                                            dbc.Col(sidebar, width=1, className='bg-light'),
+                                            dbc.Col(contents, width=9)
+                                        ],
+                                        style={"height": "150vh"}),
                             ],
                             fluid=True)
 
@@ -204,57 +178,52 @@ app.layout = dbc.Container([
 @app.callback(
     Output('chart', 'children'),
     Input('timer', 'n_intervals'),
-    
-    State('symbol_dropdown1', 'value'), 
-    State('timeframe_dropdown1', 'value'), 
-    State('barsize_dropdown1', 'value'),
+    State('mode_select', 'value'),
+    State('symbol_dropdown', 'value'), 
+    State('timeframe_dropdown', 'value'), 
+    State('barsize_dropdown', 'value'),
+    State('start_date', 'date'),
     State('pivot_threshold', 'value'),
     State('pivot_left_len', 'value'),
     State('pivot_center_len', 'value'),
     State('pivot_right_len', 'value'),
     State('median_window', 'value'),
     State('ma_window', 'value'),
-    
-    State('symbol_dropdown2', 'value'), 
-    State('timeframe_dropdown2', 'value'), 
-    State('barsize_dropdown2', 'value'),
-    State('atr_window', 'value'), 
-    State('atr_multiply', 'value'), 
-    State('peak_hold_term', 'value')
 )
 def update_chart(interval,
-                 symbol1,
-                 timeframe1,
-                 num_bars1,
+                 mode_select,
+                 symbol,
+                 timeframe,
+                 num_bars,
+                 date,
                  pivot_threshold,
                  pivot_left_len,
                  pivot_center_len,
                  pivot_right_len,
                  median_window,
                  ma_window,
-                 symbol2,
-                 timeframe2,
-                 num_bars2,
-                 atr_window,
-                 atr_multiply,
-                 peak_hold_term
                  ):
 
     
-    num_bars1 = int(num_bars1)
+    num_bars = int(num_bars)
     
-    print('Mode', mode)
-    if mode == 1:
-        data1 = api.get_rates(symbol1, timeframe1, num_bars1 + 60 * 8)
-    elif mode == 2:
+    values = date.split('T')
+    values = values[0].split('-')
+    year = int(values[0])
+    month = int(values[1])
+    day = int(values[2])
+    print('Date', year, month, day)
+    print('Mode', mode_select)
+    if mode_select == 'Live':
+        data = api.get_rates(symbol, timeframe, num_bars + 60 * 8)
+    elif mode_select == 'Fix':
         jst = datetime(year, month, day, 7)
         jst = jst.replace(tzinfo=JST)
-        data1 = api.get_rates_jst(symbol1, timeframe1, jst, jst + timedelta(hours=48))
+        data = api.get_rates_jst(symbol, timeframe, jst, jst + timedelta(hours=48))
     
-    size = len(data1['time'])
-    print('Data... time ', data1['time'][0], size)
-    fig1 = create_chart1(symbol1, data1, size)
-
+    size = len(data['time'])
+    print('Data... time ', data['time'][0], size)
+    fig1 = create_chart1(symbol, data, size)
 
     technical_param1['vwap']['pivot_threshold'] = pivot_threshold
     technical_param1['vwap']['pivot_left_len'] = pivot_left_len
@@ -263,14 +232,7 @@ def update_chart(interval,
     technical_param1['vwap']['median_window'] =  median_window
     technical_param1['vwap']['ma_window'] =  ma_window
 
-    technical_param2['atr_window'] = atr_window
-    technical_param2['atr_multiply'] = atr_multiply
-    technical_param2['peak_hold_term'] = peak_hold_term
-    
-    num_bars2 = int(num_bars2)
-    data2 = api.get_rates(symbol2, timeframe2, num_bars2 + 60 * 8)
-    fig2 = create_chart2(data2, num_bars2)
-    return create_graph(symbol1, timeframe1, fig1, data1), create_graph(symbol2, timeframe2, fig2, data2)
+    return create_graph(symbol, timeframe, fig1, data)
 
 def indicators1(symbol, data, param):
     vwap_param = param['vwap']
@@ -304,9 +266,9 @@ def create_markers(time, signal, data, value, symbol, color):
                             mode='markers',
                             x=x,
                             y=y,
-                            opacity=0.9,
+                            opacity=0.5,
                             marker_symbol=symbol,
-                            marker=dict(color=color, size=20, line=dict(color='White', width=2)),
+                            marker=dict(color=color, size=16, line=dict(color='White', width=2)),
                             showlegend=False
                         )
     return markers
@@ -361,58 +323,11 @@ def create_chart1(symbol, data, num_bars):
     fig.add_trace(go.Scatter(x=jst, y=data['VWAP_UP'], line=dict(color='blue', width=2)), row=5, col=1)
     fig.add_trace(go.Scatter(x=jst, y=data['VWAP_DOWN'], line=dict(color='red', width=2)), row=5, col=1)
 
-
     # update y-axis label
     fig.update_yaxes(title_text="Price", row=1, col=1)
     fig.update_yaxes(title_text="Volume", row=2, col=1)
     fig.update_yaxes(title_text="VWAP Slope", showgrid=False, row=3, col=1)
     fig.update_yaxes(title_text="VWAP Rate", row=4, col=1)     
-    return fig
-
-
-def create_chart2(data, num_bars):
-    t0 = time.time()
-    ATR_TRAIL(data, technical_param2['atr_window'], technical_param2['atr_multiply'], technical_param2['peak_hold_term'])
-    data = Utils.sliceDictLast(data, num_bars)
-    jst = data['jst']
-    n = len(jst)
-    print('Elapsed Time2:', time.time() - t0)
-    #print(time[:5])
-    # Declare plotly figure (go)
-    fig=go.Figure()
-
-    # add subplot properties when initializing fig variable
-    fig = plotly.subplots.make_subplots(rows=4, cols=1, shared_xaxes=True,
-                    vertical_spacing=0.01, 
-                    row_heights=[0.5,0.1,0.2,0.2])
-
-    fig.add_trace(go.Candlestick(x=jst,
-                    open=data['open'],
-                    high=data['high'],
-                    low=data['low'],
-                    close=data['close'], name = 'market data'))
-    
-    fig.add_trace(go.Scatter(x=jst, 
-                         y=data['ATR_TRAIL_UP'], 
-                         opacity=0.7, 
-                         line=dict(color='blue', width=2), 
-                         name='ATR Trail Up'))
-
-    fig.add_trace(go.Scatter(x=jst, 
-                         y=data['ATR_TRAIL_DOWN'], 
-                         opacity=0.7, 
-                         line=dict(color='orange', width=2), 
-                         name='ATR Trail down'))
-    
-    colors = ['green' if data['open'][i] - data['close'][i] >= 0 else 'red' for i in range(n)]
-    fig.add_trace(go.Bar(x=jst, 
-                     y=data['volume'],
-                     marker_color=colors
-                    ), row=2, col=1)
-    
-    # update y-axis label
-    fig.update_yaxes(title_text="Price", row=1, col=1)
-    fig.update_yaxes(title_text="Volume", row=2, col=1)  
     return fig
 
 def create_graph(symbol, timeframe, fig, data):
@@ -427,22 +342,16 @@ def create_graph(symbol, timeframe, fig, data):
     else:
         form = '%d/%H:%M'
     # update layout by changing the plot size, hiding legends & rangeslider, and removing gaps between dates
-    fig.update_layout(height=900, width=1100, 
+    fig.update_layout(height=900, width=1200, 
                     showlegend=False, 
                     xaxis_rangeslider_visible=False)
                     
-
     # Make the title dynamic to reflect whichever stock we are analyzing
-    fig.update_layout(
-        title= symbol + '(' + timeframe + ') ' + 'Live Share Price:',
-        yaxis_title='Stock Price') 
+    fig.update_layout(  title= symbol + '(' + timeframe + ') ' + 'Live Share Price:',
+                        yaxis_title='Stock Price') 
 
-      
-
-    fig['layout'].update({
-                            'title': symbol + '  ' + timeframe + '  ('  +  str(tfrom) + ')  ...  (' + str(tto) + ')',
-                            'xaxis':{
-                                        'title': 'Time',
+    fig['layout'].update({  'title': symbol + '  ' + timeframe + '  ('  +  str(tfrom) + ')  ...  (' + str(tto) + ')',
+                            'xaxis':{   'title': 'Time',
                                         'showgrid': True,
                                         'ticktext': [x.strftime(form) for x in jst][xtick::5],
                                         'tickvals': np.arange(xtick, len(jst), 5)
