@@ -44,9 +44,9 @@ INTERVAL_MSEC = 30 * 1000
 
 technical_param1 = {'vwap': {'begin_hour_list': [8, 16, 20], 
                             'pivot_threshold':10, 
-                            'pivot_left_len':6,
+                            'pivot_left_len':5,
                             'pivot_center_len':7,
-                            'pivot_right_len':6,
+                            'pivot_right_len':5,
                             'median_window': 5,
                             'ma_window': 15}
                     }
@@ -95,7 +95,7 @@ barsize = html.Div([    html.P('Display Bar Size',
                                className='font-weight-bold'),
                                 barsize_dropdown])
 
-data_picker = html.Div(     [   
+date_picker = html.Div(     [   
                                 html.P('Start Date', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'),
                                 dcc.DatePickerSingle(   id='start_date', 
                                                         min_date_allowed = datetime(2018,1,1), 
@@ -113,7 +113,7 @@ mode_select = html.Div(     [
                                     multi=False, 
                                     value=MODE[0],
                                     options=[{'label': x, 'value': x} for x in MODE],
-                                    style={'width': '120px'})
+                                    style={'width': '80px'})
                             ]
                     )
 
@@ -152,14 +152,14 @@ header = html.Div(  [  dbc.Row([
                                     dbc.Col(symbol, width=2),
                                     dbc.Col(timeframe, width=2),
                                     dbc.Col(barsize, width=2),
-                                    dbc.Col(data_picker, width=2)
+                                    dbc.Col(date_picker, width=2)
                                 ])
                     ]
                 )
 
 contents = html.Div([   
                         #dbc.Row([html.H5('MetaTrader', style={'margin-top': '2px', 'margin-left': '24px'})], style={"height": "3vh"}, className='bg-primary text-white'),
-                        dbc.Row([header], style={"height": "7vh"}, className='bg-primary text-white'),
+                        dbc.Row([header], style={"height": "10vh"}, className='bg-primary text-white'),
                         dbc.Row([html.Div(id='chart')], style={"height": "400vh"}, className='bg-white'),
                         dbc.Row([html.Div(id='table_container')]),
                         dcc.Interval(id='timer', interval=INTERVAL_MSEC, n_intervals=0)
