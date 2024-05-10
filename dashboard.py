@@ -58,15 +58,9 @@ MODE = ['Live', 'Fix', 'Slide']
 api = Mt5Api()
 app = Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
 
-
-year = 2020
-month = 2
-day = 21
-
-
 # ----
-    
- 
+
+      
 symbol_dropdown = dcc.Dropdown( id='symbol_dropdown',
                                     multi=False,
                                     value=TICKERS[0],
@@ -95,17 +89,29 @@ barsize = html.Div([    html.P('Display Bar Size',
                                className='font-weight-bold'),
                                 barsize_dropdown])
 
-date_picker = html.Div(     [   
-                                html.P('Start Date', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'),
-                                dcc.DatePickerSingle(   id='start_date', 
+dtp = dcc.DatePickerSingle(   id='start_date', 
                                                         min_date_allowed = datetime(2018,1,1), 
                                                         max_date_allowed = datetime.today(), 
                                                         date= datetime.today(),
-                                                        month_format='YYYY MM DD',
-                                                        placeholder='YYYY MM DD'
+                                                        month_format='YYYY-MM-DD',
+                                                        placeholder='YYYY-MM-DD'
                                                     )
-                            ]
-                    )
+btn1 = dbc.Button("-", id='back_day', n_clicks=0)
+btn2 = dbc.Button("+", id='next_day', n_clicks=0)
+
+date_picker = html.Div(     [   
+                                html.P('Start Date', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'),
+                                dbc.Row([dbc.Col(dtp, width=5), dbc.Col(btn1, width=1), dbc.Col(btn2, width=1)])
+                            ])
+
+header = html.Div(  [  dbc.Row([                                              
+                                    dbc.Col(symbol, width=2),
+                                    dbc.Col(timeframe, width=2),
+                                    dbc.Col(barsize, width=2),
+                                    dbc.Col(date_picker, width=5)
+                                ])
+                    ]
+                ) 
 
 mode_select = html.Div(     [   
                         html.P('Mode', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'),
@@ -131,7 +137,6 @@ param4 = html.Div([html.P('Pivot right len'), pivot_right_len])
 param5 = html.Div([html.P('VWAP median window'), median_window])
 param6 = html.Div([html.P('VWAP ma window'), ma_window])
 
-
 sidebar =  html.Div([   html.Div([
                                     mode_select,
                                     html.Hr(),
@@ -145,28 +150,16 @@ sidebar =  html.Div([   html.Div([
                         style={'height': '50vh', 'margin': '8px'})
                     ])
 
-
-
-     
-header = html.Div(  [  dbc.Row([                                              
-                                    dbc.Col(symbol, width=2),
-                                    dbc.Col(timeframe, width=2),
-                                    dbc.Col(barsize, width=2),
-                                    dbc.Col(date_picker, width=2)
-                                ])
-                    ]
-                )
-
 contents = html.Div([   
                         #dbc.Row([html.H5('MetaTrader', style={'margin-top': '2px', 'margin-left': '24px'})], style={"height": "3vh"}, className='bg-primary text-white'),
-                        dbc.Row([header], style={"height": "10vh"}, className='bg-primary text-white'),
+                        dbc.Row([header], style={"height": "10vh"}, className='bg-light text-dark'),
                         dbc.Row([html.Div(id='chart')], style={"height": "400vh"}, className='bg-white'),
                         dbc.Row([html.Div(id='table_container')]),
                         dcc.Interval(id='timer', interval=INTERVAL_MSEC, n_intervals=0)
                     ])
 
 app.layout = dbc.Container( [dbc.Row(   [
-                                            dbc.Col(sidebar, width=1, className='bg-light'),
+                                            dbc.Col(sidebar, width=1, className='bg-info'),
                                             dbc.Col(contents, width=9)
                                         ],
                                         style={"height": "150vh"}),
@@ -174,6 +167,43 @@ app.layout = dbc.Container( [dbc.Row(   [
                             fluid=True)
 
 # -----
+def str2date(s):
+    s = s[:10]
+    values = s.split('-')
+    t = datetime(int(values[0]), int(values[1]), int(values[2]))
+    t = t.replace(tzinfo=JST)
+    return t
+    
+def date2str(t):
+    s =  t.strftime("%Y-%m-%d")   
+    return s
+
+@app.callback(
+    Output('start_date', 'date'),
+    [Input('back_day', 'n_clicks'),
+     Input('next_day', 'n_clicks'),
+     Input('start_date', 'date')]
+)
+def update_output(n_clicks1, n_clicks2, date):
+    if n_clicks1 == 0 and n_clicks2 == 0:
+        return date
+    
+    print('input', date)
+    try:
+        t = str2date(date)
+    except:
+        return date
+    t2 = datetime(t.year, t.month, t.day, 7)
+    if n_clicks1 > 0:    
+        t2 -= timedelta(days=1)
+        s = date2str(t2)
+        print('output', s)
+        return s  
+    elif n_clicks2 > 0:
+        t2 += timedelta(days=1)
+        return date2str(t2)
+    else:
+        return date
 
 @app.callback(
     Output('chart', 'children'),
@@ -205,8 +235,7 @@ def update_chart(interval,
                  ):
 
     num_bars = int(num_bars)
-    
-    print('Mode', mode_select)
+    #print('Mode', mode_select)
     if mode_select == 'Live':
         data = api.get_rates(symbol, timeframe, num_bars + 60 * 8)
     elif mode_select == 'Fix':
@@ -214,7 +243,9 @@ def update_chart(interval,
         data = api.get_rates_jst(symbol, timeframe, jst[0], jst[1])
     
     size = len(data['time'])
-    print('Data... time ', data['time'][0], size)
+    if size < 50:
+        return
+    #print('Data... time ', data['time'][0], size)
     fig1 = create_chart1(symbol, data, size)
     technical_param1['vwap']['pivot_threshold'] = pivot_threshold
     technical_param1['vwap']['pivot_left_len'] = pivot_left_len
@@ -239,11 +270,10 @@ def calc_date(date, timeframe, barsize):
     tfrom = datetime(year, month, day, 7, tzinfo=JST)
     dt = dt_bar(timeframe)
     tto = tfrom + timedelta(minutes=dt * barsize)
-    print('from', tfrom, '-', tto)
+    tfrom -= timedelta(minutes=dt * barsize)
+    #print('from', tfrom, '-', tto)
     return tfrom, tto
     
-    
-
 def indicators1(symbol, data, param):
     vwap_param = param['vwap']
     if symbol.lower() == 'usdjpy':
@@ -282,7 +312,6 @@ def create_markers(time, signal, data, value, symbol, color):
                             showlegend=False
                         )
     return markers
-       
 
 def create_chart1(symbol, data, num_bars):
     t0 = time.time()
@@ -336,7 +365,7 @@ def create_chart1(symbol, data, num_bars):
     # update y-axis label
     fig.update_yaxes(title_text="Price", row=1, col=1)
     fig.update_yaxes(title_text="Volume", row=2, col=1)
-    fig.update_yaxes(title_text="VWAP Slope", showgrid=False, row=3, col=1)
+    fig.update_yaxes(title_text="VWAP Slope", showgrid=False, range=[-0.5, 0.5], row=3, col=1)
     fig.update_yaxes(title_text="VWAP Rate", row=4, col=1)     
     return fig
 

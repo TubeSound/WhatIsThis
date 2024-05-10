@@ -127,7 +127,6 @@ def cross_value(vector: list, value):
             cross[i] = DOWN
     return up, down, cross
 
-
 def median(vector, window):
     n = len(vector)
     out = nans(n)
@@ -139,8 +138,6 @@ def median(vector, window):
         out[i] = med
     return out
         
-
-    
 def band_position(data, lower, center, upper):
     n = len(data)
     pos = full(0, n)
@@ -180,7 +177,6 @@ def MA( dic: dict, column: str, window: int):
     d = moving_average(vector, window)
     dic[name] = d
 
-    
 def ATR(dic: dict, term: int, term_long:int):
     hi = dic[Columns.HIGH]
     lo = dic[Columns.LOW]
@@ -194,7 +190,6 @@ def ATR(dic: dict, term: int, term_long:int):
         atr_long = moving_average(tr, term_long)
         dic[Indicators.ATR_LONG] = atr_long
 
-    
 def ADX(data: dict, di_window: int, adx_term: int, adx_term_long:int):
     hi = data[Columns.HIGH]
     lo = data[Columns.LOW]
@@ -231,7 +226,6 @@ def ADX(data: dict, di_window: int, adx_term: int, adx_term_long:int):
     if adx_term_long is not None:
         adx_long = moving_average(dx, adx_term_long)
         data[Indicators.ADX_LONG] = adx_long
-    
     
 def POLARITY(data: dict, window: int):
     hi = data[Columns.HIGH]
@@ -288,7 +282,6 @@ def BBRATE(data: dict, window: int, ma_window):
             continue
         rate[i] = (cl[i] - ma[i]) / s * 100.0
     data[Indicators.BBRATE] = rate
-    
 
 def BB(data: dict, window: int, ma_window:int, band_multiply):
     cl = data[Columns.CLOSE]
@@ -321,7 +314,6 @@ def time_jst(year, month, day, hour=0):
     t0 = datetime(year, month, day, hour)
     t = t0.replace(tzinfo=JST)
     return t
-
 
 def pivot2(signal, threshold, left_length=2, right_length=2):
     n = len(signal)
@@ -561,7 +553,6 @@ def MID(data: dict):
         md[i] = (o + c) / 2
     data[Columns.MID] = md
     
-    
 def ATR_TRAIL(data: dict, atr_window: int, atr_multiply: float, peak_hold_term: int):
     atr_window = int(atr_window)
     atr_multiply = int(atr_multiply)
@@ -612,7 +603,6 @@ def ATR_TRAIL(data: dict, atr_window: int, atr_multiply: float, peak_hold_term: 
             down[i] = trail_stop[i]
     data[Indicators.ATR_TRAIL_UP] = up
     data[Indicators.ATR_TRAIL_DOWN] = down
-    
              
 def SUPERTREND(data: dict,  multiply, column=Columns.MID):
     time = data[Columns.TIME]
@@ -676,10 +666,6 @@ def diff(data: dict, column: str):
         dt = time[i] - time[i - 1]
         out[i] = (signal[i] - signal[i - 1]) / signal[i - 1] / (dt.seconds / 60) * 100.0
     return out
-
-
-
-
 
 def test():
     sig = [1, 2, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
