@@ -42,7 +42,7 @@ MINUTES = list(range(0, 60))
 
 INTERVAL_MSEC = 30 * 1000
 
-technical_param1 = {'vwap': {'begin_hour_list': [8, 16, 20], 
+technical_param1 = {'vwap': {'begin_hour_list': [7, 19], 
                             'pivot_threshold':10, 
                             'pivot_left_len':5,
                             'pivot_center_len':7,
@@ -292,11 +292,16 @@ def indicators1(symbol, data, param):
          )
     #ADX(data, 20, 20, 100)
     
-def create_markers(time, signal, data, value, symbol, color):
+def add_markers(fig, time, signal, data, value, symbol, color, row=0, col=0):
+    if len(signal) == 0:
+        return 
     x = []
     y = []
     for t, s, d in zip(time, signal, data) :
-        if np.isnan(s):
+        try:
+            if np.isnan(s):
+                continue
+        except:
             continue  
         if s == value:
             x.append(t)
@@ -311,7 +316,7 @@ def create_markers(time, signal, data, value, symbol, color):
                             marker=dict(color=color, size=16, line=dict(color='White', width=2)),
                             showlegend=False
                         )
-    return markers
+    fig.add_trace(markers, row=row, col=col)
 
 def create_chart1(symbol, data, num_bars):
     t0 = time.time()
@@ -320,11 +325,7 @@ def create_chart1(symbol, data, num_bars):
     jst = data['jst']
     n = len(jst)
     print('Elapsed Time:', time.time() - t0)
-    #print(time[:5])
-    # Declare plotly figure (go)
     fig=go.Figure()
-
-    # add subplot properties when initializing fig variable
     fig = plotly.subplots.make_subplots(rows=5, cols=1, shared_xaxes=True,
                     vertical_spacing=0.01, 
                     row_heights=[0.5, 0.1, 0.2,  0.2, 0.1])
@@ -356,16 +357,19 @@ def create_chart1(symbol, data, num_bars):
     fig.add_trace(go.Scatter(x=jst, y=data['VWAP_SLOPE'], line=dict(color='Green', width=2)), row=3, col=1)
     
     fig.add_trace(go.Scatter(x=jst, y=data['VWAP_RATE'], line=dict(color='blue', width=2)), row=4, col=1)
-    fig.add_trace(create_markers(jst, data['VWAP_SIGNAL'], data['VWAP_RATE'], 1, 'triangle-up', 'Green'), row=4, col=1)
-    fig.add_trace(create_markers(jst, data['VWAP_SIGNAL'], data['VWAP_RATE'], -1, 'triangle-down', 'Red'), row=4, col=1)
+
+    add_markers(fig, jst, data['VWAP_RATE_SIGNAL'], data['VWAP_RATE'], 1, 'triangle-up', 'Green', row=4, col=1)
+    add_markers(fig, jst, data['VWAP_RATE_SIGNAL'], data['VWAP_RATE'], -1, 'triangle-down', 'Red', row=4, col=1)
     
-    fig.add_trace(go.Scatter(x=jst, y=data['VWAP_UP'], line=dict(color='blue', width=2)), row=5, col=1)
+    fig.add_trace(go.Scatter(x=jst, y=data['VWAP_PROB'], line=dict(color='blue', width=2)), row=5, col=1)
+    add_markers(fig, jst, data['VWAP_PROB_SIGNAL'], data['VWAP_PROB'], 1, 'triangle-up', 'Green', row=5, col=1)
+    add_markers(fig, jst, data['VWAP_PROB_SIGNAL'], data['VWAP_PROB'], -1, 'triangle-down', 'Red', row=5, col=1)
     fig.add_trace(go.Scatter(x=jst, y=data['VWAP_DOWN'], line=dict(color='red', width=2)), row=5, col=1)
 
     # update y-axis label
     fig.update_yaxes(title_text="Price", row=1, col=1)
     fig.update_yaxes(title_text="Volume", row=2, col=1)
-    fig.update_yaxes(title_text="VWAP Slope", showgrid=False, range=[-0.5, 0.5], row=3, col=1)
+    fig.update_yaxes(title_text="VWAP Slope", showgrid=False, range=[-1, 1], row=3, col=1)
     fig.update_yaxes(title_text="VWAP Rate", row=4, col=1)     
     return fig
 

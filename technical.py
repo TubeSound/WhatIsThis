@@ -29,9 +29,11 @@ def moving_average(vector, window):
 
 def slope(signal: list, window: int, minutes: int, tolerance=0.0):
     n = len(signal)
-    out = full(0, n)
+    out = full(np.nan, n)
     for i in range(window - 1, n):
         d = signal[i - window + 1: i + 1]
+        if np.min(d) == 0:
+            continue        
         m, offset = np.polyfit(range(window), d, 1)
         if abs(m) > tolerance:
             out[i] = m / np.mean(d[:3]) * 100.0 / (window * minutes)  * 60 * 24
@@ -92,26 +94,23 @@ def roi(vector:list):
             out[i] = (vector[i] - vector[i - 1]) / vector[i - 1] * 100.0
     return out
 
-
-def pivot(vector: list, left_length: int, right_length: int, threshold: float):
-    n = len(vector)
-    high = nans(n)
-    low = nans(n)
+def pivot(up: list, down: list, threshold: float=7 , left_length: int=5, right_length: int=5):
+    n = len(up)
     state = full(0, n)
     for i in range(left_length + right_length, n):
-        center = vector[i - right_length]
-        left = vector[i - left_length - right_length: i - right_length]
-        right = vector[i - right_length + 1: i + 1]
-        if threshold is not None:
-            if abs(center) < threshold:
-                continue
-        if center > max(left) and center > max(right):
-            high[i - right_length] = center
-            state[i] = HIGH
-        elif center < min(left) and center < min(right):
-            low[i - right_length] = center
-            state[i] = LOW
-    return high, low, state
+        if up[i] + down[i] < 90:
+            continue
+        left = up[i - left_length - right_length: i - right_length]
+        right = up[i - right_length: i + 1]        
+        range_left = max(left) - min(left)
+        if range_left < 2:
+            if np.mean(left) < 20:
+                if (np.mean(right) - np.mean(left)) > threshold:
+                    state[i] = HIGH
+            if np.mean(left) > 80:
+                if (np.mean(right) - np.mean(left)) < -threshold:
+                    state[i] = LOW
+    return state
 
 def cross_value(vector: list, value):
     n = len(vector)
@@ -462,20 +461,16 @@ def VWAP(data: dict, begin_hour_list, pivot_threshold, pivot_left_len, pivot_cen
         data[Indicators.VWAP_UPPER + str(i)] = upper
         data[Indicators.VWAP_LOWER + str(i)] = lower
     
+    signal1 = vwap_pivot(rate, pivot_threshold, pivot_left_len, pivot_center_len, pivot_right_len)
+    data[Indicators.VWAP_RATE_SIGNAL] = signal1    
     pos = band_position(mid, lower, vwap, upper)
     up = probability(pos, [1, 2], 40)
     down = probability(pos, [-1, -2], 40)
-    data[Indicators.VWAP_UP] = up
+    data[Indicators.VWAP_PROB] = up
     data[Indicators.VWAP_DOWN] = down
     
-    cross_up, cross_down, cross = cross_value(up, 50)
-    data[Indicators.VWAP_CROSS] = cross
-    data[Indicators.VWAP_CROSS_UP] = cross_up
-    data[Indicators.VWAP_CROSS_DOWN] = cross_down
-    
-    signal = vwap_pivot(rate, pivot_threshold, pivot_left_len, pivot_center_len, pivot_right_len)
-    data[Indicators.VWAP_SIGNAL] = signal    
-    #data[Indicators.VWAP_SIGNAL_MID] = signal_mid
+    signal2 = pivot(up, down)
+    data[Indicators.VWAP_PROB_SIGNAL] = signal2
        
 def band(vector, signal, multiply):
     n = len(vector)
