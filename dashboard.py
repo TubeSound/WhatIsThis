@@ -36,7 +36,7 @@ from mt5_api import Mt5Api
 
 TICKERS = ['NIKKEI', 'DOW', 'NSDQ', 'USDJPY']
 TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1']
-BARSIZE = ['400', '600', '800', '1500', '2000', '3000']
+BARSIZE = ['100', '400', '600', '800', '1500', '2000', '3000']
 HOURS = list(range(0, 24))
 MINUTES = list(range(0, 60))
 
@@ -63,14 +63,14 @@ app = Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
       
 symbol_dropdown = dcc.Dropdown( id='symbol_dropdown',
                                     multi=False,
-                                    value=TICKERS[0],
+                                    value=TICKERS[1],
                                     options=[{'label': x, 'value': x} for x in TICKERS],
                                     style={'width': '140px'})
 
 symbol = html.Div([ html.P('Ticker Symbol', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'), symbol_dropdown])
 timeframe_dropdown = dcc.Dropdown(  id='timeframe_dropdown', 
                                         multi=False, 
-                                        value=TIMEFRAMES[0], 
+                                        value=TIMEFRAMES[6], 
                                         options=[{'label': x, 'value': x} for x in TIMEFRAMES],
                                         style={'width': '120px'})                
 timeframe =  html.Div(  [   html.P('Time Frame',
@@ -80,7 +80,7 @@ timeframe =  html.Div(  [   html.P('Time Frame',
 
 barsize_dropdown = dcc.Dropdown(id='barsize_dropdown', 
                                     multi=False, 
-                                    value=BARSIZE[2],
+                                    value=BARSIZE[0],
                                     options=[{'label': x, 'value': x} for x in BARSIZE],
                                     style={'width': '120px'})
 
@@ -188,18 +188,21 @@ def update_output(n_clicks1, n_clicks2, date):
     if n_clicks1 == 0 and n_clicks2 == 0:
         return date
     
+    ctx = dash.callback_context
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
     print('input', date)
     try:
         t = str2date(date)
     except:
         return date
     t2 = datetime(t.year, t.month, t.day, 7)
-    if n_clicks1 > 0:    
+    if button_id == 'back_day':    
         t2 -= timedelta(days=1)
         s = date2str(t2)
         print('output', s)
         return s  
-    elif n_clicks2 > 0:
+    elif button_id == 'next_day':
         t2 += timedelta(days=1)
         return date2str(t2)
     else:
@@ -258,10 +261,12 @@ def update_chart(interval,
 def calc_date(date, timeframe, barsize):
     def dt_bar(timeframe):
         if timeframe[0] == 'M':
-            return int(timeframe[1:])
+            return timedelta(minutes=int(timeframe[1:]))
         elif timeframe[0] == 'H':
-            return int(timeframe[1:]) * 60
-    
+            return timedelta(hours=int(timeframe[1:]))
+        elif timeframe[0] == 'D':
+            return timedelta(days=int(timeframe[1:]))
+        
     values = date.split('T')
     values = values[0].split('-')
     year = int(values[0])
@@ -269,9 +274,10 @@ def calc_date(date, timeframe, barsize):
     day = int(values[2])
     tfrom = datetime(year, month, day, 7, tzinfo=JST)
     dt = dt_bar(timeframe)
-    tto = tfrom + timedelta(minutes=dt * barsize)
-    tfrom -= timedelta(minutes=dt * barsize)
-    #print('from', tfrom, '-', tto)
+    print(dt, 'from', tfrom)
+    tto = tfrom + dt * barsize
+    tfrom -= dt * barsize
+    
     return tfrom, tto
     
 def indicators1(symbol, data, param):
@@ -353,14 +359,10 @@ def create_chart1(symbol, data, num_bars):
 
     colors = ['green' if data['open'][i] - data['close'][i] >= 0 else 'red' for i in range(n)]
     fig.add_trace(go.Bar(x=jst, y=data['volume'], marker_color=colors), row=2, col=1)
-    
     fig.add_trace(go.Scatter(x=jst, y=data['VWAP_SLOPE'], line=dict(color='Green', width=2)), row=3, col=1)
-    
     fig.add_trace(go.Scatter(x=jst, y=data['VWAP_RATE'], line=dict(color='blue', width=2)), row=4, col=1)
-
     add_markers(fig, jst, data['VWAP_RATE_SIGNAL'], data['VWAP_RATE'], 1, 'triangle-up', 'Green', row=4, col=1)
     add_markers(fig, jst, data['VWAP_RATE_SIGNAL'], data['VWAP_RATE'], -1, 'triangle-down', 'Red', row=4, col=1)
-    
     fig.add_trace(go.Scatter(x=jst, y=data['VWAP_PROB'], line=dict(color='blue', width=2)), row=5, col=1)
     add_markers(fig, jst, data['VWAP_PROB_SIGNAL'], data['VWAP_PROB'], 1, 'triangle-up', 'Green', row=5, col=1)
     add_markers(fig, jst, data['VWAP_PROB_SIGNAL'], data['VWAP_PROB'], -1, 'triangle-down', 'Red', row=5, col=1)
@@ -369,7 +371,7 @@ def create_chart1(symbol, data, num_bars):
     # update y-axis label
     fig.update_yaxes(title_text="Price", row=1, col=1)
     fig.update_yaxes(title_text="Volume", row=2, col=1)
-    fig.update_yaxes(title_text="VWAP Slope", showgrid=False, range=[-1, 1], row=3, col=1)
+    fig.update_yaxes(title_text="VWAP Slope", showgrid=False, range=[-2, 2], row=3, col=1)
     fig.update_yaxes(title_text="VWAP Rate", row=4, col=1)     
     return fig
 
