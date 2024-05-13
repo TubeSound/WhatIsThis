@@ -34,6 +34,12 @@ from technical import VWAP, BB, ATR_TRAIL, ADX
 from utils import Utils
 from mt5_api import Mt5Api
 
+from strategy import Simulation
+
+trade_param = {'sl': 200, 'volume': 0.1, 'position_num_max':5, 'target':200, 'trail_stop': 100 }
+sim = Simulation(trade_param)
+
+
 TICKERS = ['NIKKEI', 'DOW', 'NSDQ', 'USDJPY']
 TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1']
 BARSIZE = ['100', '400', '600', '800', '1500', '2000', '3000']
@@ -249,13 +255,19 @@ def update_chart(interval,
     if size < 50:
         return
     #print('Data... time ', data['time'][0], size)
-    fig1 = create_chart1(symbol, data, size)
+
     technical_param1['vwap']['pivot_threshold'] = pivot_threshold
     technical_param1['vwap']['pivot_left_len'] = pivot_left_len
     technical_param1['vwap']['pivot_center_len'] = pivot_center_len
     technical_param1['vwap']['pivot_right_len'] = pivot_right_len
     technical_param1['vwap']['median_window'] =  median_window
     technical_param1['vwap']['ma_window'] =  ma_window
+
+    indicators1(symbol, data, technical_param1)
+    data = Utils.sliceDictLast(data, num_bars)
+    df = sim.run_doten(data)
+    print(df)    
+    fig1 = create_chart1(symbol, data, size)
     return create_graph(symbol, timeframe, fig1, data)
 
 def calc_date(date, timeframe, barsize):
@@ -326,8 +338,6 @@ def add_markers(fig, time, signal, data, value, symbol, color, row=0, col=0):
 
 def create_chart1(symbol, data, num_bars):
     t0 = time.time()
-    indicators1(symbol, data, technical_param1)
-    data = Utils.sliceDictLast(data, num_bars)
     jst = data['jst']
     n = len(jst)
     print('Elapsed Time:', time.time() - t0)

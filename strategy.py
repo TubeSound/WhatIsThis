@@ -174,7 +174,7 @@ class Simulation:
         lo = data[Columns.LOW]
         cl = data[Columns.CLOSE]
         signal = data[Indicators.VWAP_RATE_SIGNAL]
-        n = len(self.time)
+        n = len(time)
         state = None
         for i in range(1, n):
             if i == n - 1:
