@@ -41,6 +41,7 @@ class Position:
         self.losscutted = False
         self.trail_stopped = False
         self.timelimit = False
+        self.doten = False
         
     # return  True: Closed,  False: Not Closed
     def update(self, index, time, o, h, l, c):
@@ -80,7 +81,7 @@ class Position:
                 self.fired = True        
         return False
     
-    def exit(self, index, time, price):
+    def exit(self, index, time, price, doten=False):
         self.exit_index = index
         self.exit_time = time
         self.exit_price = price
@@ -88,6 +89,7 @@ class Position:
         self.profit = price - self.entry_price
         if self.signal == Signal.SHORT:
             self.profit *= -1
+        self.doten=doten
 
 class Positions:
     
@@ -121,9 +123,9 @@ class Positions:
                     pos = self.positions.pop(i)        
                     self.closed_positions.append(pos)
                     
-    def exit_all(self, index, time, price):
+    def exit_all(self, index, time, price, doten=False):
         for position in self.positions:
-            position.exit(index, time, price)            
+            position.exit(index, time, price, doten=doten)            
         self.closed_positions += self.positions
         self.positions = []
     
@@ -168,7 +170,7 @@ class Simulation:
         
     def run_doten(self, data):
         self.data = data
-        time = data[Columns.TIME]
+        time = data[Columns.JST]
         op = data[Columns.OPEN]
         hi = data[Columns.HIGH]
         lo = data[Columns.LOW]
@@ -193,15 +195,17 @@ class Simulation:
                     self.doten(sig, i, time[i], op[i], hi[i], lo[i], cl[i])
                 else:
                     self.entry(sig, i, time[i], op[i], hi[i], lo[i], cl[i])
-            return self.positions.to_dataFrame()
+            if state is None:
+                state = sig
+        return self.positions.to_dataFrame()
                     
     def doten(self, signal, index, time, op, hi, lo, cl):
-        self.positions.exit_all(index, time, cl)
+        self.positions.exit_all(index, time, cl, doten=True)
         self.entry(signal, index, time, op, hi, lo, cl)
         pass
     
     def entry(self, signal, index, time, op, hl, lo, cl):
-        if self.positions.total_num() < self.position_num_max:
+        if self.positions.num() < self.position_num_max:
             position = Position(self.trade_param, signal, index, time, cl, self.volume)
             self.positions.add(position)
         

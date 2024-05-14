@@ -37,7 +37,7 @@ from mt5_api import Mt5Api
 from strategy import Simulation
 
 trade_param = {'sl': 200, 'volume': 0.1, 'position_num_max':5, 'target':200, 'trail_stop': 100 }
-sim = Simulation(trade_param)
+
 
 
 TICKERS = ['NIKKEI', 'DOW', 'NSDQ', 'USDJPY']
@@ -59,10 +59,15 @@ technical_param1 = {'vwap': {'begin_hour_list': [7, 19],
 
 VWAP_BEGIN_HOUR_FX = [8]
 
-MODE = ['Live', 'Fix', 'Slide']
+MODE = ['Live', 'Fix', 'Pause']
 
 api = Mt5Api()
 app = Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
+
+
+old_time = None
+old_symbol = None
+old_timeframe = None
 
 # ----
 
@@ -159,8 +164,8 @@ sidebar =  html.Div([   html.Div([
 contents = html.Div([   
                         #dbc.Row([html.H5('MetaTrader', style={'margin-top': '2px', 'margin-left': '24px'})], style={"height": "3vh"}, className='bg-primary text-white'),
                         dbc.Row([header], style={"height": "10vh"}, className='bg-light text-dark'),
-                        dbc.Row([html.Div(id='chart')], style={"height": "400vh"}, className='bg-white'),
-                        dbc.Row([html.Div(id='table_container')]),
+                        dbc.Row([html.Div(id='chart')], className='bg-white'),
+                        dbc.Row([html.Div(id='table')], className='bg-white'),
                         dcc.Interval(id='timer', interval=INTERVAL_MSEC, n_intervals=0)
                     ])
 
@@ -215,7 +220,7 @@ def update_output(n_clicks1, n_clicks2, date):
         return date
 
 @app.callback(
-    Output('chart', 'children'),
+    [Output('chart', 'children'), Output('table', 'children')],
     Input('timer', 'n_intervals'),
     State('mode_select', 'value'),
     State('symbol_dropdown', 'value'), 
@@ -242,15 +247,22 @@ def update_chart(interval,
                  median_window,
                  ma_window,
                  ):
+    global graph
+    global trade_table
 
     num_bars = int(num_bars)
     #print('Mode', mode_select)
     if mode_select == 'Live':
         data = api.get_rates(symbol, timeframe, num_bars + 60 * 8)
     elif mode_select == 'Fix':
+        old_time = date
+        old_symbol = symbol
+        old_timeframe = timeframe    
         jst = calc_date(date, timeframe, num_bars)
         data = api.get_rates_jst(symbol, timeframe, jst[0], jst[1])
-    
+    elif mode_select == 'Pause':
+        return graph, trade_table
+                
     size = len(data['time'])
     if size < 50:
         return
@@ -265,10 +277,15 @@ def update_chart(interval,
 
     indicators1(symbol, data, technical_param1)
     data = Utils.sliceDictLast(data, num_bars)
+    sim = Simulation(trade_param)
     df = sim.run_doten(data)
-    print(df)    
+    # print(df)    
+    trade_table = dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
     fig1 = create_chart1(symbol, data, size)
-    return create_graph(symbol, timeframe, fig1, data)
+    graph = create_graph(symbol, timeframe, fig1, data)
+ 
+ 
+    return graph, trade_table
 
 def calc_date(date, timeframe, barsize):
     def dt_bar(timeframe):
@@ -286,7 +303,7 @@ def calc_date(date, timeframe, barsize):
     day = int(values[2])
     tfrom = datetime(year, month, day, 7, tzinfo=JST)
     dt = dt_bar(timeframe)
-    print(dt, 'from', tfrom)
+    #print(dt, 'from', tfrom)
     tto = tfrom + dt * barsize
     tfrom -= dt * barsize
     
