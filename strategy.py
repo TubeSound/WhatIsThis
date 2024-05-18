@@ -168,45 +168,71 @@ class Simulation:
         self.position_num_max = trade_param['position_num_max']
         self.positions = Positions()
         
-    def run_doten(self, data):
+    def run(self, data, mode):
         self.data = data
         time = data[Columns.JST]
-        op = data[Columns.OPEN]
+        op =data[Columns.OPEN]
         hi = data[Columns.HIGH]
         lo = data[Columns.LOW]
         cl = data[Columns.CLOSE]
-        signal = data[Indicators.VWAP_RATE_SIGNAL]
+        vwap = data[Indicators.VWAP_RATE_SIGNAL]
+        prob = data[Indicators.VWAP_PROB_SIGNAL]
+        if mode == 1:
+            return self.run_doten(time, vwap, op, hi, lo, cl)
+        elif mode == 2:
+            return self.run_doten2(time, prob, vwap,op, hi, lo, cl)
+            
+    def run_doten(self, time, signal,op, hi, lo, cl):
         n = len(time)
         state = None
         for i in range(1, n):
             if i == n - 1:
                 self.positions.exit_all(i, time[i], cl[i])
                 break
-            
             self.positions.update(i, time[i], op[i], hi[i], lo[i], cl[i])
             sig = signal[i]
             if sig == Signal.LONG:
                 if state == Signal.SHORT:
-                    self.doten(sig, i, time[i], op[i], hi[i], lo[i], cl[i])
+                    self.doten(sig, i, time[i], cl[i])
                 else:
-                    self.entry(sig, i, time[i], op[i], hi[i], lo[i], cl[i])
+                    self.entry(sig, i, time[i], cl[i])
+                state = Signal.LONG
             elif sig == Signal.SHORT:               
                 if state == Signal.LONG:
-                    self.doten(sig, i, time[i], op[i], hi[i], lo[i], cl[i])
+                    self.doten(sig, i, time[i], cl[i])
                 else:
-                    self.entry(sig, i, time[i], op[i], hi[i], lo[i], cl[i])
+                    self.entry(sig, i, time[i], cl[i])
+                state = Signal.SHORT
+        return self.positions.to_dataFrame()
+    
+    def run_doten2(self, time, entry_signal, exit_signal, op, hi, lo, cl):
+        n = len(time)
+        state = None
+        for i in range(1, n):
+            if i == n - 1:
+                self.positions.exit_all(i, time[i], cl[i])
+                break
+            self.positions.update(i, time[i], op[i], hi[i], lo[i], cl[i])
+    
             if state is None:
-                state = sig
+                if entry_signal[i] == Signal.LONG or entry_signal[i] == Signal.SHORT:
+                    self.entry(entry_signal[i], i, time[i], cl[i])
+            elif state == Signal.LONG:
+                if exit_signal[i] == Signal.SHORT:
+                    self.doten(exit_signal[i], i, time[i], op[i], hi[i], lo[i], cl[i])
+            elif state == Signal.SHORT:
+                 if exit_signal[i] == Signal.LONG:
+                    self.doten(exit_signal[i], i, time[i], cl[i])
         return self.positions.to_dataFrame()
                     
-    def doten(self, signal, index, time, op, hi, lo, cl):
-        self.positions.exit_all(index, time, cl, doten=True)
-        self.entry(signal, index, time, op, hi, lo, cl)
+    def doten(self, signal, index, time, price):
+        self.positions.exit_all(index, time, price, doten=True)
+        self.entry(signal, index, time, price)
         pass
     
-    def entry(self, signal, index, time, op, hl, lo, cl):
+    def entry(self, signal, index, time, price):
         if self.positions.num() < self.position_num_max:
-            position = Position(self.trade_param, signal, index, time, cl, self.volume)
+            position = Position(self.trade_param, signal, index, time, price, self.volume)
             self.positions.add(position)
         
     

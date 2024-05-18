@@ -1,6 +1,7 @@
 import numpy as np 
 import math
 import statistics as stat
+from scipy.stats import rankdata
 from common import Indicators, Signal, Columns, UP, DOWN, HIGH, LOW, HOLD
 from datetime import datetime, timedelta
 from dateutil import tz
@@ -81,6 +82,22 @@ def true_range(high, low, cl):
               abs(low[i] - cl[i - 1])]
         out[i] = max(d)
     return out
+
+
+def rci(vector, window):
+    n = len(vector)
+    out = nans(n)
+    for i in range(window - 1, n):
+        d = vector[i - window + 1: i + 1]
+        if is_nans(d):
+            continue
+        r = rankdata(d, method='ordinal')
+        s = 0
+        for i in range(window):
+            s += pow((window - i) * (window - r[i]), 2)
+        out[i] = 100.0 * (1 - 6 * s) / ((pow(window, 3) - window))
+    return out
+
 
 def roi(vector:list):
     n = len(vector)
@@ -225,6 +242,8 @@ def ADX(data: dict, di_window: int, adx_term: int, adx_term_long:int):
     if adx_term_long is not None:
         adx_long = moving_average(dx, adx_term_long)
         data[Indicators.ADX_LONG] = adx_long
+        
+        
     
 def POLARITY(data: dict, window: int):
     hi = data[Columns.HIGH]

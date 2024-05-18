@@ -26,9 +26,6 @@ from dateutil import tz
 
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
-
-from ta.trend import MACD
-from ta.momentum import StochasticOscillator
 from technical import VWAP, BB, ATR_TRAIL, ADX
 
 from utils import Utils
@@ -81,7 +78,7 @@ symbol_dropdown = dcc.Dropdown( id='symbol_dropdown',
 symbol = html.Div([ html.P('Ticker Symbol', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'), symbol_dropdown])
 timeframe_dropdown = dcc.Dropdown(  id='timeframe_dropdown', 
                                         multi=False, 
-                                        value=TIMEFRAMES[6], 
+                                        value=TIMEFRAMES[0], 
                                         options=[{'label': x, 'value': x} for x in TIMEFRAMES],
                                         style={'width': '120px'})                
 timeframe =  html.Div(  [   html.P('Time Frame',
@@ -91,7 +88,7 @@ timeframe =  html.Div(  [   html.P('Time Frame',
 
 barsize_dropdown = dcc.Dropdown(id='barsize_dropdown', 
                                     multi=False, 
-                                    value=BARSIZE[0],
+                                    value=BARSIZE[2],
                                     options=[{'label': x, 'value': x} for x in BARSIZE],
                                     style={'width': '120px'})
 
@@ -134,6 +131,16 @@ mode_select = html.Div(     [
                             ]
                     )
 
+strategy_select = html.Div(     [   
+                        html.P('Strategy', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'),
+                        dcc.Dropdown(id='strategy_select', 
+                                    multi=False, 
+                                    value=1,
+                                    options=[{'label': x, 'value': x} for x in [1, 2, 3]],
+                                    style={'width': '80px'})
+                            ]
+                    )
+
 pivot_threshold = dcc.Input(id='pivot_threshold',type="number", min=1, max=70, step=1, value=technical_param1['vwap']['pivot_threshold'])
 pivot_left_len = dcc.Input(id='pivot_left_len',type="number", min=1, max=30, step=1, value=technical_param1['vwap']['pivot_left_len'])
 pivot_center_len = dcc.Input(id='pivot_center_len',type="number", min=1, max=30, step=1, value=technical_param1['vwap']['pivot_center_len'])
@@ -150,6 +157,8 @@ param6 = html.Div([html.P('VWAP ma window'), ma_window])
 
 sidebar =  html.Div([   html.Div([
                                     mode_select,
+                                    html.Hr(),
+                                    strategy_select,
                                     html.Hr(),
                                     param1,
                                     param2,
@@ -223,6 +232,7 @@ def update_output(n_clicks1, n_clicks2, date):
     [Output('chart', 'children'), Output('table', 'children')],
     Input('timer', 'n_intervals'),
     State('mode_select', 'value'),
+    State('strategy_select', 'value'),
     State('symbol_dropdown', 'value'), 
     State('timeframe_dropdown', 'value'), 
     State('barsize_dropdown', 'value'),
@@ -236,6 +246,7 @@ def update_output(n_clicks1, n_clicks2, date):
 )
 def update_chart(interval,
                  mode_select,
+                 strategy_select,
                  symbol,
                  timeframe,
                  num_bars,
@@ -278,7 +289,7 @@ def update_chart(interval,
     indicators1(symbol, data, technical_param1)
     data = Utils.sliceDictLast(data, num_bars)
     sim = Simulation(trade_param)
-    df = sim.run_doten(data)
+    df = sim.run(data, strategy_select)
     # print(df)    
     trade_table = dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
     fig1 = create_chart1(symbol, data, size)
@@ -432,8 +443,7 @@ def create_graph(symbol, timeframe, fig, data):
                             
     return dcc.Graph(id='stock-graph', figure=fig)
 
-if __name__ == '__main__':
-    app.run_server(debug=True, port=3333)
+if __name__ == '__main__':    app.run_server(debug=True, port=3333)
 
 
 
