@@ -94,10 +94,11 @@ def rci(vector, window):
         r = rankdata(d, method='ordinal')
         s = 0
         for i in range(window):
-            s += pow((window - i) * (window - r[i]), 2)
+            x = window - i
+            y = window - r[i] + 1
+            s += pow(x - y, 2)
         out[i] = 100.0 * (1 - 6 * s) / ((pow(window, 3) - window))
     return out
-
 
 def roi(vector:list):
     n = len(vector)
@@ -682,11 +683,12 @@ def diff(data: dict, column: str):
     return out
 
 def test():
-    sig = [1, 2, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    sig = [29301.79, 29332.16, 28487.87, 28478.56, 28222.48,
+           28765.66, 28489.13, 28124.28, 28333.52]
     ma = full(-1, len(sig))
     
-    moving_average(sig, ma, 2, 5)
-    print(ma)
+    x = rci(sig, 9)
+    print(x)
     
 if __name__ == '__main__':
     test()
