@@ -26,7 +26,7 @@ from dateutil import tz
 
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
-from technical import VWAP, BB, ATR_TRAIL, ADX
+from technical import VWAP, BB, ATR_TRAIL, ADX, RCI
 
 from utils import Utils
 from mt5_api import Mt5Api
@@ -51,7 +51,9 @@ technical_param1 = {'vwap': {'begin_hour_list': [7, 19],
                             'pivot_center_len':7,
                             'pivot_right_len':5,
                             'median_window': 5,
-                            'ma_window': 15}
+                            'ma_window': 15},
+                    'rci': {'window': 30,
+                            'pivot_threshold': 80}
                     }
 
 VWAP_BEGIN_HOUR_FX = [8]
@@ -68,7 +70,6 @@ old_timeframe = None
 
 # ----
 
-      
 symbol_dropdown = dcc.Dropdown( id='symbol_dropdown',
                                     multi=False,
                                     value=TICKERS[1],
@@ -290,12 +291,8 @@ def update_chart(interval,
     data = Utils.sliceDictLast(data, num_bars)
     sim = Simulation(trade_param)
     df = sim.run(data, strategy_select)
-    # print(df)    
     trade_table = dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
-    fig1 = create_chart1(symbol, data, size)
-    graph = create_graph(symbol, timeframe, fig1, data)
- 
- 
+    graph = create_graph(symbol, timeframe, data)
     return graph, trade_table
 
 def calc_date(date, timeframe, barsize):
@@ -314,10 +311,8 @@ def calc_date(date, timeframe, barsize):
     day = int(values[2])
     tfrom = datetime(year, month, day, 7, tzinfo=JST)
     dt = dt_bar(timeframe)
-    #print(dt, 'from', tfrom)
     tto = tfrom + dt * barsize
     tfrom -= dt * barsize
-    
     return tfrom, tto
     
 def indicators1(symbol, data, param):
@@ -336,7 +331,7 @@ def indicators1(symbol, data, param):
          vwap_param['median_window'],
          vwap_param['ma_window']
          )
-    #ADX(data, 20, 20, 100)
+    RCI(data, param['rci']['window'], param['rci']['pivot_threshold'])
     
 def add_markers(fig, time, signal, data, value, symbol, color, row=0, col=0):
     if len(signal) == 0:
@@ -364,22 +359,27 @@ def add_markers(fig, time, signal, data, value, symbol, color, row=0, col=0):
                         )
     fig.add_trace(markers, row=row, col=col)
 
-def create_chart1(symbol, data, num_bars):
+def create_fig(heights):
+    rows = len(heights)
+    fig=go.Figure()
+    fig = plotly.subplots.make_subplots(rows=rows,
+                                        cols=1,
+                                        shared_xaxes=True,
+                                        vertical_spacing=0.01, 
+                                        row_heights=heights)
+    return fig
+
+def add_candle_chart(fig, data, row):
     t0 = time.time()
     jst = data['jst']
     n = len(jst)
-    print('Elapsed Time:', time.time() - t0)
-    fig=go.Figure()
-    fig = plotly.subplots.make_subplots(rows=5, cols=1, shared_xaxes=True,
-                    vertical_spacing=0.01, 
-                    row_heights=[0.5, 0.1, 0.2,  0.2, 0.1])
-
     fig.add_trace(go.Candlestick(x=jst,
                     open=data['open'],
                     high=data['high'],
                     low=data['low'],
-                    close=data['close'], name = 'market data'))
-        
+                    close=data['close'], 
+                    name = 'market data'))
+    
     colors1 = ['Cyan', 'Lime', 'Blue']
     colors2 = ['Yellow', 'Orange', 'Red']
     for i in range(1, 4):
@@ -396,27 +396,31 @@ def create_chart1(symbol, data, num_bars):
                          name='VWAP lower'))
 
     colors = ['green' if data['open'][i] - data['close'][i] >= 0 else 'red' for i in range(n)]
-    fig.add_trace(go.Bar(x=jst, y=data['volume'], marker_color=colors), row=2, col=1)
-    fig.add_trace(go.Scatter(x=jst, y=data['VWAP_SLOPE'], line=dict(color='Green', width=2)), row=3, col=1)
-    fig.add_trace(go.Scatter(x=jst, y=data['VWAP_RATE'], line=dict(color='blue', width=2)), row=4, col=1)
-    add_markers(fig, jst, data['VWAP_RATE_SIGNAL'], data['VWAP_RATE'], 1, 'triangle-up', 'Green', row=4, col=1)
-    add_markers(fig, jst, data['VWAP_RATE_SIGNAL'], data['VWAP_RATE'], -1, 'triangle-down', 'Red', row=4, col=1)
-    fig.add_trace(go.Scatter(x=jst, y=data['VWAP_PROB'], line=dict(color='blue', width=2)), row=5, col=1)
-    add_markers(fig, jst, data['VWAP_PROB_SIGNAL'], data['VWAP_PROB'], 1, 'triangle-up', 'Green', row=5, col=1)
-    add_markers(fig, jst, data['VWAP_PROB_SIGNAL'], data['VWAP_PROB'], -1, 'triangle-down', 'Red', row=5, col=1)
-    fig.add_trace(go.Scatter(x=jst, y=data['VWAP_DOWN'], line=dict(color='red', width=2)), row=5, col=1)
-
-    # update y-axis label
-    fig.update_yaxes(title_text="Price", row=1, col=1)
-    fig.update_yaxes(title_text="Volume", row=2, col=1)
-    fig.update_yaxes(title_text="VWAP Slope", showgrid=False, range=[-2, 2], row=3, col=1)
-    fig.update_yaxes(title_text="VWAP Rate", row=4, col=1)     
-    return fig
-
-def create_graph(symbol, timeframe, fig, data):
+    fig.add_trace(go.Bar(x=jst, y=data['volume'], marker_color=colors), row=row + 1, col=1)
+    
+def add_rci_chart(fig, data, row):
     jst = data['jst']
-    #print(symbol, timeframe, time[:10])
-    #print(df.columns)
+    r = row
+    fig.add_trace(go.Scatter(x=jst, y=data['RCI'], line=dict(color='blue', width=2)), row=r, col=1)
+    #add_markers(fig, jst, data['VWAP_RATE_SIGNAL'], data['VWAP_RATE'], 1, 'triangle-up', 'Green', row=r, col=1)
+    #add_markers(fig, jst, data['VWAP_RATE_SIGNAL'], data['VWAP_RATE'], -1, 'triangle-down', 'Red', row=r, col=1)    
+       
+def add_vwap_chart(fig, data, row):
+    jst = data['jst']
+    #fig.add_trace(go.Scatter(x=jst, y=data['VWAP_SLOPE'], line=dict(color='Green', width=2)), row=row, col=1)
+    r = row
+    fig.add_trace(go.Scatter(x=jst, y=data['VWAP_RATE'], line=dict(color='blue', width=2)), row=r, col=1)
+    add_markers(fig, jst, data['VWAP_RATE_SIGNAL'], data['VWAP_RATE'], 1, 'triangle-up', 'Green', row=r, col=1)
+    add_markers(fig, jst, data['VWAP_RATE_SIGNAL'], data['VWAP_RATE'], -1, 'triangle-down', 'Red', row=r, col=1)
+    r += 1
+    fig.add_trace(go.Scatter(x=jst, y=data['VWAP_PROB'], line=dict(color='blue', width=2)), row=r, col=1)
+    fig.add_trace(go.Scatter(x=jst, y=data['VWAP_DOWN'], line=dict(color='red', width=2)), row=r, col=1)
+    add_markers(fig, jst, data['VWAP_PROB_SIGNAL'], data['VWAP_PROB'], 1, 'triangle-up', 'Green', row=r, col=1)
+    add_markers(fig, jst, data['VWAP_PROB_SIGNAL'], data['VWAP_PROB'], -1, 'triangle-down', 'Red', row=r, col=1)
+    
+
+def create_graph(symbol, timeframe, data):
+    jst = data['jst']
     xtick = (5 - jst[0].weekday()) % 5
     tfrom = jst[0]
     tto = jst[-1]
@@ -424,26 +428,26 @@ def create_graph(symbol, timeframe, fig, data):
         form = '%m-%d'
     else:
         form = '%d/%H:%M'
-    # update layout by changing the plot size, hiding legends & rangeslider, and removing gaps between dates
-    fig.update_layout(height=900, width=1200, 
-                    showlegend=False, 
-                    xaxis_rangeslider_visible=False)
-                    
-    # Make the title dynamic to reflect whichever stock we are analyzing
-    fig.update_layout(  title= symbol + '(' + timeframe + ') ' + 'Live Share Price:',
-                        yaxis_title='Stock Price') 
-
-    fig['layout'].update({  'title': symbol + '  ' + timeframe + '  ('  +  str(tfrom) + ')  ...  (' + str(tto) + ')',
-                            'xaxis':{   'title': 'Time',
+    fig = create_fig([5.0, 1.0, 2.0, 2.0, 2.0])
+    add_candle_chart(fig, data, 1)
+    add_rci_chart(fig, data, 3)
+    add_vwap_chart(fig, data, 4)
+    fig.update_layout(height=900, width=1200, showlegend=False, xaxis_rangeslider_visible=False)
+    fig.update_layout({  'title': symbol + '  ' + timeframe + '  ('  +  str(tfrom) + ')  ...  (' + str(tto) + ')'})
+    """
+    fig.update_xaxes(   {'title': 'Time',
                                         'showgrid': True,
                                         'ticktext': [x.strftime(form) for x in jst][xtick::5],
                                         'tickvals': np.arange(xtick, len(jst), 5)
-                                    }
                         })
-                            
+    """
+    #fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])])
+    fig.update_yaxes(title_text="Price", row=1, col=1)
+    fig.update_yaxes(title_text="Volume", row=2, col=1)
+    fig.update_yaxes(title_text="RCI", range=[-150, 150], row=3, col=1)
+    fig.update_yaxes(title_text="VWAP Rate", row=4, col=1)      
     return dcc.Graph(id='stock-graph', figure=fig)
 
-if __name__ == '__main__':    app.run_server(debug=True, port=3333)
-
-
+if __name__ == '__main__':    
+    app.run_server(debug=True, port=3333)
 

@@ -2,6 +2,7 @@ import numpy as np
 import math
 import statistics as stat
 from scipy.stats import rankdata
+from sklearn.cluster import KMeans 
 from common import Indicators, Signal, Columns, UP, DOWN, HIGH, LOW, HOLD
 from datetime import datetime, timedelta
 from dateutil import tz
@@ -15,6 +16,19 @@ def nans(length):
 
 def full(value, length):
     return [value for _ in range(length)]
+
+def is_nan(value):
+    if value is None:
+        return True
+    return np.isnan(value)
+
+def is_nans(values):
+    if len(values) == 0:
+        return True
+    for value in values:
+        if is_nan(value):
+            return True
+    return False
 
 def moving_average(vector, window):
     window = int(window)
@@ -93,11 +107,11 @@ def rci(vector, window):
             continue
         r = rankdata(d, method='ordinal')
         s = 0
-        for i in range(window):
-            x = window - i
-            y = window - r[i] + 1
+        for j in range(window):
+            x = window - j
+            y = window - r[j] + 1
             s += pow(x - y, 2)
-        out[i] = 100.0 * (1 - 6 * s) / ((pow(window, 3) - window))
+        out[i] = (1 - 6 * s / ((pow(window, 3) - window))) * 100
     return out
 
 def roi(vector:list):
@@ -492,6 +506,35 @@ def VWAP(data: dict, begin_hour_list, pivot_threshold, pivot_left_len, pivot_cen
     signal2 = pivot(up, down)
     data[Indicators.VWAP_PROB_SIGNAL] = signal2
        
+def rci_pivot(vector, threshold: float):
+    n = len(vector)
+    uppers = [[], []]
+    lowers = [[], []]
+    for i, v in enumerate(vector):
+        if v >= threshold:
+            uppers[0].append(i)
+            uppers[1].append(v)
+        elif v <= -threshold:
+            lowers[0].append(i)
+            lowers[1].append(v)
+
+    model = KMeans().fit(uppers)
+    labels0 = model.labels_
+    print(labels0)    
+    
+    pass
+    
+           
+def RCI(data: dict, window: int, pivot_threshold: float):
+    cl = data[Columns.CLOSE]
+    rc = rci(cl, window)
+    data[Indicators.RCI] = rc
+    signal = rci_pivot(rc, pivot_threshold)
+    data[Indicators.RCI_SIGNAL] = signal
+    
+    
+    
+       
 def band(vector, signal, multiply):
     n = len(vector)
     upper = nans(n)
@@ -501,18 +544,7 @@ def band(vector, signal, multiply):
         lower[i] = vector[i] - multiply * signal[i]
     return upper, lower
 
-def is_nan(value):
-    if value is None:
-        return True
-    return np.isnan(value)
 
-def is_nans(values):
-    if len(values) == 0:
-        return True
-    for value in values:
-        if is_nan(value):
-            return True
-    return False
 
 def volatility(data: dict, window: int):
     time = data[Columns.TIME]

@@ -96,6 +96,9 @@ class Indicators:
     VWAP_CROSS_DOWN = 'VWAP_CROSS_DOWN'
     VWAP_RATE_SIGNAL = 'VWAP_RATE_SIGNAL'
     VWAP_PROB_SIGNAL = 'VWAP_PROB_SIGNAL'
+    
+    RCI = 'RCI'
+    RCI_SIGNAL = 'RCI_SIGNAL'
 
 class Signal:
     LONG = 1
