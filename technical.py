@@ -506,30 +506,36 @@ def VWAP(data: dict, begin_hour_list, pivot_threshold, pivot_left_len, pivot_cen
     signal2 = pivot(up, down)
     data[Indicators.VWAP_PROB_SIGNAL] = signal2
        
-def rci_pivot(vector, threshold: float):
+def rci_pivot(vector, threshold: float, length: int):
     n = len(vector)
-    uppers = [[], []]
-    lowers = [[], []]
-    for i, v in enumerate(vector):
-        if v >= threshold:
-            uppers[0].append(i)
-            uppers[1].append(v)
-        elif v <= -threshold:
-            lowers[0].append(i)
-            lowers[1].append(v)
-
-    model = KMeans().fit(uppers)
-    labels0 = model.labels_
-    print(labels0)    
+    states = nans(n)
+    begin = None
+    state = None
+    for i in range(n):
+        if state is None:
+            if vector[i] >= threshold:
+                state = 1
+                begin = i
+            elif vector[i] <= -threshold:
+                state = -1
+                begin = i
+        elif state == 1:
+            if vector[i] < thrshold:
+                state = 0
+                if (i - begin + 1) >= length:
+                    state[i] = Signal.Short
+        elif state == -1:
+            if vector[i] >-thrshold:
+                state = 0
+                if (i - begin + 1) >= length:
+                    state[i] = Signal.Long
+    return states            
     
-    pass
-    
-           
-def RCI(data: dict, window: int, pivot_threshold: float):
+def RCI(data: dict, window: int, pivot_threshold: float, pivot_length: int):
     cl = data[Columns.CLOSE]
     rc = rci(cl, window)
     data[Indicators.RCI] = rc
-    signal = rci_pivot(rc, pivot_threshold)
+    signal = rci_pivot(rc, pivot_threshold, pivot_length)
     data[Indicators.RCI_SIGNAL] = signal
     
     

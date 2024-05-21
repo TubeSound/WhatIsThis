@@ -402,8 +402,8 @@ def add_rci_chart(fig, data, row):
     jst = data['jst']
     r = row
     fig.add_trace(go.Scatter(x=jst, y=data['RCI'], line=dict(color='blue', width=2)), row=r, col=1)
-    #add_markers(fig, jst, data['VWAP_RATE_SIGNAL'], data['VWAP_RATE'], 1, 'triangle-up', 'Green', row=r, col=1)
-    #add_markers(fig, jst, data['VWAP_RATE_SIGNAL'], data['VWAP_RATE'], -1, 'triangle-down', 'Red', row=r, col=1)    
+    add_markers(fig, jst, data['VWAP_RCI_SIGNAL'], data['RCI'], 1, 'triangle-up', 'Green', row=r, col=1)
+    add_markers(fig, jst, data['VWAP_RCI_SIGNAL'], data['RCI'], -1, 'triangle-down', 'Red', row=r, col=1)    
        
 def add_vwap_chart(fig, data, row):
     jst = data['jst']
