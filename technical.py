@@ -520,15 +520,15 @@ def rci_pivot(vector, threshold: float, length: int):
                 state = -1
                 begin = i
         elif state == 1:
-            if vector[i] < thrshold:
+            if vector[i] < threshold:
                 state = 0
                 if (i - begin + 1) >= length:
-                    state[i] = Signal.Short
+                    states[i] = Signal.SHORT
         elif state == -1:
-            if vector[i] >-thrshold:
+            if vector[i] >-threshold:
                 state = 0
                 if (i - begin + 1) >= length:
-                    state[i] = Signal.Long
+                    states[i] = Signal.LONG
     return states            
     
 def RCI(data: dict, window: int, pivot_threshold: float, pivot_length: int):

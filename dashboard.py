@@ -331,7 +331,7 @@ def indicators1(symbol, data, param):
          vwap_param['median_window'],
          vwap_param['ma_window']
          )
-    RCI(data, param['rci']['window'], param['rci']['pivot_threshold'])
+    RCI(data, param['rci']['window'], param['rci']['pivot_threshold'], 5)
     
 def add_markers(fig, time, signal, data, value, symbol, color, row=0, col=0):
     if len(signal) == 0:
@@ -402,8 +402,8 @@ def add_rci_chart(fig, data, row):
     jst = data['jst']
     r = row
     fig.add_trace(go.Scatter(x=jst, y=data['RCI'], line=dict(color='blue', width=2)), row=r, col=1)
-    add_markers(fig, jst, data['VWAP_RCI_SIGNAL'], data['RCI'], 1, 'triangle-up', 'Green', row=r, col=1)
-    add_markers(fig, jst, data['VWAP_RCI_SIGNAL'], data['RCI'], -1, 'triangle-down', 'Red', row=r, col=1)    
+    add_markers(fig, jst, data['RCI_SIGNAL'], data['RCI'], 1, 'triangle-up', 'Green', row=r, col=1)
+    add_markers(fig, jst, data['RCI_SIGNAL'], data['RCI'], -1, 'triangle-down', 'Red', row=r, col=1)    
        
 def add_vwap_chart(fig, data, row):
     jst = data['jst']
