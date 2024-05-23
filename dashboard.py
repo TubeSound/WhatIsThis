@@ -53,7 +53,8 @@ technical_param1 = {'vwap': {'begin_hour_list': [7, 19],
                             'median_window': 5,
                             'ma_window': 15},
                     'rci': {'window': 30,
-                            'pivot_threshold': 80}
+                            'pivot_threshold': 70,
+                            'pivot_len': 10}
                     }
 
 VWAP_BEGIN_HOUR_FX = [8]
@@ -148,6 +149,9 @@ pivot_center_len = dcc.Input(id='pivot_center_len',type="number", min=1, max=30,
 pivot_right_len = dcc.Input(id='pivot_right_len',type="number", min=1, max=30, step=1, value=technical_param1['vwap']['pivot_right_len'])
 median_window = dcc.Input(id='median_window',type="number", min=1, max=50, step=1, value=technical_param1['vwap']['median_window'])
 ma_window = dcc.Input(id='ma_window',type="number", min=1, max=50, step=1, value=technical_param1['vwap']['ma_window'])
+rci_window = dcc.Input(id='rci_window',type="number", min=5, max=50, step=1, value=technical_param1['rci']['window'])
+rci_threshold = dcc.Input(id='rci_threshold',type="number", min=5, max=100, step=5, value=technical_param1['rci']['pivot_threshold'])
+rci_len = dcc.Input(id='rci_len',type="number", min=5, max=30, step=1, value=technical_param1['rci']['pivot_len'])
 
 param1 = html.Div([html.P('Pivot threshold'), pivot_threshold])
 param2 = html.Div([html.P('Pivot left len'), pivot_left_len])
@@ -155,6 +159,10 @@ param3 = html.Div([html.P('Pivot center len'), pivot_center_len])
 param4 = html.Div([html.P('Pivot right len'), pivot_right_len])
 param5 = html.Div([html.P('VWAP median window'), median_window])
 param6 = html.Div([html.P('VWAP ma window'), ma_window])
+
+param7 = html.Div([html.P('RCI window'), rci_window])
+param8 = html.Div([html.P('RCI threshold'), rci_threshold])
+param9 = html.Div([html.P('RCI len'), rci_len])
 
 sidebar =  html.Div([   html.Div([
                                     mode_select,
@@ -167,7 +175,10 @@ sidebar =  html.Div([   html.Div([
                                     param4,
                                     param5,
                                     param6,
-                                    html.Hr()],
+                                    html.Hr(),
+                                    param7,
+                                    param8,
+                                    param9],
                         style={'height': '50vh', 'margin': '8px'})
                     ])
 
@@ -211,8 +222,7 @@ def update_output(n_clicks1, n_clicks2, date):
     
     ctx = dash.callback_context
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    
-    print('input', date)
+    #print('input', date)
     try:
         t = str2date(date)
     except:
@@ -244,6 +254,9 @@ def update_output(n_clicks1, n_clicks2, date):
     State('pivot_right_len', 'value'),
     State('median_window', 'value'),
     State('ma_window', 'value'),
+    State('rci_window', 'value'),
+    State('rci_threshold', 'value'),
+    State('rci_len', 'value'),
 )
 def update_chart(interval,
                  mode_select,
@@ -258,6 +271,9 @@ def update_chart(interval,
                  pivot_right_len,
                  median_window,
                  ma_window,
+                 rci_window,
+                 rci_threshold,
+                 rci_len
                  ):
     global graph
     global trade_table
@@ -286,9 +302,12 @@ def update_chart(interval,
     technical_param1['vwap']['pivot_right_len'] = pivot_right_len
     technical_param1['vwap']['median_window'] =  median_window
     technical_param1['vwap']['ma_window'] =  ma_window
+    technical_param1['rci']['window'] = rci_window
+    technical_param1['rci']['pivot_threshold'] = rci_threshold
+    technical_param1['rci']['pivot_len'] = rci_len
 
     indicators1(symbol, data, technical_param1)
-    data = Utils.sliceDictLast(data, num_bars)
+    data = Utils.sliceDictLast(data, num_bars)    
     sim = Simulation(trade_param)
     df = sim.run(data, strategy_select)
     trade_table = dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
@@ -331,7 +350,7 @@ def indicators1(symbol, data, param):
          vwap_param['median_window'],
          vwap_param['ma_window']
          )
-    RCI(data, param['rci']['window'], param['rci']['pivot_threshold'], 5)
+    RCI(data, param['rci']['window'], param['rci']['pivot_threshold'], param['rci']['pivot_len'])
     
 def add_markers(fig, time, signal, data, value, symbol, color, row=0, col=0):
     if len(signal) == 0:
@@ -419,7 +438,7 @@ def add_vwap_chart(fig, data, row):
     add_markers(fig, jst, data['VWAP_PROB_SIGNAL'], data['VWAP_PROB'], -1, 'triangle-down', 'Red', row=r, col=1)
     
 
-def create_graph(symbol, timeframe, data):
+def create_graph(symbol, timeframe, data):    
     jst = data['jst']
     xtick = (5 - jst[0].weekday()) % 5
     tfrom = jst[0]

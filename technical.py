@@ -510,9 +510,9 @@ def rci_pivot(vector, threshold: float, length: int):
     n = len(vector)
     states = nans(n)
     begin = None
-    state = None
+    state = 0
     for i in range(n):
-        if state is None:
+        if state == 0:
             if vector[i] >= threshold:
                 state = 1
                 begin = i
