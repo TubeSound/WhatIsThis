@@ -503,29 +503,30 @@ def VWAP(data: dict, begin_hour_list, pivot_threshold, pivot_left_len, pivot_cen
     data[Indicators.VWAP_PROB] = up
     data[Indicators.VWAP_DOWN] = down
     
-    signal2 = pivot(up, down)
+    signal2 = slice(up, 90, 10, 10)
     data[Indicators.VWAP_PROB_SIGNAL] = signal2
-       
-def rci_pivot(vector, threshold: float, length: int):
+    
+    
+def slice(vector, threshold_upper: float, threshold_lower: float, length: int):
     n = len(vector)
     states = nans(n)
     begin = None
     state = 0
     for i in range(n):
         if state == 0:
-            if vector[i] >= threshold:
+            if vector[i] >= threshold_upper:
                 state = 1
                 begin = i
-            elif vector[i] <= -threshold:
+            elif vector[i] <= threshold_lower:
                 state = -1
                 begin = i
         elif state == 1:
-            if vector[i] < threshold:
+            if vector[i] < threshold_upper:
                 state = 0
                 if (i - begin + 1) >= length:
                     states[i] = Signal.SHORT
         elif state == -1:
-            if vector[i] >-threshold:
+            if vector[i] > threshold_lower:
                 state = 0
                 if (i - begin + 1) >= length:
                     states[i] = Signal.LONG
@@ -535,10 +536,8 @@ def RCI(data: dict, window: int, pivot_threshold: float, pivot_length: int):
     cl = data[Columns.CLOSE]
     rc = rci(cl, window)
     data[Indicators.RCI] = rc
-    signal = rci_pivot(rc, pivot_threshold, pivot_length)
+    signal = slice(rc, pivot_threshold, -pivot_threshold, pivot_length)
     data[Indicators.RCI_SIGNAL] = signal
-    
-    
     
        
 def band(vector, signal, multiply):

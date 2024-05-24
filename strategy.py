@@ -177,10 +177,13 @@ class Simulation:
         cl = data[Columns.CLOSE]
         vwap = data[Indicators.VWAP_RATE_SIGNAL]
         prob = data[Indicators.VWAP_PROB_SIGNAL]
+        rci = data[Indicators.RCI_SIGNAL]
         if mode == 1:
             return self.run_doten(time, vwap, op, hi, lo, cl)
         elif mode == 2:
-            return self.run_doten2(time, prob, vwap,op, hi, lo, cl)
+            return self.run_doten(time, prob, op, hi, lo, cl)
+        elif mode == 3:
+            return self.run_doten(time, rci, op, hi, lo, cl)
             
     def run_doten(self, time, signal,op, hi, lo, cl):
         n = len(time)
