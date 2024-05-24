@@ -149,13 +149,18 @@ class Positions:
         return s, (time, acc), win_rate
     
     def to_dataFrame(self):
+        def bool2str(v):
+            s = 'true' if v else 'false'
+            return s
+            
         data = []
         for i, position in enumerate(self.closed_positions):
-            d = [i, position.signal, position.entry_index, str(position.entry_time), position.entry_price]
+            d = [self.mode, position.signal, position.entry_index, str(position.entry_time), position.entry_price]
             d += [position.exit_index, str(position.exit_time), position.exit_price, position.profit]
-            d += [position.closed, position.losscutted,  position.trail_stopped, position.doten, position.timelimit]
+            d += [bool2str(position.closed), bool2str(position.losscutted),  bool2str(position.trail_stopped)]
+            d += [bool2str(position.doten), bool2str(position.timelimit)]
             data.append(d)
-        columns = ['No', 'signal', 'entry_index', 'entry_time', 'entry_price']
+        columns = ['Mode', 'signal', 'entry_index', 'entry_time', 'entry_price']
         columns += ['exit_index', 'exit_time', 'exit_price', 'profit']
         columns += ['closed', 'losscuted', 'trail_stopped', 'doten', 'timelimit']
         df = pd.DataFrame(data=data, columns=columns)
@@ -178,6 +183,7 @@ class Simulation:
         vwap = data[Indicators.VWAP_RATE_SIGNAL]
         prob = data[Indicators.VWAP_PROB_SIGNAL]
         rci = data[Indicators.RCI_SIGNAL]
+        self.mode = mode
         if mode == 1:
             return self.run_doten(time, vwap, op, hi, lo, cl)
         elif mode == 2:
