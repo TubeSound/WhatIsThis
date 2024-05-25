@@ -5,10 +5,9 @@ import statistics as stat
 from common import Indicators, Signal, Columns, UP, DOWN, HIGH, LOW, HOLD
 from datetime import datetime, timedelta
 from dateutil import tz
-
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc') 
-
+from time_utils import TimeFilter
     
 def nans(length):
     return [np.nan for _ in range(length)]
@@ -44,9 +43,14 @@ class Position:
         self.doten = False
         
     # return  True: Closed,  False: Not Closed
-    def update(self, index, time, o, h, l, c):
+    def update(self, index, time, o, h, l, c, timefilter: TimeFilter):
         if self.sl == 0:
             return False
+        
+        if timefilter is not None:
+            if timefilter.over(time):
+                self.exit(index, time, c)
+                return True
         
         # check stoploss
         if self.signal == Signal.LONG:
@@ -93,7 +97,8 @@ class Position:
 
 class Positions:
     
-    def __init__(self):
+    def __init__(self, timefilter: TimeFilter):
+        self.timefilter = timefilter
         self.positions = []
         self.closed_positions = []
         self.current_id = 0
@@ -115,7 +120,7 @@ class Positions:
     def update(self, index, time, op, hl, lo, cl):
         closed = []
         for position in self.positions:
-            if position.update(index, time, op, hl, lo, cl):
+            if position.update(index, time, op, hl, lo, cl, self.timefilter):
                 closed.append(position.id)
         for id in closed:
             for i, position in enumerate(self.positions):
@@ -130,32 +135,32 @@ class Positions:
         self.positions = []
     
     def summary(self):
-        s = 0
+        profit_sum = 0
         win = 0
         profits = []
         acc = []
         time = []
         for position in self.closed_positions:
             profits.append(position.profit)
-            s += position.profit
+            profit_sum += position.profit
             time.append(position.entry_time)
-            acc.append(s)
+            acc.append(profit_sum)
             if position.profit > 0:
                 win += 1
         if self.num() > 0:
             win_rate = float(win) / float(self.num())
         else:
             win_rate = 0
-        return s, (time, acc), win_rate
+        return (self.num(), profit_sum, win_rate)
     
-    def to_dataFrame(self):
+    def to_dataFrame(self, mode):
         def bool2str(v):
             s = 'true' if v else 'false'
             return s
             
         data = []
         for i, position in enumerate(self.closed_positions):
-            d = [self.mode, position.signal, position.entry_index, str(position.entry_time), position.entry_price]
+            d = [mode, position.signal, position.entry_index, str(position.entry_time), position.entry_price]
             d += [position.exit_index, str(position.exit_time), position.exit_price, position.profit]
             d += [bool2str(position.closed), bool2str(position.losscutted),  bool2str(position.trail_stopped)]
             d += [bool2str(position.doten), bool2str(position.timelimit)]
@@ -167,13 +172,21 @@ class Positions:
         return df 
     
 class Simulation:
-    def __init__(self, trade_param):
+    def __init__(self, trade_param:dict):
         self.trade_param = trade_param
+        self.mode = self.trade_param['mode']
         self.volume = trade_param['volume']
         self.position_num_max = trade_param['position_num_max']
-        self.positions = Positions()
+        try :
+            begin_hour = self.trade_param['begin_hour']
+            begin_minute = self.trade_param['begin_minute']
+            hours = self.trade_param['hours']
+            self.timefilter = TimeFilter(JST, begin_hour, begin_minite, hours)
+        except:
+            self.timefilter = None
+        self.positions = Positions(self.timefilter)
         
-    def run(self, data, mode):
+    def run(self, data):
         self.data = data
         time = data[Columns.JST]
         op =data[Columns.OPEN]
@@ -183,18 +196,19 @@ class Simulation:
         vwap = data[Indicators.VWAP_RATE_SIGNAL]
         prob = data[Indicators.VWAP_PROB_SIGNAL]
         rci = data[Indicators.RCI_SIGNAL]
-        self.mode = mode
-        if mode == 1:
+        
+        if self.mode == 1:
             return self.run_doten(time, vwap, op, hi, lo, cl)
-        elif mode == 2:
+        elif self.mode == 2:
             return self.run_doten(time, prob, op, hi, lo, cl)
-        elif mode == 3:
+        elif self.mode == 3:
             return self.run_doten(time, rci, op, hi, lo, cl)
             
     def run_doten(self, time, signal,op, hi, lo, cl):
         n = len(time)
         state = None
         for i in range(1, n):
+            t = time[i]
             if i == n - 1:
                 self.positions.exit_all(i, time[i], cl[i])
                 break
@@ -212,7 +226,7 @@ class Simulation:
                 else:
                     self.entry(sig, i, time[i], cl[i])
                 state = Signal.SHORT
-        return self.positions.to_dataFrame()
+        return self.positions.to_dataFrame(self.mode), self.positions.summary()
     
     def run_doten2(self, time, entry_signal, exit_signal, op, hi, lo, cl):
         n = len(time)
@@ -240,6 +254,9 @@ class Simulation:
         pass
     
     def entry(self, signal, index, time, price):
+        if self.timefilter is not None:
+            if self.timefilter.on(time) == False:
+                return
         if self.positions.num() < self.position_num_max:
             position = Position(self.trade_param, signal, index, time, price, self.volume)
             self.positions.add(position)

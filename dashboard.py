@@ -307,9 +307,10 @@ def update_chart(interval,
     technical_param1['rci']['pivot_len'] = rci_len
 
     indicators1(symbol, data, technical_param1)
-    data = Utils.sliceDictLast(data, num_bars)    
+    data = Utils.sliceDictLast(data, num_bars)
+    trade_param['mode'] = strategy_select    
     sim = Simulation(trade_param)
-    df = sim.run(data, strategy_select)
+    df, summary = sim.run(data)
     trade_table = dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
     graph = create_graph(symbol, timeframe, data)
     return graph, trade_table

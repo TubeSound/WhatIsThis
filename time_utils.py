@@ -19,7 +19,7 @@ class TimeFilter:
         self.begin_minute = begin_minute
         self.hours = hours
         
-    def on(self, time) :
+    def from_to(self, time):
         t = TimeUtils.pyTime(time.year, time.month, time.day, self.begin_hour, self.begin_minute, 0, self.timezone)
         t = t.astimezone(time.tzinfo)
         t = datetime(time.year, time.month, time.day, t.hour, t.minute)
@@ -27,8 +27,16 @@ class TimeFilter:
         if time < t:
             t -= timedelta(days=1)    
         t1 = t + timedelta(hours=self.hours)
-        return (time >= t and time <= t1)
+        return t, t1
+    
+    def on(self, time) :
+        t1, t2 = self.from_to(time)
+        return (time >= t1 and time <= t2)
 
+    def over(self, time):
+        t1, t2 = self.from_to(time)
+        return (time > t2)
+        
 class TimeUtils:
     @staticmethod
     def dayOfLastSunday(year, month):
