@@ -147,11 +147,12 @@ class Positions:
             acc.append(profit_sum)
             if position.profit > 0:
                 win += 1
-        if self.num() > 0:
-            win_rate = float(win) / float(self.num())
+        n = len(self.closed_positions)
+        if n > 0:
+            win_rate = float(win) / float(n)
         else:
             win_rate = 0
-        return (self.num(), profit_sum, win_rate)
+        return (n, profit_sum, win_rate), acc
     
     def to_dataFrame(self, mode):
         def bool2str(v):
@@ -176,7 +177,7 @@ class Simulation:
         self.trade_param = trade_param
         self.mode = self.trade_param['mode']
         self.volume = trade_param['volume']
-        self.position_num_max = trade_param['position_num_max']
+        self.position_num_max = trade_param['position_max']
         try :
             begin_hour = self.trade_param['begin_hour']
             begin_minute = self.trade_param['begin_minute']
@@ -226,7 +227,8 @@ class Simulation:
                 else:
                     self.entry(sig, i, time[i], cl[i])
                 state = Signal.SHORT
-        return self.positions.to_dataFrame(self.mode), self.positions.summary()
+        summary, profit_curve = self.positions.summary()
+        return self.positions.to_dataFrame(self.mode), summary, profit_curve
     
     def run_doten2(self, time, entry_signal, exit_signal, op, hi, lo, cl):
         n = len(time)

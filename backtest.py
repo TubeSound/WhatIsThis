@@ -4,6 +4,7 @@ import sys
 from datetime import datetime, timedelta
 import random
 import numpy as np
+import matplotlib.pyplot as plt
 import pandas as pd
 from dateutil import tz
 JST = tz.gettz('Asia/Tokyo')
@@ -12,20 +13,13 @@ UTC = tz.gettz('utc')
 from technical import VWAP, RCI
 from strategy import Simulation
 from time_utils import TimeFilter
-
-
-
-def time_jst(year, month, day, hour=7):
-    t = datetime(year, month, day, hour=hour)
-    t = t.replace(tzinfo=JST)
-    return t
+from data_loader import DataLoader
 
 class GeneticCode:
     DataType = int
     GeneInt: DataType = 1
     GeneFloat: DataType = 2
     GeneList: DataType = 3
-
     def __init__(self, gene_space):
         self.gene_space = gene_space
         
@@ -67,6 +61,9 @@ class Parameters:
     def generate(self):    
         code1 = self.generator_trade.create_code()
         param1 = self.code_to_trade_param(code1)
+        while param1 is None:
+            code1 = self.generator_trade.create_code()
+            param1 = self.code_to_trade_param(code1)
         code2 = self.generator_technical.create_code()
         param2 = self.code_to_technical_param(code2)
         return param1, param2
@@ -102,7 +99,7 @@ class Parameters:
         if trailing_stop == 0 or target_profit == 0:
             trailing_stop = target_profit = 0
         elif trailing_stop < target_profit:
-            return None, None    
+            return None   
         param =  {
                     'mode': mode,
                     'begin_hour': begin_hour,
@@ -119,7 +116,7 @@ class Parameters:
     def technical_gene_space(self):
         space = [
                     [GeneticCode.GeneInt,   10, 100, 10],  # vwap_ma_windo
-                    [GeneticCode.GeneFloat, 10, 100, 10],  # vwap_median_window
+                    [GeneticCode.GeneInt, 10, 100, 10],  # vwap_median_window
                     [GeneticCode.GeneFloat, 10, 50, 10],   # vwap_threshold
                     [GeneticCode.GeneInt,   10, 100, 10],  # rci_window
                     [GeneticCode.GeneFloat, 60, 100, 10],  # rci_pivot_threshold
@@ -155,7 +152,6 @@ class Parameters:
         sl = r
         trailing_stop =  [GeneticCode.GeneList, d] 
         target = r
-
         space = [ 
                     [GeneticCode.GeneInt, 1, 3, 1],  # mode
                     [GeneticCode.GeneInt, 7, 23, 1], # begin_hour
@@ -167,9 +163,7 @@ class Parameters:
                 ] 
         return space
     
-    
 class BackTest:
-    
     def __init__(self, name, symbol, timeframe, data):
         self.name = name
         self.symbol = symbol
@@ -190,35 +184,121 @@ class BackTest:
             )
         RCI(data, param['rci']['window'], param['rci']['pivot_threshold'], param['rci']['pivot_len'])
         
-    def run(self, trade_param, technical_param):
+    def trade(self, trade_param, technical_param):
         data = self.data.copy()
         self.indicators(data, technical_param)
         sim = Simulation(trade_param)        
-        df, summary = sim.run(data)
+        df, summary, profit_curve = sim.run(data)
         trade_num, profit, win_rate = summary
-        return (df, summary)
-              
-def optimize():
-    symbols = ['NIKKEI', 'DOW']
-    timframes = ['M30', 'M15', 'M5', 'M1']
-    year_from = 2020
-    month_from = 1
-    year_to = 2024
-    month_to = 5
-    t_to = time_jst(2024, 5)
-    repeat = 100
-    loader = DataLoader()
-    for symbol in symbols:
+        return (df, summary, profit_curve)
+
+def expand(name: str, dic: dict):
+    data = []
+    columns = []
+    for key, value in dic.items():
+        if name == '':
+            column = key
+        else:
+            column = name + '.' + key
+        if type(value) == dict:
+            d, c = expand(column, value)                    
+            data += d
+            columns += c
+        else:
+            data.append(value)
+            columns.append(column)
+    return data, columns 
+  
+class Optimizer:
+    def __init__(self, number : int, symbol, timeframe, repeat):
+        self.number = number
+        self.symbol = symbol
+        self.timeframe = timeframe
+        self.repeat = repeat
+        
+    def get_path(self, number: int, symbol: str):
+        dir_path = './result'
+        os.makedirs(dir_path, exist_ok=True)
+        filename = str(number).zfill(2) + '_trade_summary_' + symbol + '_' + timeframe + '.xlsx'
+        path = os.path.join(dir_path, filename)      
+        return path
+          
+    def run(self):
+        year_from = 2020
+        month_from = 1
+        year_to = 2025
+        month_to = 4
+        loader = DataLoader()
+        symbol = self.symbol
         param = Parameters(symbol)
-        for timeframe in timeframes:
-            result = []
-            for i in range(repeat):
-                trade_param, technical_param = param.generate()
-                n, data = loader.load_data(symbol, timeframe, year_from, year_month, year_to, month_to)
-                test = BackTest('', symbol, timeframe, data)
-                r = test.run(trade_param, technical_param)
-                result.append(r)
+        timeframe = self.timeframe
+        n, data = loader.load_data(symbol, timeframe, year_from, month_from, year_to, month_to)
+        if n < 100:
+            print('Data size small')
+            return
+        result = []
+        for i in range(self.repeat):
+            trade_param, technical_param = param.generate()                
+            test = BackTest('', symbol, timeframe, data)
+            df, summary, profit_curve = test.trade(trade_param, technical_param)
+            d, columns= self.arrange_data(i, symbol, timeframe, technical_param, trade_param, summary)
+            result.append(d)
+            _, profit, _ = summary
+            print(i, 'Profit', summary)
+            if profit > 0:
+                self.save_profit(symbol, timeframe, i, profit_curve)                    
+            try:
+                df = pd.DataFrame(data=result, columns=columns)
+                df = df.sort_values('profit', ascending=False)
+                path = self.get_path(self.number, symbol)
+                df.to_excel(path, index=False)
+            except:
+                pass
             
+    def arrange_data(self, i, symbol, timeframe, technical_param, trade_param, summary):
+        data = []
+        columns = ['No', 'symbol', 'timeframe']
+        data += [i, symbol, timeframe]
+        for param in [technical_param, trade_param]:
+            d, c = expand('', param)
+            data += d
+            columns += c
+        columns += ['trade_num', 'profit', 'win_rate']    
+        data += list(summary)
+        return data, columns
+    
+    def save_profit(self, symbol, timeframe, i, profit_curve):
+        dir_path = os.path.join('./profit_curve', symbol, timeframe, str(self.number).zfill(2))
+        os.makedirs(dir_path, exist_ok=True)
+        filename = '#' + str(i).zfill(4) + '_profitcurve_' + symbol + '_' + timeframe + '.png'
+        path = os.path.join(dir_path, filename)
+        fig, ax = plt.subplots(1, 1, tight_layout=True)
+        title = '#' + str(i).zfill(4) + '_profitcurve_' + symbol + '_' + timeframe
+        ax.plot(range(len(profit_curve)), profit_curve, color='blue')
+        ax.set_title(title)
+        plt.savefig(path)   
+        plt.close()               
+              
+def main():
+    args = sys.argv
+    if len(args) == 4:
+        symbol = args[1]
+        timeframe = args[2]
+        number = args[3]
+    else:
+        symbol = 'NIKKEI'
+        timeframe = 'M5'
+        number = 0
+        #raise Exception('Bad parameter')
+    repeat = 1000
+    opt = Optimizer(number, symbol, timeframe, repeat)
+    opt.run()
+    
+def test():
+    dic = {'a': 2.0, 'b': [3, 4], 'x': {'x0': 10, 'x1': {'y': 666, 'z':{'aho': True}}}}
+    ret = expand('', dic)
+    print(ret)
                 
 if __name__ == '__main__':
-    optimize()
+    main()
+    #test()

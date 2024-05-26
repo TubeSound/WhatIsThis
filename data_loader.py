@@ -2,11 +2,11 @@ import os
 import shutil
 import numpy as np
 import pandas as pd
-
 from datetime import datetime, timedelta, timezone
 from dateutil import tz
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc') 
+from common import Columns
 
 class DataLoader:
     def server_time_str_2_datetime(self, server_time_str_list, server_timezone, format='%Y-%m-%d %H:%M:%S'):
