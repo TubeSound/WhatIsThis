@@ -219,15 +219,15 @@ class Optimizer:
     def get_path(self, number: int, symbol: str):
         dir_path = './result'
         os.makedirs(dir_path, exist_ok=True)
-        filename = str(number).zfill(2) + '_trade_summary_' + symbol + '_' + timeframe + '.xlsx'
+        filename = str(number).zfill(2) + '_trade_summary_' + symbol + '_' + self.timeframe + '.xlsx'
         path = os.path.join(dir_path, filename)      
         return path
           
     def run(self):
         year_from = 2020
         month_from = 1
-        year_to = 2025
-        month_to = 4
+        year_to = 2024
+        month_to = 5
         loader = DataLoader()
         symbol = self.symbol
         param = Parameters(symbol)

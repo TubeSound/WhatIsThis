@@ -33,7 +33,7 @@ from mt5_api import Mt5Api
 
 from strategy import Simulation
 
-trade_param = {'sl': 200, 'volume': 0.1, 'position_num_max':5, 'target':200, 'trail_stop': 100 }
+trade_param = {'sl': 200, 'volume': 0.1, 'position_max':5, 'target':200, 'trail_stop': 100 }
 
 
 
@@ -310,7 +310,7 @@ def update_chart(interval,
     data = Utils.sliceDictLast(data, num_bars)
     trade_param['mode'] = strategy_select    
     sim = Simulation(trade_param)
-    df, summary = sim.run(data)
+    df, summary, profit_curve = sim.run(data)
     trade_table = dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
     graph = create_graph(symbol, timeframe, data)
     return graph, trade_table

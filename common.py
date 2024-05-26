@@ -25,7 +25,7 @@ class Columns:
     ASK = 'ask'
     BID = 'bid'
     MID = 'mid'
-    VOLUME = 'tick_volume'
+    VOLUME = 'volume'
 
 class TimeFrame:
     TICK = 'TICK'
