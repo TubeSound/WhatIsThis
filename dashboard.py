@@ -30,6 +30,7 @@ from technical import VWAP, BB, ATR_TRAIL, ADX, RCI
 
 from utils import Utils
 from mt5_api import Mt5Api
+from common import Indicators, Columns
 
 from strategy import Simulation
 
@@ -54,7 +55,11 @@ technical_param1 = {'vwap': {'begin_hour_list': [7, 19],
                             'ma_window': 15},
                     'rci': {'window': 30,
                             'pivot_threshold': 70,
-                            'pivot_len': 10}
+                            'pivot_len': 10},
+                    'atr_trail': {'window': 50,
+                                  'multiply':3.0,
+                                  'hold_len': 10
+                                  }
                     }
 
 VWAP_BEGIN_HOUR_FX = [8]
@@ -73,14 +78,14 @@ old_timeframe = None
 
 symbol_dropdown = dcc.Dropdown( id='symbol_dropdown',
                                     multi=False,
-                                    value=TICKERS[1],
+                                    value=TICKERS[0],
                                     options=[{'label': x, 'value': x} for x in TICKERS],
                                     style={'width': '140px'})
 
 symbol = html.Div([ html.P('Ticker Symbol', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'), symbol_dropdown])
 timeframe_dropdown = dcc.Dropdown(  id='timeframe_dropdown', 
                                         multi=False, 
-                                        value=TIMEFRAMES[0], 
+                                        value=TIMEFRAMES[2], 
                                         options=[{'label': x, 'value': x} for x in TIMEFRAMES],
                                         style={'width': '120px'})                
 timeframe =  html.Div(  [   html.P('Time Frame',
@@ -138,7 +143,7 @@ strategy_select = html.Div(     [
                         dcc.Dropdown(id='strategy_select', 
                                     multi=False, 
                                     value=1,
-                                    options=[{'label': x, 'value': x} for x in [1, 2, 3]],
+                                    options=[{'label': x, 'value': x} for x in [1, 2, 3, 4]],
                                     style={'width': '80px'})
                             ]
                     )
@@ -352,6 +357,7 @@ def indicators1(symbol, data, param):
          vwap_param['ma_window']
          )
     RCI(data, param['rci']['window'], param['rci']['pivot_threshold'], param['rci']['pivot_len'])
+    ATR_TRAIL(data, param['atr_trail']['window'], param['atr_trail']['multiply'], param['atr_trail']['hold_len'])
     
 def add_markers(fig, time, signal, data, value, symbol, color, row=0, col=0):
     if len(signal) == 0:
@@ -398,8 +404,16 @@ def add_candle_chart(fig, data, row):
                     high=data['high'],
                     low=data['low'],
                     close=data['close'], 
-                    name = 'market data'))
+                    name = 'market data'),
+                  row=row,
+                  col=1)
     
+    colors = ['green' if data['open'][i] - data['close'][i] >= 0 else 'red' for i in range(n)]
+    fig.add_trace(go.Bar(x=jst, y=data['volume'], marker_color=colors), row=row + 1, col=1)
+    
+def add_vwap_line(fig, data, row):
+    jst = data['jst']
+    n = len(jst)
     colors1 = ['Cyan', 'Lime', 'Blue']
     colors2 = ['Yellow', 'Orange', 'Red']
     for i in range(1, 4):
@@ -407,7 +421,9 @@ def add_candle_chart(fig, data, row):
                          y=data['VWAP_UPPER' + str(i)], 
                          opacity=0.7, 
                          line=dict(color=colors1[i - 1], width=2), 
-                         name='VWAP Upper'))
+                         name='VWAP Upper'),
+                         row = row,
+                         col=1)
  
         fig.add_trace(go.Scatter(x=jst, 
                          y=data['VWAP_LOWER' + str(i)], 
@@ -415,8 +431,7 @@ def add_candle_chart(fig, data, row):
                          line=dict(color=colors2[i - 1], width=2), 
                          name='VWAP lower'))
 
-    colors = ['green' if data['open'][i] - data['close'][i] >= 0 else 'red' for i in range(n)]
-    fig.add_trace(go.Bar(x=jst, y=data['volume'], marker_color=colors), row=row + 1, col=1)
+
     
 def add_rci_chart(fig, data, row):
     jst = data['jst']
@@ -438,6 +453,15 @@ def add_vwap_chart(fig, data, row):
     add_markers(fig, jst, data['VWAP_PROB_SIGNAL'], data['VWAP_PROB'], 1, 'triangle-up', 'Green', row=r, col=1)
     add_markers(fig, jst, data['VWAP_PROB_SIGNAL'], data['VWAP_PROB'], -1, 'triangle-down', 'Red', row=r, col=1)
     
+def add_atr_stop_line(fig, data, row):
+    jst = data['jst']
+    #fig.add_trace(go.Scatter(x=jst, y=data['VWAP_SLOPE'], line=dict(color='Green', width=2)), row=row, col=1)
+    r = row
+    fig.add_trace(go.Scatter(x=jst, y=data[Indicators.ATR_TRAIL_UP], line=dict(color='purple', width=2)), row=r, col=1)
+    fig.add_trace(go.Scatter(x=jst, y=data[Indicators.ATR_TRAIL_DOWN], line=dict(color='cyan', width=2)), row=r, col=1)
+    add_markers(fig, jst, data[Indicators.ATR_TRAIL_SIGNAL], data[Indicators.ATR_TRAIL], 1, 'triangle-up', 'Green', row=r, col=1)
+    add_markers(fig, jst, data[Indicators.ATR_TRAIL_SIGNAL], data[Indicators.ATR_TRAIL], -1, 'triangle-down', 'Red', row=r, col=1)
+    
 
 def create_graph(symbol, timeframe, data):    
     jst = data['jst']
@@ -448,10 +472,12 @@ def create_graph(symbol, timeframe, data):
         form = '%m-%d'
     else:
         form = '%d/%H:%M'
-    fig = create_fig([5.0, 1.0, 2.0, 2.0, 2.0])
+    fig = create_fig([5.0, 1.0, 2.0, 2.0, 2.0, 2.0])
     add_candle_chart(fig, data, 1)
+    #add_vwap_line(fig, data, 2)
     add_rci_chart(fig, data, 3)
     add_vwap_chart(fig, data, 4)
+    add_atr_stop_line(fig, data, 6)
     fig.update_layout(height=900, width=1200, showlegend=False, xaxis_rangeslider_visible=False)
     fig.update_layout({  'title': symbol + '  ' + timeframe + '  ('  +  str(tfrom) + ')  ...  (' + str(tto) + ')'})
     """
@@ -466,6 +492,7 @@ def create_graph(symbol, timeframe, data):
     fig.update_yaxes(title_text="Volume", row=2, col=1)
     fig.update_yaxes(title_text="RCI", range=[-150, 150], row=3, col=1)
     fig.update_yaxes(title_text="VWAP Rate", row=4, col=1)      
+    fig.update_yaxes(title_text="Trail Stop", row=6, col=1)    
     return dcc.Graph(id='stock-graph', figure=fig)
 
 if __name__ == '__main__':    

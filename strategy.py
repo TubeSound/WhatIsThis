@@ -197,6 +197,7 @@ class Simulation:
         vwap = data[Indicators.VWAP_RATE_SIGNAL]
         prob = data[Indicators.VWAP_PROB_SIGNAL]
         rci = data[Indicators.RCI_SIGNAL]
+        trail_stop = data[Indicators.ATR_TRAIL_SIGNAL]
         
         if self.mode == 1:
             return self.run_doten(time, vwap, op, hi, lo, cl)
@@ -204,6 +205,8 @@ class Simulation:
             return self.run_doten(time, prob, op, hi, lo, cl)
         elif self.mode == 3:
             return self.run_doten(time, rci, op, hi, lo, cl)
+        elif self.mode == 4:
+            return self.run_doten(time, trail_stop, op, hi, lo, cl)
             
     def run_doten(self, time, signal,op, hi, lo, cl):
         n = len(time)
