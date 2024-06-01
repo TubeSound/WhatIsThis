@@ -316,9 +316,11 @@ class Optimizer:
         title = '#' + str(i).zfill(4) +  ' ' + self.strategy + ' ' + symbol + '' + timeframe
         ax.plot(range(len(profit_curve)), profit_curve, color='blue')
         ax.set_title(title)
-        plt.savefig(path)   
-        plt.close()               
-              
+        try:
+            plt.savefig(path)   
+            plt.close()               
+        except:
+            pass      
 def main():
     args = sys.argv
     if len(args) == 5:
