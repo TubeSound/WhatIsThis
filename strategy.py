@@ -49,7 +49,7 @@ class Position:
         
         if timefilter is not None:
             if timefilter.over(time):
-                self.exit(index, time, c)
+                self.exit(index, time, c, timelimit=True)
                 return True
         
         # check stoploss
@@ -85,7 +85,7 @@ class Position:
                 self.fired = True        
         return False
     
-    def exit(self, index, time, price, doten=False):
+    def exit(self, index, time, price, doten=False, timelimit=False):
         self.exit_index = index
         self.exit_time = time
         self.exit_price = price
@@ -94,6 +94,7 @@ class Position:
         if self.signal == Signal.SHORT:
             self.profit *= -1
         self.doten=doten
+        self.timelimit = timelimit
 
 class Positions:
     
@@ -154,14 +155,14 @@ class Positions:
             win_rate = 0
         return (n, profit_sum, win_rate), acc
     
-    def to_dataFrame(self, mode):
+    def to_dataFrame(self, strategy: str):
         def bool2str(v):
             s = 'true' if v else 'false'
             return s
             
         data = []
         for i, position in enumerate(self.closed_positions):
-            d = [mode, position.signal, position.entry_index, str(position.entry_time), position.entry_price]
+            d = [strategy, position.signal, position.entry_index, str(position.entry_time), position.entry_price]
             d += [position.exit_index, str(position.exit_time), position.exit_price, position.profit]
             d += [bool2str(position.closed), bool2str(position.losscutted),  bool2str(position.trail_stopped)]
             d += [bool2str(position.doten), bool2str(position.timelimit)]
@@ -175,7 +176,7 @@ class Positions:
 class Simulation:
     def __init__(self, trade_param:dict):
         self.trade_param = trade_param
-        self.mode = self.trade_param['mode']
+        self.strategy = self.trade_param['strategy'].upper()
         self.volume = trade_param['volume']
         self.position_num_max = trade_param['position_max']
         try :
@@ -194,19 +195,21 @@ class Simulation:
         hi = data[Columns.HIGH]
         lo = data[Columns.LOW]
         cl = data[Columns.CLOSE]
-        vwap = data[Indicators.VWAP_RATE_SIGNAL]
-        prob = data[Indicators.VWAP_PROB_SIGNAL]
-        rci = data[Indicators.RCI_SIGNAL]
-        trail_stop = data[Indicators.ATR_TRAIL_SIGNAL]
         
-        if self.mode == 1:
+        if self.strategy == 'VWAP1':
+            vwap = data[Indicators.VWAP_RATE_SIGNAL]
             return self.run_doten(time, vwap, op, hi, lo, cl)
-        elif self.mode == 2:
+        elif self.strategy == 'VWAP2':
+            prob = data[Indicators.VWAP_PROB_SIGNAL]
             return self.run_doten(time, prob, op, hi, lo, cl)
-        elif self.mode == 3:
+        elif self.strategy == 'RCI':
+            rci = data[Indicators.RCI_SIGNAL]
             return self.run_doten(time, rci, op, hi, lo, cl)
-        elif self.mode == 4:
-            return self.run_doten(time, trail_stop, op, hi, lo, cl)
+        elif self.strategy == 'ATR_TRAIL':
+            atr_trail = data[Indicators.ATR_TRAIL_SIGNAL]
+            return self.run_doten(time, atr_trail, op, hi, lo, cl)
+        else:
+            raise Exception('Bad strategy name', self.strategy)
             
     def run_doten(self, time, signal,op, hi, lo, cl):
         n = len(time)
@@ -231,7 +234,7 @@ class Simulation:
                     self.entry(sig, i, time[i], cl[i])
                 state = Signal.SHORT
         summary, profit_curve = self.positions.summary()
-        return self.positions.to_dataFrame(self.mode), summary, profit_curve
+        return self.positions.to_dataFrame(self.strategy), summary, profit_curve
     
     def run_doten2(self, time, entry_signal, exit_signal, op, hi, lo, cl):
         n = len(time)
@@ -265,12 +268,4 @@ class Simulation:
         if self.positions.num() < self.position_num_max:
             position = Position(self.trade_param, signal, index, time, price, self.volume)
             self.positions.add(position)
-        
-    
-        
-                        
-                        
-            
-        
-        
         

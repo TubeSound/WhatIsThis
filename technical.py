@@ -633,6 +633,8 @@ def ATR_TRAIL(data: dict, atr_window: int, atr_multiply: float, peak_hold_term: 
         trail_stop[i] = max(d)
         
     trend = full(np.nan, n)
+    up = full(np.nan, n)
+    down = full(np.nan, n)
     for i in range(n):
         c = cl[i]
         s = trail_stop[i]
@@ -640,8 +642,13 @@ def ATR_TRAIL(data: dict, atr_window: int, atr_multiply: float, peak_hold_term: 
             continue
         if c > s:
             trend[i] = UP
+            up[i] = s
         else:
             trend[i] = DOWN
+            down[i] = s
+            
+    data[Indicators.ATR_TRAIL_UP] = up
+    data[Indicators.ATR_TRAIL_DOWN] = down
             
     signal = full(np.nan, n)
     for  i in range(1, n):
@@ -652,16 +659,7 @@ def ATR_TRAIL(data: dict, atr_window: int, atr_multiply: float, peak_hold_term: 
             
     data[Indicators.ATR_TRAIL] = trail_stop
     data[Indicators.ATR_TRAIL_SIGNAL] = signal
-    
-    up = nans(n)
-    down = nans(n)
-    for i in range(n):
-        if trend[i] == UP:
-            up[i] = trail_stop[i]    
-        if trend[i] == DOWN:
-            down[i] = trail_stop[i]
-    data[Indicators.ATR_TRAIL_UP] = up
-    data[Indicators.ATR_TRAIL_DOWN] = down
+
              
 def SUPERTREND(data: dict,  multiply, column=Columns.MID):
     time = data[Columns.TIME]

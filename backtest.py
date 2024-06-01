@@ -10,7 +10,7 @@ from dateutil import tz
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
 
-from technical import VWAP, RCI
+from technical import VWAP, RCI, ATR_TRAIL
 from strategy import Simulation
 from time_utils import TimeFilter
 from data_loader import DataLoader
@@ -51,8 +51,9 @@ class GeneticCode:
         return code    
 
 class Parameters:
-    def __init__(self, symbol):
+    def __init__(self, symbol, strategy):
         self.symbol = symbol
+        self.strategy = strategy
         self.trade_space = self.trade_gene_space()
         self.generator_trade = GeneticCode(self.trade_space)
         self.technical_space = self.technical_gene_space()
@@ -69,39 +70,55 @@ class Parameters:
         return param1, param2
     
     def code_to_technical_param(self, code):
+        strategy = self.strategy
+        if strategy == 'VWAP':
+            return self.code_to_vwap_param(code)
+        elif strategy == 'RCI':
+            return self.code_to_rci_param(code)
+        elif strategy == 'ATR_TRAIL':
+            return self.code_to_atr_param(code)
+        else:
+            raise Exception('Bad strategy', strategy)
+        
+    def code_to_vwap_param(self, code):
         vwap_ma_window = code[0]
         vwap_median_window = code[1]
         vwap_threshold = code[2]
-        rci_window = code[3]
-        rci_pivot_threshold = code[4]
-        rci_pivot_len = code[5]
-        param = {'vwap': {  'begin_hour_list': [7, 19], 
-                            'pivot_threshold': vwap_threshold, 
-                            'pivot_left_len':5,
-                            'pivot_center_len':7,
-                            'pivot_right_len':5,
-                            'median_window': vwap_median_window,
-                            'ma_window': vwap_ma_window},
-                    'rci': {'window': rci_window,
-                            'pivot_threshold': rci_pivot_threshold,
-                            'pivot_len': rci_pivot_len}
-                    }
-        return param
-
+        param = {  'begin_hour_list': [7, 19], 
+                    'pivot_threshold': vwap_threshold, 
+                    'pivot_left_len':5,
+                    'pivot_center_len':7,
+                    'pivot_right_len':5,
+                    'median_window': vwap_median_window,
+                    'ma_window': vwap_ma_window
+                }
+        return {'VWAP': param}
+    
+    def code_to_rci_param(self, code):
+        param = {   'window': code[0],
+                    'pivot_threshold': code[1],
+                    'pivot_len': code[2]}
+        return {'RCI': param}
+    
+    def code_to_atr_param(self, code):
+        param = {   'window': code[0],
+                    'multiply': code[1],
+                    'hold': code[2]}
+        return {'ATR_TRAIL': param}
+    
     def code_to_trade_param(self, code):
-        mode = code[0]
-        begin_hour = code[1]
-        begin_minute = code[2]
-        hours = code[3]
-        sl = code[4]
-        target_profit = code[5]
-        trailing_stop = code[6]
+        begin_hour = code[0]
+        begin_minute = code[1]
+        hours = code[2]
+        sl = code[3]
+        target_profit = code[4]
+        trailing_stop = code[5]
         if trailing_stop == 0 or target_profit == 0:
             trailing_stop = target_profit = 0
         elif trailing_stop < target_profit:
             return None   
         param =  {
-                    'mode': mode,
+                    'strategy': self.strategy,
                     'begin_hour': begin_hour,
                     'begin_minute': begin_minute,
                     'hours': hours,
@@ -114,14 +131,26 @@ class Parameters:
         return param
         
     def technical_gene_space(self):
-        space = [
-                    [GeneticCode.GeneInt,   10, 100, 10],  # vwap_ma_windo
-                    [GeneticCode.GeneInt, 10, 100, 10],  # vwap_median_window
-                    [GeneticCode.GeneFloat, 10, 50, 10],   # vwap_threshold
-                    [GeneticCode.GeneInt,   10, 100, 10],  # rci_window
-                    [GeneticCode.GeneFloat, 60, 100, 10],  # rci_pivot_threshold
-                    [GeneticCode.GeneInt,   10, 50, 10]    # rci_pivot_len    
-                ]
+        strategy = self.strategy        
+        if strategy == 'ATR_TRAIL':
+            space = [
+                        [GeneticCode.GeneInt,   10, 100, 10],  # windo
+                        [GeneticCode.GeneFloat, 0.6, 5.0, 0.2],  # multiply
+                        [GeneticCode.GeneFloat, 5, 50, 5],   # hold
+                    ]
+        elif strategy.find('VWAP') >= 0:
+            space = [
+                        [GeneticCode.GeneInt,   10, 100, 10],  # vwap_ma_windo
+                        [GeneticCode.GeneInt, 10, 100, 10],  # vwap_median_window
+                        [GeneticCode.GeneFloat, 10, 50, 10],   # vwap_threshold
+                    ]
+        
+        elif strategy == 'RCI':
+            space = [
+                        [GeneticCode.GeneInt,   10, 100, 10],  # rci_window
+                        [GeneticCode.GeneFloat, 60, 100, 10],  # rci_pivot_threshold
+                        [GeneticCode.GeneInt,   10, 50, 10]    # rci_pivot_len    
+            ]
         return space
 
     def trade_gene_space(self):
@@ -153,7 +182,6 @@ class Parameters:
         trailing_stop =  [GeneticCode.GeneList, d] 
         target = r
         space = [ 
-                    [GeneticCode.GeneInt, 1, 3, 1],  # mode
                     [GeneticCode.GeneInt, 7, 23, 1], # begin_hour
                     [GeneticCode.GeneList, [0, 30]], # begin_minute
                     [GeneticCode.GeneInt, 1, 20, 1], # hours
@@ -164,25 +192,31 @@ class Parameters:
         return space
     
 class BackTest:
-    def __init__(self, name, symbol, timeframe, data):
+    def __init__(self, name, symbol, timeframe, strategy, data):
         self.name = name
         self.symbol = symbol
         self.timeframe = timeframe
+        self.strategy = strategy.upper()
         self.data = data
         
     def indicators(self, data, param):
-        vwap_param = param['vwap']
-        hours = vwap_param['begin_hour_list']
-        VWAP(data,
-            hours,
-            vwap_param['pivot_threshold'],
-            vwap_param['pivot_left_len'],
-            vwap_param['pivot_center_len'],
-            vwap_param['pivot_right_len'],
-            vwap_param['median_window'],
-            vwap_param['ma_window']
+        if self.strategy.find('VWAP') >= 0:
+            p = param['VWAP']
+            VWAP(data,
+                p['begin_hour_list'],
+                p['pivot_threshold'],
+                p['pivot_left_len'],
+                p['pivot_center_len'],
+                p['pivot_right_len'],
+                p['median_window'],
+                p['ma_window']
             )
-        RCI(data, param['rci']['window'], param['rci']['pivot_threshold'], param['rci']['pivot_len'])
+        elif self.strategy == 'RCI':
+            p = param['RCI']
+            RCI(data, p['window'], p['pivot_threshold'], p['pivot_len'])
+        elif self.strategy == 'ATR_TRAIL':
+            p = param['ATR_TRAIL']
+            ATR_TRAIL(data, p['window'], p['multiply'], p['hold'])
         
     def trade(self, trade_param, technical_param):
         data = self.data.copy()
@@ -210,16 +244,22 @@ def expand(name: str, dic: dict):
     return data, columns 
   
 class Optimizer:
-    def __init__(self, number : int, symbol, timeframe, repeat):
+    def __init__(self, number : int, symbol: str, timeframe: float, strategy: float, repeat: int):
         self.number = number
         self.symbol = symbol
         self.timeframe = timeframe
+        
+        strategy = strategy.upper()
+        if strategy.find('ATR') >= 0:
+            strategy = 'ATR_TRAIL'
+        self.strategy = strategy
+        
         self.repeat = repeat
         
-    def get_path(self, number: int, symbol: str):
+    def get_path(self, number: int):
         dir_path = './result'
         os.makedirs(dir_path, exist_ok=True)
-        filename = str(number).zfill(2) + '_trade_summary_' + symbol + '_' + self.timeframe + '.xlsx'
+        filename = str(number).zfill(2) + '_' +  self.strategy + '_' + self.symbol + '_' + self.timeframe  + '.xlsx'
         path = os.path.join(dir_path, filename)      
         return path
           
@@ -230,7 +270,7 @@ class Optimizer:
         month_to = 5
         loader = DataLoader()
         symbol = self.symbol
-        param = Parameters(symbol)
+        param = Parameters(symbol, self.strategy)
         timeframe = self.timeframe
         n, data = loader.load_data(symbol, timeframe, year_from, month_from, year_to, month_to)
         if n < 100:
@@ -239,7 +279,7 @@ class Optimizer:
         result = []
         for i in range(self.repeat):
             trade_param, technical_param = param.generate()                
-            test = BackTest('', symbol, timeframe, data)
+            test = BackTest('', symbol, timeframe, self.strategy, data)
             df, summary, profit_curve = test.trade(trade_param, technical_param)
             d, columns= self.arrange_data(i, symbol, timeframe, technical_param, trade_param, summary)
             result.append(d)
@@ -250,7 +290,7 @@ class Optimizer:
             try:
                 df = pd.DataFrame(data=result, columns=columns)
                 df = df.sort_values('profit', ascending=False)
-                path = self.get_path(self.number, symbol)
+                path = self.get_path(self.number)
                 df.to_excel(path, index=False)
             except:
                 pass
@@ -268,12 +308,12 @@ class Optimizer:
         return data, columns
     
     def save_profit(self, symbol, timeframe, i, profit_curve):
-        dir_path = os.path.join('./profit_curve', symbol, timeframe, str(self.number).zfill(2))
+        dir_path = os.path.join('./profit_curve', self.strategy,  symbol, timeframe, str(self.number).zfill(2))
         os.makedirs(dir_path, exist_ok=True)
-        filename = '#' + str(i).zfill(4) + '_profitcurve_' + symbol + '_' + timeframe + '.png'
+        filename = '#' + str(i).zfill(4) + '_' + self.strategy + '_' + symbol + '_' + timeframe + '.png'
         path = os.path.join(dir_path, filename)
         fig, ax = plt.subplots(1, 1, tight_layout=True)
-        title = '#' + str(i).zfill(4) + '_profitcurve_' + symbol + '_' + timeframe
+        title = '#' + str(i).zfill(4) +  ' ' + self.strategy + ' ' + symbol + '' + timeframe
         ax.plot(range(len(profit_curve)), profit_curve, color='blue')
         ax.set_title(title)
         plt.savefig(path)   
@@ -281,17 +321,20 @@ class Optimizer:
               
 def main():
     args = sys.argv
-    if len(args) == 4:
+    if len(args) == 5:
         symbol = args[1]
         timeframe = args[2]
-        number = args[3]
-    else:
+        strategy = args[3]
+        number = args[4]
+    elif len(args) == 1:
         symbol = 'NIKKEI'
-        timeframe = 'M5'
+        timeframe = 'M15'
+        strategy = 'ATR_TRAIL'
         number = 0
-        #raise Exception('Bad parameter')
+    else:
+        raise Exception('Bad parameter')
     repeat = 1000
-    opt = Optimizer(number, symbol, timeframe, repeat)
+    opt = Optimizer(number, symbol, timeframe, strategy, repeat)
     opt.run()
     
 def test():
