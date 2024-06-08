@@ -103,7 +103,8 @@ class Parameters:
     def code_to_atr_param(self, code):
         param = {   'window': code[0],
                     'multiply': code[1],
-                    'hold': code[2]}
+                    'peak_hold': code[2],
+                    'horizon': code[3]}
         return {'ATR_TRAIL': param}
     
     def code_to_trade_param(self, code):
@@ -134,9 +135,10 @@ class Parameters:
         strategy = self.strategy        
         if strategy == 'ATR_TRAIL':
             space = [
-                        [GeneticCode.GeneInt,   10, 100, 10],  # windo
+                        [GeneticCode.GeneInt,   10, 100, 10],  # window
                         [GeneticCode.GeneFloat, 0.6, 5.0, 0.2],  # multiply
-                        [GeneticCode.GeneFloat, 5, 50, 5],   # hold
+                        [GeneticCode.GeneFloat, 5, 50, 5],   # peak_hold
+                        [GeneticCode.GeneInt, 0, 5, 1]      # horizon
                     ]
         elif strategy.find('VWAP') >= 0:
             space = [
@@ -216,7 +218,7 @@ class BackTest:
             RCI(data, p['window'], p['pivot_threshold'], p['pivot_len'])
         elif self.strategy == 'ATR_TRAIL':
             p = param['ATR_TRAIL']
-            ATR_TRAIL(data, p['window'], p['multiply'], p['hold'])
+            ATR_TRAIL(data, p['window'], p['multiply'], p['peak_hold'], p['horizon'])
         
     def trade(self, trade_param, technical_param):
         data = self.data.copy()
@@ -264,10 +266,10 @@ class Optimizer:
         return path
           
     def run(self):
-        year_from = 2020
+        year_from = 2018
         month_from = 1
-        year_to = 2024
-        month_to = 5
+        year_to = 2023
+        month_to = 12
         loader = DataLoader()
         symbol = self.symbol
         param = Parameters(symbol, self.strategy)
@@ -335,7 +337,7 @@ def main():
         number = 0
     else:
         raise Exception('Bad parameter')
-    repeat = 1000
+    repeat = 3000
     opt = Optimizer(number, symbol, timeframe, strategy, repeat)
     opt.run()
     

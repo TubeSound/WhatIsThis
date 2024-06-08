@@ -605,7 +605,7 @@ def MID(data: dict):
         md[i] = (o + c) / 2
     data[Columns.MID] = md
     
-def ATR_TRAIL(data: dict, atr_window: int, atr_multiply: float, peak_hold_term: int):
+def ATR_TRAIL(data: dict, atr_window: int, atr_multiply: float, peak_hold_term: int, horizon: int):
     atr_window = int(atr_window)
     atr_multiply = int(atr_multiply)
     peak_hold_term = int(peak_hold_term)
@@ -650,12 +650,20 @@ def ATR_TRAIL(data: dict, atr_window: int, atr_multiply: float, peak_hold_term: 
     data[Indicators.ATR_TRAIL_UP] = up
     data[Indicators.ATR_TRAIL_DOWN] = down
             
-    signal = full(np.nan, n)
+    break_signal = full(np.nan, n)
     for  i in range(1, n):
         if trend[i - 1] == UP and trend[i] == DOWN:
-            signal[i] = Signal.SHORT
+            break_signal[i] = DOWN
         if trend[i - 1] == DOWN and trend[i] == UP:
-            signal[i] = Signal.LONG
+            break_signal[i] = UP
+
+    signal = full(np.nan, n)
+    for i in range(horizon, n):
+        brk = break_signal[i - horizon]
+        if brk == DOWN and trail_stop[i] > cl[i]:
+            signal[i] = Signal.SHORT
+        elif brk == UP and trail_stop[i] < cl[i]:
+            signal[i] = Signal.LONG        
             
     data[Indicators.ATR_TRAIL] = trail_stop
     data[Indicators.ATR_TRAIL_SIGNAL] = signal

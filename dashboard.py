@@ -34,13 +34,21 @@ from common import Indicators, Columns
 
 from strategy import Simulation
 
-trade_param = {'sl': 200, 'volume': 0.1, 'position_max':5, 'target':200, 'trail_stop': 100 }
+trade_param = {'begin_hour':7, 
+               'begin_minute':30,
+               'hours': 8,
+               'sl': 500,
+               'volume': 0.1,
+               'position_max':5,
+               'target':250, 
+               'trail_stop': 300,
+               'timelimit':0}
 
 
 
 TICKERS = ['NIKKEI', 'DOW', 'NSDQ', 'USDJPY']
 TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1']
-BARSIZE = ['100', '200', '400', '600', '800', '1500', '2000', '3000']
+BARSIZE = ['100', '200', '300', '400', '600', '800', '1500', '2000', '3000']
 HOURS = list(range(0, 24))
 MINUTES = list(range(0, 60))
 
@@ -56,9 +64,10 @@ technical_param = {'VWAP': {'begin_hour_list': [7, 19],
                     'RCI': {'window': 30,
                             'pivot_threshold': 70,
                             'pivot_len': 10},
-                    'ATR_TRAIL': {'window': 50,
-                                  'multiply':3.0,
-                                  'hold': 10
+                    'ATR_TRAIL': {'window': 90,
+                                  'multiply':2.8,
+                                  'peak_hold': 25,
+                                  'horizon': 1
                                   }
                     }
 
@@ -148,21 +157,21 @@ strategy_select = html.Div(     [
                             ]
                     )
 
-
-atr_trail_window = dcc.Input(id='atr_trail_window',type="number", min=1, max=50, step=1, value=technical_param['ATR_TRAIL']['window'])
+atr_trail_window = dcc.Input(id='atr_trail_window',type="number", min=1, max=100, step=1, value=technical_param['ATR_TRAIL']['window'])
 atr_trail_multiply = dcc.Input(id='atr_trail_multiply',type="number", min=1.0, max=5.0, step=0.2, value=technical_param['ATR_TRAIL']['multiply'])
-atr_trail_hold = dcc.Input(id='atr_trail_hold',type="number", min=1, max=20, step=1, value=technical_param['ATR_TRAIL']['hold'])
+atr_trail_hold = dcc.Input(id='atr_trail_hold',type="number", min=1, max=100, step=1, value=technical_param['ATR_TRAIL']['peak_hold'])
+atr_trail_horizon = dcc.Input(id='atr_trail_horizon',type="number", min=0, max=20, step=1, value=technical_param['ATR_TRAIL']['horizon'])
 param1 = html.Div([html.P('ATR_TRAIL window'), atr_trail_window])
 param2 = html.Div([html.P('ATR_TRAIL multiply'), atr_trail_multiply])
 param3 = html.Div([html.P('ATR_TRAIL hold'), atr_trail_hold])
-
+param4 = html.Div([html.P('ATR_TRAIL horizon'), atr_trail_horizon])
 
 rci_window = dcc.Input(id='rci_window',type="number", min=5, max=50, step=1, value=technical_param['RCI']['window'])
 rci_threshold = dcc.Input(id='rci_threshold',type="number", min=5, max=100, step=5, value=technical_param['RCI']['pivot_threshold'])
 rci_len = dcc.Input(id='rci_len',type="number", min=5, max=30, step=1, value=technical_param['RCI']['pivot_len'])
-param4 = html.Div([html.P('RCI window'), rci_window])
-param5 = html.Div([html.P('RCI threshold'), rci_threshold])
-param6 = html.Div([html.P('RCI len'), rci_len])
+param5 = html.Div([html.P('RCI window'), rci_window])
+param6 = html.Div([html.P('RCI threshold'), rci_threshold])
+param7 = html.Div([html.P('RCI len'), rci_len])
 
 pivot_threshold = dcc.Input(id='pivot_threshold',type="number", min=1, max=70, step=1, value=technical_param['VWAP']['pivot_threshold'])
 pivot_left_len = dcc.Input(id='pivot_left_len',type="number", min=1, max=30, step=1, value=technical_param['VWAP']['pivot_left_len'])
@@ -170,12 +179,12 @@ pivot_center_len = dcc.Input(id='pivot_center_len',type="number", min=1, max=30,
 pivot_right_len = dcc.Input(id='pivot_right_len',type="number", min=1, max=30, step=1, value=technical_param['VWAP']['pivot_right_len'])
 median_window = dcc.Input(id='median_window',type="number", min=1, max=50, step=1, value=technical_param['VWAP']['median_window'])
 ma_window = dcc.Input(id='ma_window',type="number", min=1, max=50, step=1, value=technical_param['VWAP']['ma_window'])
-param7 = html.Div([html.P('Pivot threshold'), pivot_threshold])
-param8 = html.Div([html.P('Pivot left len'), pivot_left_len])
-param9 = html.Div([html.P('Pivot center len'), pivot_center_len])
-param10 = html.Div([html.P('Pivot right len'), pivot_right_len])
-param11 = html.Div([html.P('VWAP median window'), median_window])
-param12 = html.Div([html.P('VWAP ma window'), ma_window])
+param8 = html.Div([html.P('Pivot threshold'), pivot_threshold])
+param9 = html.Div([html.P('Pivot left len'), pivot_left_len])
+param10 = html.Div([html.P('Pivot center len'), pivot_center_len])
+param11 = html.Div([html.P('Pivot right len'), pivot_right_len])
+param12 = html.Div([html.P('VWAP median window'), median_window])
+param13 = html.Div([html.P('VWAP ma window'), ma_window])
 
 
 
@@ -188,17 +197,18 @@ sidebar =  html.Div([   html.Div([
                                     param1,
                                     param2,
                                     param3,
-                                    html.Hr(),
                                     param4,
+                                    html.Hr(),
                                     param5,
                                     param6,
-                                    html.Hr(),
                                     param7,
+                                    html.Hr(),
                                     param8,
                                     param9,
                                     param10,
                                     param11,
-                                    param12],
+                                    param12,
+                                    param13],
                         style={'height': '50vh', 'margin': '8px'})
                     ])
 
@@ -280,6 +290,7 @@ def update_output(n_clicks1, n_clicks2, date):
     State('atr_trail_window', 'value'),
     State('atr_trail_multiply', 'value'),
     State('atr_trail_hold', 'value'),
+    State('atr_trail_horizon', 'value')
 )
 def update_chart(interval,
                  mode_select,
@@ -299,7 +310,8 @@ def update_chart(interval,
                  rci_len,
                  atr_trail_window,
                  atr_trail_multiply,
-                 atr_trail_hold
+                 atr_trail_hold,
+                 atr_trail_horizon
                  ):
     global graph
     global trade_table
@@ -333,12 +345,15 @@ def update_chart(interval,
     technical_param['RCI']['pivot_len'] = rci_len
     technical_param['ATR_TRAIL']['window'] = atr_trail_window
     technical_param['ATR_TRAIL']['multiply'] = atr_trail_multiply
-    technical_param['ATR_TRAIL']['hold'] = atr_trail_hold
+    technical_param['ATR_TRAIL']['peak_hold'] = atr_trail_hold
+    technical_param['ATR_TRAIL']['horizon'] = atr_trail_horizon
 
     indicators1(symbol, data, technical_param)
     data = Utils.sliceDictLast(data, num_bars)
     trade_param['strategy'] = strategy_select    
     sim = Simulation(trade_param)
+
+
     df, summary, profit_curve = sim.run(data)
     trade_table = dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
     graph = create_graph(symbol, timeframe, data)
@@ -383,13 +398,18 @@ def indicators1(symbol, data, technical_param):
     param = technical_param['RCI']
     RCI(data, param['window'], param['pivot_threshold'], param['pivot_len'])
     param = technical_param['ATR_TRAIL']
-    ATR_TRAIL(data, param['window'], param['multiply'], param['hold'])
+    ATR_TRAIL(data, param['window'], param['multiply'], param['peak_hold'], param['horizon'])
     
 def add_markers(fig, time, signal, data, value, symbol, color, row=0, col=0):
     if len(signal) == 0:
         return 
     x = []
     y = []
+    
+    if value > 0:
+        offset = 50
+    else:
+        offset = -50
     for t, s, d in zip(time, signal, data) :
         try:
             if np.isnan(s):
@@ -398,15 +418,15 @@ def add_markers(fig, time, signal, data, value, symbol, color, row=0, col=0):
             continue  
         if s == value:
             x.append(t)
-            y.append(d)
+            y.append(d + offset)
     #print('Marker ', symbol, x, y)
     markers = go.Scatter(
                             mode='markers',
                             x=x,
                             y=y,
-                            opacity=0.5,
+                            opacity=0.3,
                             marker_symbol=symbol,
-                            marker=dict(color=color, size=16, line=dict(color='White', width=2)),
+                            marker=dict(color=color, size=20, line=dict(color='White', width=2)),
                             showlegend=False
                         )
     fig.add_trace(markers, row=row, col=col)
