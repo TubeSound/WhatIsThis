@@ -267,9 +267,9 @@ class Optimizer:
           
     def run(self):
         year_from = 2018
-        month_from = 1
-        year_to = 2023
-        month_to = 12
+        month_from = 7
+        year_to = 2020
+        month_to = 7
         loader = DataLoader()
         symbol = self.symbol
         param = Parameters(symbol, self.strategy)
@@ -331,7 +331,7 @@ def main():
         strategy = args[3]
         number = args[4]
     elif len(args) == 1:
-        symbol = 'NIKKEI'
+        symbol = 'DOW'
         timeframe = 'M15'
         strategy = 'ATR_TRAIL'
         number = 0

@@ -143,7 +143,10 @@ class Positions:
         time = []
         for position in self.closed_positions:
             profits.append(position.profit)
-            profit_sum += position.profit
+            prf = position.profit
+            if prf is not None:
+                if not np.isnan(prf):
+                    profit_sum += prf
             time.append(position.entry_time)
             acc.append(profit_sum)
             if position.profit > 0:
