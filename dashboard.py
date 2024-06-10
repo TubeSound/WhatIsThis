@@ -26,13 +26,16 @@ from dateutil import tz
 
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
-from technical import VWAP, BB, ATR_TRAIL, ADX, RCI
+from technical import VWAP, BB, ATR_TRAIL, ADX, RCI, SUPERTREND
 
 from utils import Utils
 from mt5_api import Mt5Api
 from common import Indicators, Columns
 
 from strategy import Simulation
+
+CHART_WIDTH = 2000
+CHART_HEIGHT = 1000
 
 trade_param = {'begin_hour':7, 
                'begin_minute':30,
@@ -68,6 +71,10 @@ technical_param = {'VWAP': {'begin_hour_list': [7, 19],
                                   'multiply':2.8,
                                   'peak_hold': 25,
                                   'horizon': 1
+                                  },
+                    'SUPERTREND': {'window': 20,
+                                  'multiply':2.8,
+                                  'break_count': 5
                                   }
                     }
 
@@ -151,8 +158,8 @@ strategy_select = html.Div(     [
                         html.P('Strategy', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'),
                         dcc.Dropdown(id='strategy_select', 
                                     multi=False, 
-                                    value='ATR_TRAIL',
-                                    options=[{'label': x, 'value': x} for x in ['ATR_TRAIL', 'RCI', 'VWAP1', 'VWAP2']],
+                                    value='SUPERTREND',
+                                    options=[{'label': x, 'value': x} for x in ['SUPERTREND', 'RCI', 'ATR_TRAIL', 'VWAP1']],
                                     style={'width': '120px'})
                             ]
                     )
@@ -400,6 +407,9 @@ def indicators1(symbol, data, technical_param):
     param = technical_param['ATR_TRAIL']
     ATR_TRAIL(data, param['window'], param['multiply'], param['peak_hold'], param['horizon'])
     
+    param =technical_param['SUPERTREND']
+    SUPERTREND(data, param['window'], param['multiply'],  param['break_count'])
+    
 def add_markers(fig, time, signal, data, value, symbol, color, row=0, col=0):
     if len(signal) == 0:
         return 
@@ -508,6 +518,15 @@ def add_atr_stop_line(fig, data, row):
     add_markers(fig, jst, data[Indicators.ATR_TRAIL_SIGNAL], data[Indicators.ATR_TRAIL], 1, 'triangle-up', 'Green', row=r, col=1)
     add_markers(fig, jst, data[Indicators.ATR_TRAIL_SIGNAL], data[Indicators.ATR_TRAIL], -1, 'triangle-down', 'Red', row=r, col=1)
     
+def add_supertrend_line(fig, data, row):
+    jst = data['jst']
+    #fig.add_trace(go.Scatter(x=jst, y=data['VWAP_SLOPE'], line=dict(color='Green', width=2)), row=row, col=1)
+    r = row
+    fig.add_trace(go.Scatter(x=jst, y=data[Indicators.SUPERTREND_UPPER], line=dict(color='blue', width=2)), row=r, col=1)
+    fig.add_trace(go.Scatter(x=jst, y=data[Indicators.SUPERTREND_LOWER], line=dict(color='Orange', width=2)), row=r, col=1)
+    add_markers(fig, jst, data[Indicators.SUPERTREND_SIGNAL], data[Indicators.SUPERTREND_UPPER], 1, 'triangle-up', 'Green', row=r, col=1)
+    add_markers(fig, jst, data[Indicators.SUPERTREND_SIGNAL], data[Indicators.SUPERTREND_LOWER], -1, 'triangle-down', 'Red', row=r, col=1)
+        
 
 def create_graph(symbol, timeframe, data):    
     jst = data['jst']
@@ -523,8 +542,9 @@ def create_graph(symbol, timeframe, data):
     #add_vwap_line(fig, data, 2)
     add_rci_chart(fig, data, 3)
     add_vwap_chart(fig, data, 4)
-    add_atr_stop_line(fig, data, 1)
-    fig.update_layout(height=900, width=1200, showlegend=False, xaxis_rangeslider_visible=False)
+    #add_atr_stop_line(fig, data, 1)
+    add_supertrend_line(fig, data, 1)
+    fig.update_layout(height=CHART_HEIGHT, width=CHART_WIDTH, showlegend=False, xaxis_rangeslider_visible=False)
     fig.update_layout({  'title': symbol + '  ' + timeframe + '  ('  +  str(tfrom) + ')  ...  (' + str(tto) + ')'})
     """
     fig.update_xaxes(   {'title': 'Time',

@@ -10,7 +10,7 @@ from dateutil import tz
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
 
-from technical import VWAP, RCI, ATR_TRAIL
+from technical import VWAP, RCI, ATR_TRAIL, SUPERTREND
 from strategy import Simulation
 from time_utils import TimeFilter
 from data_loader import DataLoader
@@ -77,8 +77,18 @@ class Parameters:
             return self.code_to_rci_param(code)
         elif strategy == 'ATR_TRAIL':
             return self.code_to_atr_param(code)
+        elif strategy == 'SUPERTREND':
+            return self.code_to_supertrend_param(code)
         else:
             raise Exception('Bad strategy', strategy)
+        
+        
+    def code_to_supertrend_param(self, code):
+        param = {  'window': code[0], 
+                    'multiply': code[1],
+                    'break_count': code[2]
+                }
+        return {'SUPERTREND': param}    
         
     def code_to_vwap_param(self, code):
         vwap_ma_window = code[0]
@@ -153,6 +163,12 @@ class Parameters:
                         [GeneticCode.GeneFloat, 60, 100, 10],  # rci_pivot_threshold
                         [GeneticCode.GeneInt,   10, 50, 10]    # rci_pivot_len    
             ]
+        elif strategy == 'SUPERTREND':
+            space = [
+                        [GeneticCode.GeneInt,   10, 100, 10],    # window
+                        [GeneticCode.GeneFloat, 0.6, 5.0, 0.2],  # multiply
+                        [GeneticCode.GeneInt,   0, 10, 1]        # break_count    
+            ]
         return space
 
     def trade_gene_space(self):
@@ -219,6 +235,9 @@ class BackTest:
         elif self.strategy == 'ATR_TRAIL':
             p = param['ATR_TRAIL']
             ATR_TRAIL(data, p['window'], p['multiply'], p['peak_hold'], p['horizon'])
+        elif self.strategy == 'SUPERTREND':
+            p = param['SUPERTREND']
+            SUPERTREND(data, p['window'], p['multiply'], p['break_count'])
         
     def trade(self, trade_param, technical_param):
         data = self.data.copy()
@@ -254,6 +273,8 @@ class Optimizer:
         strategy = strategy.upper()
         if strategy.find('ATR') >= 0:
             strategy = 'ATR_TRAIL'
+        elif strategy.find('SUPER') >= 0:
+            strategy = 'SUPERTREND'
         self.strategy = strategy
         
         self.repeat = repeat
@@ -331,9 +352,9 @@ def main():
         strategy = args[3]
         number = args[4]
     elif len(args) == 1:
-        symbol = 'DOW'
+        symbol = 'NIKKEI'
         timeframe = 'M15'
-        strategy = 'ATR_TRAIL'
+        strategy = 'SUPER'
         number = 0
     else:
         raise Exception('Bad parameter')

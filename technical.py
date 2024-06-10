@@ -207,6 +207,14 @@ def MA( dic: dict, column: str, window: int):
     vector = dic[column]
     d = moving_average(vector, window)
     dic[name] = d
+    
+def calc_atr(dic, window):
+    hi = dic[Columns.HIGH]
+    lo = dic[Columns.LOW]
+    cl = dic[Columns.CLOSE]
+    tr = true_range(hi, lo, cl)
+    atr = moving_average(tr, window)
+    return atr
 
 def ATR(dic: dict, term: int, term_long:int):
     hi = dic[Columns.HIGH]
@@ -669,18 +677,21 @@ def ATR_TRAIL(data: dict, atr_window: int, atr_multiply: float, peak_hold_term: 
     data[Indicators.ATR_TRAIL_SIGNAL] = signal
 
              
-def SUPERTREND(data: dict,  multiply, column=Columns.MID):
+def SUPERTREND(data: dict,  atr_window: int, multiply, break_count, column=Columns.MID):
     time = data[Columns.TIME]
     if column == Columns.MID:
         MID(data)
     price = data[column]
     n = len(time)
-    atr_u, atr_l = band(data[column], data[Indicators.ATR], multiply)
+    atr = calc_atr(data, atr_window)
+    atr_u, atr_l = band(data[column], atr, multiply)
     trend = nans(n)
+    sig = nans(n)
+    stop_price = nans(n)
     super_upper = nans(n)
     super_lower = nans(n)
     is_valid = False
-    for i in range(1, n):
+    for i in range(break_count, n):
         if is_valid == False:
             if is_nans([atr_l[i - 1], atr_u[i - 1]]):
                 continue
@@ -697,9 +708,16 @@ def SUPERTREND(data: dict,  multiply, column=Columns.MID):
                     super_lower[i] = atr_l[i]
                 else:
                     super_lower[i] = super_lower[i - 1]
-            if price[i] < super_lower[i]:
-                # up->down trend 
+            is_break = True
+            for j in range(i - break_count - 1, i + 1):
+                if price[i] >= super_lower[i]:
+                    is_break = False
+                    break
+            if is_break:
+                 # up->down trend 
                 trend[i] = DOWN
+                sig[i] = Signal.SHORT
+                stop_price[i] = super_lower[i]
             else:
                 trend[i] = UP
         else:
@@ -711,15 +729,25 @@ def SUPERTREND(data: dict,  multiply, column=Columns.MID):
                     super_upper[i] = atr_u[i]
                 else:
                     super_upper[i] = super_upper[i - 1]
-            if price[i] > super_upper[i]:
+                    
+            is_break = True
+            for j in range(i - break_count - 1, i + 1):
+                if price[i] <= super_upper[i]:
+                    is_break = False
+                    break
+            if is_break:
                 # donw -> up trend
                 trend[i] = UP
+                sig[i] = Signal.LONG
+                stop_price[i] = super_upper[i]
             else:
                 trend[i] = DOWN
            
     data[Indicators.SUPERTREND_UPPER] = super_upper
     data[Indicators.SUPERTREND_LOWER] = super_lower
-    data[Indicators.SUPERTREND] = trend    
+    data[Indicators.SUPERTREND] = trend  
+    data[Indicators.SUPERTREND_SIGNAL] = sig    
+    data[Indicators.SUPERTREND_STOP_PRICE] = stop_price  
     return 
 
 def diff(data: dict, column: str):

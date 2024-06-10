@@ -199,12 +199,12 @@ class Simulation:
         lo = data[Columns.LOW]
         cl = data[Columns.CLOSE]
         
-        if self.strategy == 'VWAP1':
+        if self.strategy == 'SUPERTREND':
+            trend = data[Indicators.SUPERTREND_SIGNAL]
+            return self.run_doten(time, trend, op, hi, lo, cl)
+        elif self.strategy == 'VWAP1':
             vwap = data[Indicators.VWAP_RATE_SIGNAL]
             return self.run_doten(time, vwap, op, hi, lo, cl)
-        elif self.strategy == 'VWAP2':
-            prob = data[Indicators.VWAP_PROB_SIGNAL]
-            return self.run_doten(time, prob, op, hi, lo, cl)
         elif self.strategy == 'RCI':
             rci = data[Indicators.RCI_SIGNAL]
             return self.run_doten(time, rci, op, hi, lo, cl)
