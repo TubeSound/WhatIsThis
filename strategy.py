@@ -189,6 +189,12 @@ class Simulation:
             self.timefilter = TimeFilter(JST, begin_hour, begin_minite, hours)
         except:
             self.timefilter = None
+            
+        try:
+            self.only = self.trade_param['only']
+        except:
+            self.only = 0
+            
         self.positions = Positions(self.timefilter)
         
     def run(self, data):
@@ -204,6 +210,9 @@ class Simulation:
             return self.run_doten(time, trend, op, hi, lo, cl)
         elif self.strategy == 'VWAP1':
             vwap = data[Indicators.VWAP_RATE_SIGNAL]
+            return self.run_doten(time, vwap, op, hi, lo, cl)
+        elif self.strategy == 'VWAP2':
+            vwap = data[Indicators.VWAP_PROB_SIGNAL]
             return self.run_doten(time, vwap, op, hi, lo, cl)
         elif self.strategy == 'RCI':
             rci = data[Indicators.RCI_SIGNAL]
@@ -268,6 +277,10 @@ class Simulation:
         if self.timefilter is not None:
             if self.timefilter.on(time) == False:
                 return
+            
+        if self.only != 0 and self.only != signal:
+            return
+        
         if self.positions.num() < self.position_num_max:
             position = Position(self.trade_param, signal, index, time, price, self.volume)
             self.positions.add(position)

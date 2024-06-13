@@ -45,9 +45,10 @@ trade_param = {'begin_hour':7,
                'position_max':5,
                'target':250, 
                'trail_stop': 300,
-               'timelimit':0}
+               'timelimit':0,
+               'only': -1}
 
-
+STRATEGY = ['SUPERTREND', 'RCI', 'ATR_TRAIL', 'VWAP1', 'VWAP2']
 
 TICKERS = ['NIKKEI', 'DOW', 'NSDQ', 'USDJPY']
 TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1']
@@ -159,7 +160,7 @@ strategy_select = html.Div(     [
                         dcc.Dropdown(id='strategy_select', 
                                     multi=False, 
                                     value='SUPERTREND',
-                                    options=[{'label': x, 'value': x} for x in ['SUPERTREND', 'RCI', 'ATR_TRAIL', 'VWAP1']],
+                                    options=[{'label': x, 'value': x} for x in STRATEGY],
                                     style={'width': '120px'})
                             ]
                     )
@@ -434,7 +435,7 @@ def add_markers(fig, time, signal, data, value, symbol, color, row=0, col=0):
                             mode='markers',
                             x=x,
                             y=y,
-                            opacity=0.3,
+                            opacity=1.0,
                             marker_symbol=symbol,
                             marker=dict(color=color, size=20, line=dict(color='White', width=2)),
                             showlegend=False

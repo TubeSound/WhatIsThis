@@ -2,6 +2,7 @@ import os
 import shutil
 import sys
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 import random
 import numpy as np
 import matplotlib.pyplot as plt
@@ -71,7 +72,7 @@ class Parameters:
     
     def code_to_technical_param(self, code):
         strategy = self.strategy
-        if strategy == 'VWAP':
+        if strategy.find('VWAP') >= 0:
             return self.code_to_vwap_param(code)
         elif strategy == 'RCI':
             return self.code_to_rci_param(code)
@@ -124,6 +125,7 @@ class Parameters:
         sl = code[3]
         target_profit = code[4]
         trailing_stop = code[5]
+        only = code[5]
         if trailing_stop == 0 or target_profit == 0:
             trailing_stop = target_profit = 0
         elif trailing_stop < target_profit:
@@ -138,7 +140,8 @@ class Parameters:
                     'trailing_stop': trailing_stop, 
                     'volume': 0.1, 
                     'position_max': 5, 
-                    'timelimit': 0}
+                    'timelimit': 0,
+                    'only': only}
         return param
         
     def technical_gene_space(self):
@@ -205,7 +208,8 @@ class Parameters:
                     [GeneticCode.GeneInt, 1, 20, 1], # hours
                     sl,                              # stoploss
                     target,                          # target_profit
-                    trailing_stop                    # trailing_stop    
+                    trailing_stop,                    # trailing_stop    
+                    [GeneticCode.GeneInt, -1, 1, 1] #only
                 ] 
         return space
     
@@ -279,41 +283,47 @@ class Optimizer:
         
         self.repeat = repeat
         
-    def get_path(self, number: int):
+    def get_path(self, number: int, year=None, month=None):
         dir_path = './result'
         os.makedirs(dir_path, exist_ok=True)
-        filename = str(number).zfill(2) + '_' +  self.strategy + '_' + self.symbol + '_' + self.timeframe  + '.xlsx'
+        if year is None:
+            filename = str(number).zfill(2) + '_' +  self.strategy + '_' + self.symbol + '_' + self.timeframe + '.xlsx'
+        else:
+            filename = str(number).zfill(2) + '_' +  self.strategy + '_' + self.symbol + '_' + self.timeframe + '_' + str(year) + '_' + str(month).zfill(2) + '.xlsx'
         path = os.path.join(dir_path, filename)      
         return path
           
     def run(self):
         year_from = 2018
-        month_from = 7
+        month_from = 10
         year_to = 2020
         month_to = 7
         loader = DataLoader()
-        symbol = self.symbol
-        param = Parameters(symbol, self.strategy)
         timeframe = self.timeframe
-        n, data = loader.load_data(symbol, timeframe, year_from, month_from, year_to, month_to)
+        n, data = loader.load_data(self.symbol, self.timeframe, year_from, month_from, year_to, month_to)
         if n < 100:
             print('Data size small')
             return
+        self.trade(data)
+        
+    def trade(self, data, year=None, month=None):
+        symbol = self.symbol
+        param = Parameters(symbol, self.strategy)
         result = []
         for i in range(self.repeat):
             trade_param, technical_param = param.generate()                
-            test = BackTest('', symbol, timeframe, self.strategy, data)
+            test = BackTest('', symbol, self.timeframe, self.strategy, data)
             df, summary, profit_curve = test.trade(trade_param, technical_param)
-            d, columns= self.arrange_data(i, symbol, timeframe, technical_param, trade_param, summary)
+            d, columns= self.arrange_data(i, symbol, self.timeframe, technical_param, trade_param, summary)
             result.append(d)
             _, profit, _ = summary
             print(i, 'Profit', summary)
-            if profit > 0:
-                self.save_profit(symbol, timeframe, i, profit_curve)                    
+            if profit > 500:
+                self.save_profit_curve(symbol, self.timeframe, i, profit_curve, year, month)                    
             try:
                 df = pd.DataFrame(data=result, columns=columns)
                 df = df.sort_values('profit', ascending=False)
-                path = self.get_path(self.number)
+                path = self.get_path(self.number, year=year, month=month)
                 df.to_excel(path, index=False)
             except:
                 pass
@@ -330,13 +340,20 @@ class Optimizer:
         data += list(summary)
         return data, columns
     
-    def save_profit(self, symbol, timeframe, i, profit_curve):
+    def save_profit_curve(self, symbol, timeframe, i, profit_curve, year, month):
         dir_path = os.path.join('./profit_curve', self.strategy,  symbol, timeframe, str(self.number).zfill(2))
         os.makedirs(dir_path, exist_ok=True)
-        filename = '#' + str(i).zfill(4) + '_' + self.strategy + '_' + symbol + '_' + timeframe + '.png'
+        if year is None:
+            filename = '#' + str(i).zfill(4) + '_' + self.strategy + '_' + symbol + '_' + timeframe + '.png'
+        else:
+            filename = '#' + str(i).zfill(4) + '_' + self.strategy + '_' + symbol + '_' + timeframe + str(year) + '_' + str(month).zfill(2) + '.png'
         path = os.path.join(dir_path, filename)
         fig, ax = plt.subplots(1, 1, tight_layout=True)
-        title = '#' + str(i).zfill(4) +  ' ' + self.strategy + ' ' + symbol + '' + timeframe
+        if year is None:
+            title = '#' + str(i).zfill(4) +  ' ' + self.strategy + ' ' + symbol + ' ' + timeframe
+        else:
+            title = '#' + str(i).zfill(4) +  ' ' + self.strategy + ' ' + symbol + ' ' + timeframe + '(' + str(year) + '-' + str(month).zfill(2) + ')'
+            
         ax.plot(range(len(profit_curve)), profit_curve, color='blue')
         ax.set_title(title)
         try:
@@ -352,13 +369,13 @@ def main():
         strategy = args[3]
         number = args[4]
     elif len(args) == 1:
-        symbol = 'NIKKEI'
+        symbol = 'DOW'
         timeframe = 'M15'
         strategy = 'SUPER'
         number = 0
     else:
         raise Exception('Bad parameter')
-    repeat = 3000
+    repeat = 1000
     opt = Optimizer(number, symbol, timeframe, strategy, repeat)
     opt.run()
     
