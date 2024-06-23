@@ -125,7 +125,7 @@ class Parameters:
         sl = code[3]
         target_profit = code[4]
         trailing_stop = code[5]
-        only = code[5]
+        only = code[6]
         if trailing_stop == 0 or target_profit == 0:
             trailing_stop = target_profit = 0
         elif trailing_stop < target_profit:
@@ -283,21 +283,26 @@ class Optimizer:
         
         self.repeat = repeat
         
+        
+    def get_dirpath(self):
+        return './2018.10-2024.5/'
+        
+        
     def get_path(self, number: int, year=None, month=None):
-        dir_path = './result'
-        os.makedirs(dir_path, exist_ok=True)
+        dirpath = os.path.join(self.get_dirpath(), 'result')
+        os.makedirs(dirpath, exist_ok=True)
         if year is None:
             filename = str(number).zfill(2) + '_' +  self.strategy + '_' + self.symbol + '_' + self.timeframe + '.xlsx'
         else:
             filename = str(number).zfill(2) + '_' +  self.strategy + '_' + self.symbol + '_' + self.timeframe + '_' + str(year) + '_' + str(month).zfill(2) + '.xlsx'
-        path = os.path.join(dir_path, filename)      
+        path = os.path.join(dirpath, filename)      
         return path
           
     def run(self):
         year_from = 2018
         month_from = 10
-        year_to = 2020
-        month_to = 7
+        year_to = 2024
+        month_to = 5
         loader = DataLoader()
         timeframe = self.timeframe
         n, data = loader.load_data(self.symbol, self.timeframe, year_from, month_from, year_to, month_to)
@@ -341,13 +346,13 @@ class Optimizer:
         return data, columns
     
     def save_profit_curve(self, symbol, timeframe, i, profit_curve, year, month):
-        dir_path = os.path.join('./profit_curve', self.strategy,  symbol, timeframe, str(self.number).zfill(2))
-        os.makedirs(dir_path, exist_ok=True)
+        dirpath = os.path.join(self.get_dirpath(), 'profit_curve', self.strategy,  symbol, timeframe, str(self.number).zfill(2))
+        os.makedirs(dirpath, exist_ok=True)
         if year is None:
             filename = '#' + str(i).zfill(4) + '_' + self.strategy + '_' + symbol + '_' + timeframe + '.png'
         else:
             filename = '#' + str(i).zfill(4) + '_' + self.strategy + '_' + symbol + '_' + timeframe + str(year) + '_' + str(month).zfill(2) + '.png'
-        path = os.path.join(dir_path, filename)
+        path = os.path.join(dirpath, filename)
         fig, ax = plt.subplots(1, 1, tight_layout=True)
         if year is None:
             title = '#' + str(i).zfill(4) +  ' ' + self.strategy + ' ' + symbol + ' ' + timeframe

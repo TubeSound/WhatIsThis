@@ -56,14 +56,14 @@ class Position:
         if self.signal == Signal.LONG:
             profit = l - self.entry_price
             if profit <= -1 * self.sl:
-                 self.exit(index, time, l)
+                 self.exit(index, time, self.entry_price - self.sl)
                  self.losscutted = True
                  return True
             profit = c - self.entry_price
         else:
             profit = self.entry_price - h
             if profit <= -1 * self.sl:
-                self.exit(index, time, h)
+                self.exit(index, time, self.entry_price + self.sl)
                 self.losscutted = True
                 return True
             profit = c - self.entry_price            
@@ -191,10 +191,19 @@ class Simulation:
             self.timefilter = None
             
         try:
-            self.only = self.trade_param['only']
+            only = self.trade_param['only']
         except:
+            only = 0
+             
+        if only == 1:
+            self.only = Signal.LONG
+        elif only == -1:
+            self.only = Signal.SHORT
+        elif only == 0:
             self.only = 0
-            
+        else:
+            raise Exception('Bad parameter in only')
+                
         self.positions = Positions(self.timefilter)
         
     def run(self, data):

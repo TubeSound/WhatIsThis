@@ -5,7 +5,7 @@ import glob
 
 def main():
     files = glob.glob('./result/*.xlsx')
-    for symbol in ['NIKKEI', 'DOW']:
+    for symbol in ['NIKKEI', 'DOW', 'NSDQ']:
         dfs = []
         for file in files:
             if file.find(symbol) >= 0:
@@ -14,9 +14,16 @@ def main():
                 if len(values) < 4:
                     continue
                 num = values[0]
-                df = pd.read_excel(file)
+                try:
+                    df = pd.read_excel(file, engine="openpyxl")
+                except:
+                    print('error', file)
+                    continue
                 df['number'] = num
-                dfs.append(df)
+                if len(df) > 0:
+                    dfs.append(df)
+        if len(dfs) == 0:
+            continue
         df = pd.concat(dfs)
         df = df.sort_values('profit', ascending=False)
         df = df.iloc[:1000, :]

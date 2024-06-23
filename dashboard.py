@@ -34,19 +34,19 @@ from common import Indicators, Columns
 
 from strategy import Simulation
 
-CHART_WIDTH = 2000
+CHART_WIDTH = 1400
 CHART_HEIGHT = 1000
 
-trade_param = {'begin_hour':7, 
+trade_param = {'begin_hour':20, 
                'begin_minute':30,
-               'hours': 8,
-               'sl': 500,
+               'hours': 7,
+               'sl': 300,
                'volume': 0.1,
                'position_max':5,
-               'target':250, 
-               'trail_stop': 300,
+               'target':100, 
+               'trail_stop': 100,
                'timelimit':0,
-               'only': -1}
+               'only': 0}
 
 STRATEGY = ['SUPERTREND', 'RCI', 'ATR_TRAIL', 'VWAP1', 'VWAP2']
 
@@ -73,9 +73,9 @@ technical_param = {'VWAP': {'begin_hour_list': [7, 19],
                                   'peak_hold': 25,
                                   'horizon': 1
                                   },
-                    'SUPERTREND': {'window': 20,
-                                  'multiply':2.8,
-                                  'break_count': 5
+                    'SUPERTREND': {'window': 30,
+                                  'multiply':4.0,
+                                  'break_count': 0
                                   }
                     }
 
