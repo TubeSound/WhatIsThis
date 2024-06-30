@@ -53,6 +53,9 @@ class TimeFrame:
 
 class Indicators:
     MA = 'MA'
+    MA_SHORT = 'MA_SHORT'
+    MA_MID = 'MA_MID'
+    MA_LONG = 'MA_LONG'
     TR = 'TR'
     ATR = 'ATR'
     ATR_LONG = 'ATR_LONG'

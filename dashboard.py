@@ -26,7 +26,7 @@ from dateutil import tz
 
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
-from technical import VWAP, BB, ATR_TRAIL, ADX, RCI, SUPERTREND
+from technical import MA, VWAP, BB, ATR_TRAIL, ADX, SUPERTREND
 
 from utils import Utils
 from mt5_api import Mt5Api
@@ -37,18 +37,18 @@ from strategy import Simulation
 CHART_WIDTH = 1400
 CHART_HEIGHT = 1000
 
-trade_param = {'begin_hour':20, 
+trade_param = {'begin_hour':9, 
                'begin_minute':30,
-               'hours': 7,
-               'sl': 300,
+               'hours': 20,
+               'sl': 50,
                'volume': 0.1,
                'position_max':5,
-               'target':100, 
-               'trail_stop': 100,
+               'target':0, 
+               'trail_stop': 0,
                'timelimit':0,
                'only': 0}
 
-STRATEGY = ['SUPERTREND', 'RCI', 'ATR_TRAIL', 'VWAP1', 'VWAP2']
+STRATEGY = ['SUPERTREND', 'ATR_TRAIL', 'VWAP1', 'VWAP2']
 
 TICKERS = ['NIKKEI', 'DOW', 'NSDQ', 'USDJPY']
 TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1']
@@ -58,24 +58,22 @@ MINUTES = list(range(0, 60))
 
 INTERVAL_MSEC = 30 * 1000
 
-technical_param = {'VWAP': {'begin_hour_list': [7, 19], 
+technical_param = { 'MA': {'short': 20,
+                           'mid': 70,
+                           'long': 200},
+                    'VWAP': {'begin_hour_list': [7, 19], 
                             'pivot_threshold':10, 
                             'pivot_left_len':5,
                             'pivot_center_len':7,
                             'pivot_right_len':5,
                             'median_window': 5,
                             'ma_window': 15},
-                    'RCI': {'window': 30,
-                            'pivot_threshold': 70,
-                            'pivot_len': 10},
-                    'ATR_TRAIL': {'window': 90,
-                                  'multiply':2.8,
-                                  'peak_hold': 25,
-                                  'horizon': 1
-                                  },
+                    'ADX': {'window': 30,
+                            'window_long': 70,
+                            'di_window': 10},
                     'SUPERTREND': {'window': 30,
-                                  'multiply':4.0,
-                                  'break_count': 0
+                                  'multiply':2.2,
+                                  'break_count': 2
                                   }
                     }
 
@@ -165,21 +163,30 @@ strategy_select = html.Div(     [
                             ]
                     )
 
-atr_trail_window = dcc.Input(id='atr_trail_window',type="number", min=1, max=100, step=1, value=technical_param['ATR_TRAIL']['window'])
-atr_trail_multiply = dcc.Input(id='atr_trail_multiply',type="number", min=1.0, max=5.0, step=0.2, value=technical_param['ATR_TRAIL']['multiply'])
-atr_trail_hold = dcc.Input(id='atr_trail_hold',type="number", min=1, max=100, step=1, value=technical_param['ATR_TRAIL']['peak_hold'])
-atr_trail_horizon = dcc.Input(id='atr_trail_horizon',type="number", min=0, max=20, step=1, value=technical_param['ATR_TRAIL']['horizon'])
-param1 = html.Div([html.P('ATR_TRAIL window'), atr_trail_window])
-param2 = html.Div([html.P('ATR_TRAIL multiply'), atr_trail_multiply])
-param3 = html.Div([html.P('ATR_TRAIL hold'), atr_trail_hold])
-param4 = html.Div([html.P('ATR_TRAIL horizon'), atr_trail_horizon])
 
-rci_window = dcc.Input(id='rci_window',type="number", min=5, max=50, step=1, value=technical_param['RCI']['window'])
-rci_threshold = dcc.Input(id='rci_threshold',type="number", min=5, max=100, step=5, value=technical_param['RCI']['pivot_threshold'])
-rci_len = dcc.Input(id='rci_len',type="number", min=5, max=30, step=1, value=technical_param['RCI']['pivot_len'])
-param5 = html.Div([html.P('RCI window'), rci_window])
-param6 = html.Div([html.P('RCI threshold'), rci_threshold])
-param7 = html.Div([html.P('RCI len'), rci_len])
+
+ma_short = html.Div([    html.P('MA Short'),
+                        dcc.Input(id='ma_short',type="number", min=5, max=50, step=1, value=technical_param['MA']['short'])
+                   ])
+ma_mid = html.Div([    html.P('Mid'),
+                        dcc.Input(id='ma_mid',type="number", min=5, max=100, step=1, value=technical_param['MA']['mid'])
+                   ])
+ma_long = html.Div([    html.P('MA LOng'),
+                        dcc.Input(id='ma_long',type="number", min=5, max=400, step=1, value=technical_param['MA']['long'])
+                   ])
+supertrend_window = dcc.Input(id='supertrend_window',type="number", min=5, max=50, step=1, value=technical_param['SUPERTREND']['window'])
+supertrend_multiply = dcc.Input(id='supertrend_multiply',type="number", min=0.2, max=5, step=0.1, value=technical_param['SUPERTREND']['multiply'])
+supertrend_break = dcc.Input(id='supertrend_break_count',type="number", min=0, max=10, step=1, value=technical_param['SUPERTREND']['break_count'])
+param1 = html.Div([html.P('SUPERTREND window'), supertrend_window])
+param2 = html.Div([html.P('multiply'), supertrend_multiply])
+param3 = html.Div([html.P('break count'), supertrend_break])
+
+adx_window = dcc.Input(id='adx_window',type="number", min=10, max=100, step=1, value=technical_param['ADX']['window'])
+adx_window_long = dcc.Input(id='adx_window_long',type="number", min=10, max=100, step=1, value=technical_param['ADX']['window_long'])
+adx_di_window = dcc.Input(id='adx_di_window',type="number", min=1, max=100, step=1, value=technical_param['ADX']['di_window'])
+param4 = html.Div([html.P('ADX window'), adx_window])
+param5 = html.Div([html.P('window long'), adx_window_long])
+param6 = html.Div([html.P('DI window'), adx_di_window])
 
 pivot_threshold = dcc.Input(id='pivot_threshold',type="number", min=1, max=70, step=1, value=technical_param['VWAP']['pivot_threshold'])
 pivot_left_len = dcc.Input(id='pivot_left_len',type="number", min=1, max=30, step=1, value=technical_param['VWAP']['pivot_left_len'])
@@ -202,14 +209,17 @@ sidebar =  html.Div([   html.Div([
                                     html.Hr(),
                                     strategy_select,
                                     html.Hr(),
+                                    ma_short,
+                                    ma_mid,
+                                    ma_long,
+                                    html.Hr(),
                                     param1,
                                     param2,
                                     param3,
-                                    param4,
                                     html.Hr(),
+                                    param4,
                                     param5,
                                     param6,
-                                    param7,
                                     html.Hr(),
                                     param8,
                                     param9,
@@ -292,13 +302,15 @@ def update_output(n_clicks1, n_clicks2, date):
     State('pivot_right_len', 'value'),
     State('median_window', 'value'),
     State('ma_window', 'value'),
-    State('rci_window', 'value'),
-    State('rci_threshold', 'value'),
-    State('rci_len', 'value'),
-    State('atr_trail_window', 'value'),
-    State('atr_trail_multiply', 'value'),
-    State('atr_trail_hold', 'value'),
-    State('atr_trail_horizon', 'value')
+    State('adx_window', 'value'),
+    State('adx_window_long', 'value'),
+    State('adx_di_window', 'value'),
+    State('supertrend_window', 'value'),
+    State('supertrend_multiply', 'value'),
+    State('supertrend_break_count', 'value'),
+    State('ma_short', 'value'),
+    State('ma_mid', 'value'),
+    State('ma_long', 'value')
 )
 def update_chart(interval,
                  mode_select,
@@ -313,13 +325,15 @@ def update_chart(interval,
                  pivot_right_len,
                  median_window,
                  ma_window,
-                 rci_window,
-                 rci_threshold,
-                 rci_len,
-                 atr_trail_window,
-                 atr_trail_multiply,
-                 atr_trail_hold,
-                 atr_trail_horizon
+                 adx_window,
+                 adx_window_long,
+                 adx_di_window,
+                 supertrend_window,
+                 supertrend_multiply,
+                 supertrend_break_count,
+                 ma_short,
+                 ma_mid,
+                 ma_long
                  ):
     global graph
     global trade_table
@@ -342,19 +356,21 @@ def update_chart(interval,
         return
     #print('Data... time ', data['time'][0], size)
 
+    technical_param['MA']['short'] = ma_short
+    technical_param['MA']['short'] = ma_mid
+    technical_param['MA']['short'] = ma_long
     technical_param['VWAP']['pivot_threshold'] = pivot_threshold
     technical_param['VWAP']['pivot_left_len'] = pivot_left_len
     technical_param['VWAP']['pivot_center_len'] = pivot_center_len
     technical_param['VWAP']['pivot_right_len'] = pivot_right_len
     technical_param['VWAP']['median_window'] =  median_window
     technical_param['VWAP']['ma_window'] =  ma_window
-    technical_param['RCI']['window'] = rci_window
-    technical_param['RCI']['pivot_threshold'] = rci_threshold
-    technical_param['RCI']['pivot_len'] = rci_len
-    technical_param['ATR_TRAIL']['window'] = atr_trail_window
-    technical_param['ATR_TRAIL']['multiply'] = atr_trail_multiply
-    technical_param['ATR_TRAIL']['peak_hold'] = atr_trail_hold
-    technical_param['ATR_TRAIL']['horizon'] = atr_trail_horizon
+    technical_param['ADX']['window'] = adx_window
+    technical_param['ADX']['window_long'] = adx_window_long
+    technical_param['ADX']['di_window'] = adx_di_window
+    technical_param['SUPERTREND']['window'] = supertrend_window
+    technical_param['SUPERTREND']['window_multiply'] = supertrend_multiply
+    technical_param['SUPERTREND']['break_count'] = supertrend_break_count
 
     indicators1(symbol, data, technical_param)
     data = Utils.sliceDictLast(data, num_bars)
@@ -403,13 +419,18 @@ def indicators1(symbol, data, technical_param):
          param['median_window'],
          param['ma_window']
          )
-    param = technical_param['RCI']
-    RCI(data, param['window'], param['pivot_threshold'], param['pivot_len'])
-    param = technical_param['ATR_TRAIL']
-    ATR_TRAIL(data, param['window'], param['multiply'], param['peak_hold'], param['horizon'])
+    param = technical_param['ADX']
+    ADX(data, param['di_window'], param['window'], param['window_long'])
     
     param =technical_param['SUPERTREND']
     SUPERTREND(data, param['window'], param['multiply'],  param['break_count'])
+    
+    param = technical_param['MA']
+    ma_short = param['short']
+    ma_mid = param['mid']
+    ma_long = param['long']
+    MA(data, ma_short, ma_mid, ma_long)
+    
     
 def add_markers(fig, time, signal, data, value, symbol, color, row=0, col=0):
     if len(signal) == 0:
@@ -489,13 +510,24 @@ def add_vwap_line(fig, data, row):
                          name='VWAP lower'))
 
 
-    
-def add_rci_chart(fig, data, row):
+def add_ma_line(fig, data, row):
     jst = data['jst']
     r = row
-    fig.add_trace(go.Scatter(x=jst, y=data['RCI'], line=dict(color='blue', width=2)), row=r, col=1)
-    add_markers(fig, jst, data['RCI_SIGNAL'], data['RCI'], 1, 'triangle-up', 'Green', row=r, col=1)
-    add_markers(fig, jst, data['RCI_SIGNAL'], data['RCI'], -1, 'triangle-down', 'Red', row=r, col=1)    
+    fig.add_trace(go.Scatter(x=jst, y=data['MA_SHORT'], line=dict(color='red', width=2)), row=r, col=1)
+    fig.add_trace(go.Scatter(x=jst, y=data['MA_MID'], line=dict(color='blue', width=2)), row=r, col=1)
+    fig.add_trace(go.Scatter(x=jst, y=data['MA_LONG'], line=dict(color='green', width=2)), row=r, col=1)
+    
+    
+    
+    
+def add_adx_chart(fig, data, row):
+    jst = data['jst']
+    r = row
+    fig.add_trace(go.Scatter(x=jst, y=data['ADX'], line=dict(color='red', width=2)), row=r, col=1)
+    fig.add_trace(go.Scatter(x=jst, y=data['ADX_LONG'], line=dict(color='blue', width=2)), row=r, col=1)
+    fig.add_trace(go.Scatter(x=jst, y=data['DI_PLUS'], line=dict(color='green', width=2)), row=r, col=1)
+    fig.add_trace(go.Scatter(x=jst, y=data['DI_MINUS'], line=dict(color='orange', width=2)), row=r, col=1)
+    
        
 def add_vwap_chart(fig, data, row):
     jst = data['jst']
@@ -538,10 +570,11 @@ def create_graph(symbol, timeframe, data):
         form = '%m-%d'
     else:
         form = '%d/%H:%M'
-    fig = create_fig([7.0, 1.0, 1.0, 1.0, 1.0])
+    fig = create_fig([7.0, 1.0, 3.0, 1.0, 1.0])
     add_candle_chart(fig, data, 1)
+    add_ma_line(fig, data, 1)
     #add_vwap_line(fig, data, 2)
-    add_rci_chart(fig, data, 3)
+    add_adx_chart(fig, data, 3)
     add_vwap_chart(fig, data, 4)
     #add_atr_stop_line(fig, data, 1)
     add_supertrend_line(fig, data, 1)
@@ -557,7 +590,7 @@ def create_graph(symbol, timeframe, data):
     #fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])])
     fig.update_yaxes(title_text="Price", row=1, col=1)
     fig.update_yaxes(title_text="Volume", row=2, col=1)
-    fig.update_yaxes(title_text="RCI", range=[-150, 150], row=3, col=1)
+    fig.update_yaxes(title_text="ADX", range=[0, 100], row=3, col=1)
     fig.update_yaxes(title_text="VWAP Rate", row=4, col=1)      
     fig.update_yaxes(title_text="Trail Stop", row=6, col=1)    
     return dcc.Graph(id='stock-graph', figure=fig)

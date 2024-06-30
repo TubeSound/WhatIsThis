@@ -202,11 +202,15 @@ def probability(position, states, window):
         prob[i] = float(s) / float(window) * 100.0 
     return prob      
         
-def MA( dic: dict, column: str, window: int):
-    name = Indicators.MA + str(window)
+def MA( dic: dict, short: int, mid: int, long: int, column: str='close'):
     vector = dic[column]
-    d = moving_average(vector, window)
-    dic[name] = d
+    d = moving_average(vector, short)
+    dic[Indicators.MA_SHORT] = d
+    d = moving_average(vector, mid)
+    dic[Indicators.MA_MID] = d
+    d = moving_average(vector, long)
+    dic[Indicators.MA_LONG] = d
+    
     
 def calc_atr(dic, window):
     hi = dic[Columns.HIGH]
@@ -232,7 +236,8 @@ def ATR(dic: dict, term: int, term_long:int):
 def ADX(data: dict, di_window: int, adx_term: int, adx_term_long:int):
     hi = data[Columns.HIGH]
     lo = data[Columns.LOW]
-    tr = data[Indicators.TR]
+    cl = data[Columns.CLOSE]
+    tr = true_range(hi, lo, cl)
     n = len(hi)
     dmp = nans(n)     
     dmm = nans(n)     

@@ -1,172 +1,148 @@
-import numpy as np
 import pandas as pd
+import numpy as np
+from mt5_trade import Mt5Trade, TimeFrame, Columns, nptimestamp2pydatetime
 from datetime import datetime, timedelta
+from common import Signal, Indicators
+
+
+
 from dateutil import tz
 
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc') 
 
+COLUMNS = [Columns.TIME, Columns.OPEN, Columns.HIGH, Columns.LOW, Columns.CLOSE, 'tick_volume']
+TICK_COLUMNS = [Columns.TIME, Columns.ASK, Columns.BID]
 
-def nans(length:int):
-    out = [np.nan for _ in range(length)]
-    return out
+def nans(length):
+    return [np.nan for _ in range(length)]
 
-def time_utc(year: int, month: int, day: int, hour: int, minute: int):
-    t = datetime(year, month, day, hour, minute)
-    return t.replace(tzinfo=UTC)    
+def jst2utc(jst: datetime): 
+    return jst.astimezone(UTC)
 
+def utcstr2datetime(utc_str: str, format='%Y-%m-%d %H:%M:%S'):
+    utc = datetime.strptime(utc_str, format)
+    utc = utc.replace(tzinfo=UTC)
+    return utc
+
+def utc2jst(utc: datetime):
+    jst = utc.astimezone(JST)       
+    return jst
+
+def to_pydatetime(times, utc_from: datetime, delta_hour_from_gmt):
+    if utc_from is None:
+        i_begin = 0
+    else:
+        i_begin = -1
+    out = []
+    for i, time in enumerate(times):
+        if type(time) is str:
+            utc = utcstr2datetime(time) - delta_hour_from_gmt
+        else:
+            server_time = nptimestamp2pydatetime(time)
+            utc = server_time - delta_hour_from_gmt
+            utc = utc.replace(tzinfo=UTC)
+        if utc_from is None:
+            out.append(utc)
+        else:
+            if utc > utc_from:
+                if i_begin == -1:
+                    i_begin = i
+                out.append(utc)
+    return (i_begin, len(out), out)
+    
+def df2dic(df: pd.DataFrame, time_column: str, columns, utc_from: datetime,  delta_hour_from_gmt:timedelta):
+    if type(df) == pd.Series:
+        return df2dic_one(df, time_column, columns, utc_from, delta_hour_from_gmt)
+    i_from, n, utc = to_pydatetime(df[time_column], utc_from, delta_hour_from_gmt)
+    if n == 0:
+        return (0, {})    
+    dic = {}
+    dic[time_column] = utc
+    jst = [utc2jst(t) for t in utc]
+    dic[Columns.JST] = jst
+    for column in columns:
+        if column != time_column:
+            array = list(df[column].values)  
+            dic[column] = array[i_from:]
+    return (n, dic)
+
+def df2dic_one(df: pd.DataFrame, time_column: str, columns, utc_from: datetime, delta_hour_from_gmt):
+    time = df[time_column]
+    i_from, n, utc = to_pydatetime([time], utc_from, delta_hour_from_gmt)
+    if n == 0:
+        return (0, {})    
+    dic = {}
+    dic[time_column] = utc
+    jst = [utc2jst(t) for t in utc]
+    dic[Columns.JST] = jst
+    for column in columns:
+        if column != time_column:
+            dic[column] = [df[column]]
+    return (n, dic)
 
 class DataBuffer:
-    def __init__(self, time_column: str):
-        self.time_column = time_column
-        self.size = 0
-        
-    def initilize(self, arrays: dict):
-        self.arrays = arrays
-        self.keys = list(self.arrays.keys())
-        self.size = len(arrays[self.keys[0]])    
-        
-    def time_array(self):
-        return self.arrays[self.time_column]
-        
-    def time_last(self):
-        time = self.time_array()
-        return time[-1]
-        
-    def add_empty(self, keys: [str]):
-        for key in keys:
-            self.arrays[key] = nans(self.size)
-        self.keys = list(self.arrays.keys())
-        
-    def shift(self, length=1):
-        for key, array in self.arrays.items():
-            new_array = array[length:] + nans(length)
-            self.arrays[key] = new_array
-            
-    def slice_dic(self, data: dict, begin: int, end: int):
-        dic = {}
-        for key, array in data.items():
-            dic[key] = array[begin: end + 1]
-        return dic, (end - begin + 1)
-            
-    def split_data(self, data: dict):
-        t_last = self.time_last()
-        time = data[self.time_column]
-        n = len(time)
-        index = None
-        for i, t in enumerate(time):
-            if t > t_last:
-                index = i
-                break
-        if index is None:
-            return (data, None, 0)
-        
-        replace_data, length = self.slice_dic(data, 0, index - 1)
-        new_data, new_length = self.slice_dic(data, index, n - 1)                 
-        return (replace_data, new_data, new_length)
-        
-    def update(self, data: dict):
-        length = None
-        for key, value in data.items():
-            if length is None:
-                length = len(value)
-            else:
-                if length != len(value):
-                    raise Exception('Dimension error')
-        replace_data, new_data, new_length = self.split_data(data)
-        self.replace(replace_data)
-        if new_length > 0:
-            self.add_data(new_data, new_length)
-            return new_length
-        else:
+    def __init__(self, indicator_function, symbol: str, timeframe: str, df: pd.DataFrame, technical_params: dict, delta_hour_from_gmt):
+        self.symbol = symbol
+        self.timeframe = timeframe        
+        self.delta_hour_from_gmt  =  delta_hour_from_gmt 
+        n, data = df2dic(df, Columns.TIME, COLUMNS, None, self.delta_hour_from_gmt)
+        if n == 0:
+            raise Exception('Error cannot get initail data')
+        indicator_function(data, technical_params)
+        self.data = data
+        self.technical_params = technical_params
+        self.indicator_function = indicator_function
+
+    def last_time(self):
+        t_utc = self.data[Columns.TIME][-1]
+        return t_utc
+    
+    def last_index(self):
+        time = self.data[Columns.TIME]
+        return len(time) - 1
+    
+    def update(self, df: pd.DataFrame):
+        last = self.last_time()
+        n, dic = df2dic(df, Columns.TIME, COLUMNS, last, self.delta_hour_from_gmt)
+        if n == 0:
             return 0
-                
-    
-    def replace(self, data: dict):
-        time = self.time_array()
-        t_list = data[self.time_column]
-        for i, t in enumerate(t_list):
-            for j, t0 in enumerate(time):
-                if t == t0:
-                    for key, array in data.items():
-                        self.arrays[key][j] = array[i]
-                    break
-                
-                
-    def add_data(self, data: dict, length: int):
-        for key in self.keys:
-            if key in data.keys():
-                new_array =  self.arrays[key][length:] + data[key]                
+        for key, value in self.data.items():
+            if key in dic.keys():
+                d = dic[key]
+                value += d
             else:
-                new_array = self.arrays[key][length:] + nans(length)
-            self.arrays[key] = new_array
-
-    def get_data(self, key: str):
-        return self.arrays[key]
+                value += nans(n)
+        self.indicator_function(self.data, self.technical_params)
+        return n
+                
+                
+def save(data: dict, path: str):
+    d = data.copy()
+    d[Columns.TIME] = [str(t) for t in d[Columns.TIME]]
+    d[Columns.JST] = [str(t) for t in d[Columns.JST]]
+    df = pd.DataFrame(d)
+    df.to_excel(path, index=False)   
     
-    def data_last(self, key: str, length: int):
-        array = self.arrays[key]
-        return array[-length:]
-
-    def update_data(self, key, data):
-        length = len(data)
-        array = self.arrays[key]
-        begin = self.size - length
-        for i, d in enumerate(data):
-            array[begin + i] = d 
-            
     
 def test():
-    import time
-    from mt5_api import Mt5Api
+    path = '../MarketData/Axiory/NIKKEI/M30/NIKKEI_M30_2023_06.csv'
+    df = pd.read_csv(path)
 
-    symbol = 'DOW'
-    timeframe = 'M1'
-    interval = 20
-    bars = 200
+    df1 = df.iloc[:1003, :]
+    df2 = df.iloc[1003:, :]
     
-    api = Mt5Api()
-    api.connect()
-    buffer = DataBuffer('time')
-    for i in range(100):
-        if i == 0:
-            data = api.get_rates(symbol, timeframe, bars)
-        else:
-            data = api.get_rates(symbol, timeframe, 2)
-        if buffer.size == 0:
-            buffer.initilize(data)
-        else:
-            n = buffer.update(data)
-            print('#', i, 'Update data size', n)
-        time.sleep(interval)
-    df = pd.DataFrame(buffer.arrays)
-    df.to_csv('./bufferd_data.xlsx', index=False)
+    print(len(df))
+    print(len(df1))
+    print(len(df2))
+    params= {'MA':{'window':60}, 'ATR': {'window': 9, 'multiply': 3.0}}
+    buffer = DataBuffer('', 'M30', df1, params)
+    buffer.update(df2)
+    save(buffer.data, './debug/divided.xlsx')
     
-    data = api.get_rates(symbol, timeframe, bars)
-    df = pd.DataFrame(data)
-    df.to_csv('./refference.xlsx', index=False)
-    
-def test2():
-    import time
-    from mt5_api import Mt5Api
-    from technical import VWAP
-    
-    symbol = 'NIKKEI'
-    timeframe = 'M1'
-    interval = 20
-    bars = 800
-    
-    api = Mt5Api()
-    api.connect()
-    data = api.get_rates(symbol, timeframe, bars)
-    VWAP(data, 1.8, [8, 16, 20])
-    df = pd.DataFrame(data)
-    df.to_csv('./nikkei_debug.csv', index=False)    
-    
-    
-   
+
+
 if __name__ == '__main__':
-    test2()
+    test()
     
-    
-    
+       
