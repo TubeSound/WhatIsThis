@@ -215,22 +215,49 @@ class Simulation:
         cl = data[Columns.CLOSE]
         
         if self.strategy == 'SUPERTREND':
-            trend = data[Indicators.SUPERTREND_SIGNAL]
-            return self.run_doten(time, trend, op, hi, lo, cl)
+            signal = self.supertrend(data)
+            return self.run_doten(time, signal, op, hi, lo, cl)
         elif self.strategy == 'VWAP1':
-            vwap = data[Indicators.VWAP_RATE_SIGNAL]
-            return self.run_doten(time, vwap, op, hi, lo, cl)
-        elif self.strategy == 'VWAP2':
-            vwap = data[Indicators.VWAP_PROB_SIGNAL]
-            return self.run_doten(time, vwap, op, hi, lo, cl)
-        elif self.strategy == 'RCI':
-            rci = data[Indicators.RCI_SIGNAL]
-            return self.run_doten(time, rci, op, hi, lo, cl)
-        elif self.strategy == 'ATR_TRAIL':
-            atr_trail = data[Indicators.ATR_TRAIL_SIGNAL]
-            return self.run_doten(time, atr_trail, op, hi, lo, cl)
+            signal = self.adx_ma(data)
         else:
             raise Exception('Bad strategy name', self.strategy)
+        
+        
+        
+    def adx_ma(self, data):
+        param = self.trade_param['ADX_MA']
+        adx_threshold = param['adx_threshold']
+        cl = data[Columns.CLOSE]
+        lo = data[Columns.LOW]
+        n = len(cl)
+        adx = data[Indicators.ADX]
+        sma_long_high = data[Indicators.SMA_LONG_HIGH]
+        sma_long_low = data[Indicators.SMA_LONG_LOW]
+        ema_short_high = data[Indicatrs.EMA_SHORT_HIGH]
+        ema_long_low = data[Indicators.EMA_SHORT_LOW]
+        width = sma_long_high - sma_long_low
+        signal = np.full(n, np.nan)
+        for i in range(n):
+            if adx[i] > adx_threshold:
+                if sma_long_high[i] + width < ema_short_low[i]:        
+                    if ema_short_high[i] < cl[i]:
+                        signal[i] = Signal.LONG
+                elif sma_long_low[i] - width > ema_short_high[i]:
+                    if ema_short_low[i] > cl[i]:
+                        signal[i] = Signal.SHORT
+        
+        
+        
+        
+        
+        
+        
+        
+    
+    def supertrend(self, data):
+        return data[Indicators.SUPERTREND_SIGNAL]
+        
+        
             
     def run_doten(self, time, signal,op, hi, lo, cl):
         n = len(time)

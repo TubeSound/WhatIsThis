@@ -30,16 +30,30 @@ def is_nans(values):
             return True
     return False
 
-def moving_average(vector, window):
+def sma(vector, window):
     window = int(window)
     n = len(vector)
-    out = nans(n)
+    out = np.full(n, np.nan)
     ivalid = window- 1
     if ivalid < 0:
         return out
     for i in range(ivalid, n):
         d = vector[i - window + 1: i + 1]
         out[i] = stat.mean(d)
+    return out
+
+def ema(vector, window):
+    window = int(window)
+    weights = np.exp(np.linspace(-1., 0., window))
+    weights /= weights.sum()
+    n = len(vector)
+    out = np.full(n, np.nan)
+    ivalid = window- 1
+    if ivalid < 0:
+        return out
+    for i in range(ivalid, n):
+        d = vector[i - window + 1: i + 1]
+        out[i] = np.sum(d * weights)
     return out
 
 def slope(signal: list, window: int, minutes: int, tolerance=0.0):
@@ -201,15 +215,85 @@ def probability(position, states, window):
                     break
         prob[i] = float(s) / float(window) * 100.0 
     return prob      
+
+def cross(long, short):
+    p0, p1 = long
+    q0, q1 = short
+    
+    if q0 == q1 :
+        return 0
+    if p0 == p1:
+        return 0
+    if p0 >= q0 and p1 <= q1:
+        return 1
+    elif p0 <= q0 and p1 >= q1:
+        return -1
+    return 0       
+
+
+
+def wakeup(long, mid, short, width, is_up, is_slow=True):
+    n = len(long)
+    direction = 1 if is_up else -1
+    x = []
+    for i in range(1, n):
+        if is_slow:
+            if cross(long[ i - 1: i +1], mid[i - 1: i +1]) == direction:
+                x.append(i)
+        else:
+            if cross(mid[ i - 1: i +1], short[i - 1: i +1]) == direction:
+                x.append(i)
+            
+    x.append(n - 1)
+    trend = np.full(n, 0)   
+    for i in range(len(x) - 1):
+        x0 = x[i]
+        x1 = x[i + 1]
+        for j in range(x0 + 5, x1):
+            half = int((j - x0 ) / 2 + x0)
+            l0 = long[half]
+            m0 = mid[half]
+            s0 = short[half]
+            l1 = long[j]            
+            m1 = mid[j]
+            s1 = short[j]
+            w1 = width[j]
+            if is_up:
+                if l1 > l0 and m1 > m0 and s1 > s0 and (s1 - m1) > w1 and (m1 - l1) > w1:
+                    trend[j] = 1
+            else:
+                if l1 < l0 and m1 < m0 and s1 < s0 and (m1 - s1) > w1 and (l1 - m1) > w1:
+                    trend[j] = -1 
+    return trend, x
+    
         
-def MA( dic: dict, short: int, mid: int, long: int, column: str='close'):
-    vector = dic[column]
-    d = moving_average(vector, short)
-    dic[Indicators.MA_SHORT] = d
-    d = moving_average(vector, mid)
-    dic[Indicators.MA_MID] = d
-    d = moving_average(vector, long)
-    dic[Indicators.MA_LONG] = d
+def TRENDY( dic: dict, short: int, mid: int, long: int):
+    cl = dic[Columns.CLOSE]
+    hi = dic[Columns.HIGH]
+    lo  = dic[Columns.LOW]
+    
+    ema_short_high = ema(hi, short)
+    ema_short_low = ema(lo, short)
+    sma_mid = sma(cl, mid)
+    sma_long_high = sma(hi, long)
+    sma_long_low = sma(lo, long)
+    width = sma_long_high - sma_long_low 
+    
+    dic[Indicators.EMA_SHORT_HIGH] = ema_short_high
+    dic[Indicators.EMA_SHORT_LOW] = ema_short_low
+    dic[Indicators.SMA_MID] = sma_mid
+    dic[Indicators.SMA_LONG_HIGH] = sma_long_high
+    dic[Indicators.SMA_LONG_LOW] = sma_long_low
+
+    up, xup = wakeup(sma_long_high, sma_mid, ema_short_low, width, True, is_slow=False)    
+    down, xdown = wakeup(sma_long_low, sma_mid, ema_short_high, width, False, is_slow=False)
+    trend = up + down
+    
+    
+    dic[Indicators.TRENDY] = trend
+    dic[Indicators.TRENDY_XUP] = xup
+    dic[Indicators.TRENDY_XDOWN] = xdown
+    
     
     
 def calc_atr(dic, window):
@@ -217,7 +301,7 @@ def calc_atr(dic, window):
     lo = dic[Columns.LOW]
     cl = dic[Columns.CLOSE]
     tr = true_range(hi, lo, cl)
-    atr = moving_average(tr, window)
+    atr = sma(tr, window)
     return atr
 
 def ATR(dic: dict, term: int, term_long:int):
@@ -227,10 +311,10 @@ def ATR(dic: dict, term: int, term_long:int):
     term = int(term)
     tr = true_range(hi, lo, cl)
     dic[Indicators.TR] = tr
-    atr = moving_average(tr, term)
+    atr = sma(tr, term)
     dic[Indicators.ATR] = atr
     if term_long is not None:
-        atr_long = moving_average(tr, term_long)
+        atr_long = sma(tr, term_long)
         dic[Indicators.ATR_LONG] = atr_long
 
 def ADX(data: dict, di_window: int, adx_term: int, adx_term_long:int):
@@ -262,13 +346,13 @@ def ADX(data: dict, di_window: int, adx_term: int, adx_term_long:int):
         dip[i] = s_dmp / s_tr * 100 
         dim[i] = s_dmm / s_tr * 100
         dx[i] = abs(dip[i] - dim[i]) / (dip[i] + dim[i]) * 100
-    adx = moving_average(dx, adx_term)
+    adx = sma(dx, adx_term)
     data[Indicators.DX] = dx
     data[Indicators.ADX] = adx
     data[Indicators.DI_PLUS] = dip
     data[Indicators.DI_MINUS] = dim
     if adx_term_long is not None:
-        adx_long = moving_average(dx, adx_term_long)
+        adx_long = sma(dx, adx_term_long)
         data[Indicators.ADX_LONG] = adx_long
         
         
@@ -318,7 +402,7 @@ def BBRATE(data: dict, window: int, ma_window):
     for i in range(window - 1, n):
         d = cl[i - window + 1: i + 1]    
         std[i] = np.std(d)   
-    ma = moving_average(cl, ma_window)     
+    ma = sma(cl, ma_window)     
     rate = nans(n)
     for i in range(n):
         c = cl[i]
@@ -337,7 +421,7 @@ def BB(data: dict, window: int, ma_window:int, band_multiply):
     for i in range(window - 1, n):
         d = cl[i - window + 1: i + 1]    
         std[i] = np.std(d)   
-    ma = moving_average(cl, ma_window)     
+    ma = sma(cl, ma_window)     
         
     upper, lower = band(ma, std, band_multiply)    
     data[Indicators.BB] = std
@@ -403,7 +487,7 @@ def vwap_rate(price, vwap, std, median_window, ma_window):
             r = (p - v) / s * 100.0
             rate[i] = r #20 * int(r / 20)        
     med = median(rate, median_window)        
-    ma = moving_average(med, ma_window)
+    ma = sma(med, ma_window)
     return ma
 
 def vwap_pivot(signal, threshold, left_length, center_length, right_length):

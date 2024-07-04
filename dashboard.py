@@ -26,7 +26,7 @@ from dateutil import tz
 
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
-from technical import MA, VWAP, BB, ATR_TRAIL, ADX, SUPERTREND
+from technical import TRENDY, VWAP, BB, ATR_TRAIL, ADX, SUPERTREND
 
 from utils import Utils
 from mt5_api import Mt5Api
@@ -48,7 +48,7 @@ trade_param = {'begin_hour':9,
                'timelimit':0,
                'only': 0}
 
-STRATEGY = ['SUPERTREND', 'ATR_TRAIL', 'VWAP1', 'VWAP2']
+STRATEGY = ['SUPERTREND', 'ADX_MA']
 
 TICKERS = ['NIKKEI', 'DOW', 'NSDQ', 'USDJPY']
 TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1']
@@ -58,7 +58,7 @@ MINUTES = list(range(0, 60))
 
 INTERVAL_MSEC = 30 * 1000
 
-technical_param = { 'MA': {'short': 20,
+technical_param = { 'TRENDY': {'short': 20,
                            'mid': 70,
                            'long': 200},
                     'VWAP': {'begin_hour_list': [7, 19], 
@@ -166,13 +166,13 @@ strategy_select = html.Div(     [
 
 
 ma_short = html.Div([    html.P('MA Short'),
-                        dcc.Input(id='ma_short',type="number", min=5, max=50, step=1, value=technical_param['MA']['short'])
+                        dcc.Input(id='ma_short',type="number", min=5, max=50, step=1, value=technical_param['TRENDY']['short'])
                    ])
 ma_mid = html.Div([    html.P('Mid'),
-                        dcc.Input(id='ma_mid',type="number", min=5, max=100, step=1, value=technical_param['MA']['mid'])
+                        dcc.Input(id='ma_mid',type="number", min=5, max=100, step=1, value=technical_param['TRENDY']['mid'])
                    ])
-ma_long = html.Div([    html.P('MA LOng'),
-                        dcc.Input(id='ma_long',type="number", min=5, max=400, step=1, value=technical_param['MA']['long'])
+ma_long = html.Div([    html.P('MA Long'),
+                        dcc.Input(id='ma_long',type="number", min=5, max=400, step=1, value=technical_param['TRENDY']['long'])
                    ])
 supertrend_window = dcc.Input(id='supertrend_window',type="number", min=5, max=50, step=1, value=technical_param['SUPERTREND']['window'])
 supertrend_multiply = dcc.Input(id='supertrend_multiply',type="number", min=0.2, max=5, step=0.1, value=technical_param['SUPERTREND']['multiply'])
@@ -356,9 +356,9 @@ def update_chart(interval,
         return
     #print('Data... time ', data['time'][0], size)
 
-    technical_param['MA']['short'] = ma_short
-    technical_param['MA']['short'] = ma_mid
-    technical_param['MA']['short'] = ma_long
+    technical_param['TRENDY']['short'] = ma_short
+    technical_param['TRENDY']['mid'] = ma_mid
+    technical_param['TRENDY']['long'] = ma_long
     technical_param['VWAP']['pivot_threshold'] = pivot_threshold
     technical_param['VWAP']['pivot_left_len'] = pivot_left_len
     technical_param['VWAP']['pivot_center_len'] = pivot_center_len
@@ -425,11 +425,11 @@ def indicators1(symbol, data, technical_param):
     param =technical_param['SUPERTREND']
     SUPERTREND(data, param['window'], param['multiply'],  param['break_count'])
     
-    param = technical_param['MA']
+    param = technical_param['TRENDY']
     ma_short = param['short']
     ma_mid = param['mid']
     ma_long = param['long']
-    MA(data, ma_short, ma_mid, ma_long)
+    TRENDY(data, ma_short, ma_mid, ma_long)
     
     
 def add_markers(fig, time, signal, data, value, symbol, color, row=0, col=0):
@@ -489,6 +489,23 @@ def add_candle_chart(fig, data, row):
     colors = ['green' if data['open'][i] - data['close'][i] >= 0 else 'red' for i in range(n)]
     fig.add_trace(go.Bar(x=jst, y=data['volume'], marker_color=colors), row=row + 1, col=1)
     
+def add_trend_bar(fig, data, row):
+    colors = []
+    value = []
+    for trend in data['TRENDY']:
+        if trend == 1: 
+            color = 'green'
+            d = 1
+        elif trend == -1:
+            color = 'red'
+            d = 1
+        else:
+            color = 'white'
+            d = 0
+        value.append(d)
+        colors.append(color)
+    fig.add_trace(go.Bar(x=data['jst'], y=value, marker_color=colors), row=row, col=1)
+    
 def add_vwap_line(fig, data, row):
     jst = data['jst']
     n = len(jst)
@@ -513,21 +530,23 @@ def add_vwap_line(fig, data, row):
 def add_ma_line(fig, data, row):
     jst = data['jst']
     r = row
-    fig.add_trace(go.Scatter(x=jst, y=data['MA_SHORT'], line=dict(color='red', width=2)), row=r, col=1)
-    fig.add_trace(go.Scatter(x=jst, y=data['MA_MID'], line=dict(color='blue', width=2)), row=r, col=1)
-    fig.add_trace(go.Scatter(x=jst, y=data['MA_LONG'], line=dict(color='green', width=2)), row=r, col=1)
-    
-    
-    
+    fig.add_trace(go.Scatter(x=jst, y=data['EMA_SHORT_HIGH'], line=dict(color='red', width=2)), row=r, col=1)
+    fig.add_trace(go.Scatter(x=jst, y=data['EMA_SHORT_LOW'], line=dict(color='red', width=1)), row=r, col=1)
+    fig.add_trace(go.Scatter(x=jst, y=data['SMA_MID'], line=dict(color='green', width=2)), row=r, col=1)
+    fig.add_trace(go.Scatter(x=jst, y=data['SMA_LONG_HIGH'], line=dict(color='purple', width=2)), row=r, col=1)
+    fig.add_trace(go.Scatter(x=jst, y=data['SMA_LONG_LOW'], line=dict(color='purple', width=1)), row=r, col=1)
     
 def add_adx_chart(fig, data, row):
     jst = data['jst']
     r = row
     fig.add_trace(go.Scatter(x=jst, y=data['ADX'], line=dict(color='red', width=2)), row=r, col=1)
     fig.add_trace(go.Scatter(x=jst, y=data['ADX_LONG'], line=dict(color='blue', width=2)), row=r, col=1)
-    fig.add_trace(go.Scatter(x=jst, y=data['DI_PLUS'], line=dict(color='green', width=2)), row=r, col=1)
-    fig.add_trace(go.Scatter(x=jst, y=data['DI_MINUS'], line=dict(color='orange', width=2)), row=r, col=1)
     
+def add_di_chart(fig, data, row):
+    jst = data['jst']
+    r = row
+    fig.add_trace(go.Scatter(x=jst, y=data['DI_PLUS'], line=dict(color='green', width=2)), row=r, col=1)
+    fig.add_trace(go.Scatter(x=jst, y=data['DI_MINUS'], line=dict(color='red', width=2)), row=r, col=1)
        
 def add_vwap_chart(fig, data, row):
     jst = data['jst']
@@ -557,9 +576,8 @@ def add_supertrend_line(fig, data, row):
     r = row
     fig.add_trace(go.Scatter(x=jst, y=data[Indicators.SUPERTREND_UPPER], line=dict(color='blue', width=2)), row=r, col=1)
     fig.add_trace(go.Scatter(x=jst, y=data[Indicators.SUPERTREND_LOWER], line=dict(color='Orange', width=2)), row=r, col=1)
-    add_markers(fig, jst, data[Indicators.SUPERTREND_SIGNAL], data[Indicators.SUPERTREND_UPPER], 1, 'triangle-up', 'Green', row=r, col=1)
-    add_markers(fig, jst, data[Indicators.SUPERTREND_SIGNAL], data[Indicators.SUPERTREND_LOWER], -1, 'triangle-down', 'Red', row=r, col=1)
-        
+    #add_markers(fig, jst, data[Indicators.SUPERTREND_SIGNAL], data[Indicators.SUPERTREND_UPPER], 1, 'triangle-up', 'Green', row=r, col=1)
+    #add_markers(fig, jst, data[Indicators.SUPERTREND_SIGNAL], data[Indicators.SUPERTREND_LOWER], -1, 'triangle-down', 'Red', row=r, col=1)    
 
 def create_graph(symbol, timeframe, data):    
     jst = data['jst']
@@ -570,14 +588,16 @@ def create_graph(symbol, timeframe, data):
         form = '%m-%d'
     else:
         form = '%d/%H:%M'
-    fig = create_fig([7.0, 1.0, 3.0, 1.0, 1.0])
+    fig = create_fig([7.0, 1.0, 1.0, 2.0, 2.0, 1.0])
     add_candle_chart(fig, data, 1)
     add_ma_line(fig, data, 1)
     #add_vwap_line(fig, data, 2)
-    add_adx_chart(fig, data, 3)
-    add_vwap_chart(fig, data, 4)
+    add_trend_bar(fig, data, 3)
+    add_di_chart(fig, data, 4)
+    add_adx_chart(fig, data, 5)
+
     #add_atr_stop_line(fig, data, 1)
-    add_supertrend_line(fig, data, 1)
+    #add_supertrend_line(fig, data, 1)
     fig.update_layout(height=CHART_HEIGHT, width=CHART_WIDTH, showlegend=False, xaxis_rangeslider_visible=False)
     fig.update_layout({  'title': symbol + '  ' + timeframe + '  ('  +  str(tfrom) + ')  ...  (' + str(tto) + ')'})
     """
@@ -590,8 +610,9 @@ def create_graph(symbol, timeframe, data):
     #fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])])
     fig.update_yaxes(title_text="Price", row=1, col=1)
     fig.update_yaxes(title_text="Volume", row=2, col=1)
-    fig.update_yaxes(title_text="ADX", range=[0, 100], row=3, col=1)
-    fig.update_yaxes(title_text="VWAP Rate", row=4, col=1)      
+    fig.update_yaxes(title_text="Trendy", range=[0, 1], row=3, col=1)
+    fig.update_yaxes(title_text="DI", range=[0, 60], row=4, col=1)
+    fig.update_yaxes(title_text="ADX",  range=[0, 60], row=5, col=1)      
     fig.update_yaxes(title_text="Trail Stop", row=6, col=1)    
     return dcc.Graph(id='stock-graph', figure=fig)
 

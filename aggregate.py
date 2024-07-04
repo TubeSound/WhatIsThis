@@ -4,7 +4,7 @@ import numpy as np
 import glob
 
 def main():
-    files = glob.glob('./result/*.xlsx')
+    files = glob.glob('./2018.10-2024.5/result/*.xlsx')
     for symbol in ['NIKKEI', 'DOW', 'NSDQ']:
         dfs = []
         for file in files:
@@ -27,7 +27,7 @@ def main():
         df = pd.concat(dfs)
         df = df.sort_values('profit', ascending=False)
         df = df.iloc[:1000, :]
-        df.to_excel('./result/' + symbol + '.xlsx', index=False)
+        df.to_excel('./2018.10-2024.5/result/' + symbol + '.xlsx', index=False)
         
     pass
 
