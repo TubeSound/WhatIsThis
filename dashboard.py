@@ -26,7 +26,7 @@ from dateutil import tz
 
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
-from technical import TRENDY, VWAP, BB, ATR_TRAIL, ADX, SUPERTREND
+from technical import TRENDY, VWAP, BB, ATR_TRAIL, ADX, SUPERTREND, detect_signal
 
 from utils import Utils
 from mt5_api import Mt5Api
@@ -58,8 +58,8 @@ MINUTES = list(range(0, 60))
 
 INTERVAL_MSEC = 30 * 1000
 
-technical_param = { 'TRENDY': {'short': 20,
-                           'mid': 70,
+technical_param = { 'TRENDY': {'short': 30,
+                           'mid': 50,
                            'long': 200},
                     'VWAP': {'begin_hour_list': [7, 19], 
                             'pivot_threshold':10, 
@@ -70,7 +70,7 @@ technical_param = { 'TRENDY': {'short': 20,
                             'ma_window': 15},
                     'ADX': {'window': 30,
                             'window_long': 70,
-                            'di_window': 10},
+                            'di_window': 20},
                     'SUPERTREND': {'window': 30,
                                   'multiply':2.2,
                                   'break_count': 2
@@ -93,14 +93,14 @@ old_timeframe = None
 
 symbol_dropdown = dcc.Dropdown( id='symbol_dropdown',
                                     multi=False,
-                                    value=TICKERS[0],
+                                    value=TICKERS[1],
                                     options=[{'label': x, 'value': x} for x in TICKERS],
                                     style={'width': '140px'})
 
 symbol = html.Div([ html.P('Ticker Symbol', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'), symbol_dropdown])
 timeframe_dropdown = dcc.Dropdown(  id='timeframe_dropdown', 
                                         multi=False, 
-                                        value=TIMEFRAMES[2], 
+                                        value=TIMEFRAMES[1], 
                                         options=[{'label': x, 'value': x} for x in TIMEFRAMES],
                                         style={'width': '120px'})                
 timeframe =  html.Div(  [   html.P('Time Frame',
@@ -432,7 +432,7 @@ def indicators1(symbol, data, technical_param):
     TRENDY(data, ma_short, ma_mid, ma_long)
     
     
-def add_markers(fig, time, signal, data, value, symbol, color, row=0, col=0):
+def add_markers(fig, time, signal, data, value, symbol, color, row=1, col=1):
     if len(signal) == 0:
         return 
     x = []
@@ -456,6 +456,18 @@ def add_markers(fig, time, signal, data, value, symbol, color, row=0, col=0):
                             mode='markers',
                             x=x,
                             y=y,
+                            opacity=1.0,
+                            marker_symbol=symbol,
+                            marker=dict(color=color, size=20, line=dict(color='White', width=2)),
+                            showlegend=False
+                        )
+    fig.add_trace(markers, row=row, col=col)
+    
+def add_marker(fig, x, y, symbol, color, row=1, col=1):
+    markers = go.Scatter(
+                            mode='markers',
+                            x=[x],
+                            y=[y],
                             opacity=1.0,
                             marker_symbol=symbol,
                             marker=dict(color=color, size=20, line=dict(color='White', width=2)),
@@ -504,7 +516,16 @@ def add_trend_bar(fig, data, row):
             d = 0
         value.append(d)
         colors.append(color)
-    fig.add_trace(go.Bar(x=data['jst'], y=value, marker_color=colors), row=row, col=1)
+    jst = data['jst']    
+    cl = data['close']
+    fig.add_trace(go.Bar(x=jst, y=value, marker_color=colors), row=row, col=1)
+    up, down = detect_signal(data['TRENDY'])
+    for begin, end in up:
+        add_marker(fig, jst[begin], cl[begin], 'circle', 'Blue')
+        add_marker(fig, jst[end], cl[end], 'cross', 'Blue')
+    for begin, end in down:
+        add_marker(fig, jst[begin], cl[begin],  'circle', 'Red')
+        add_marker(fig, jst[end], cl[end], 'cross', 'Red')
     
 def add_vwap_line(fig, data, row):
     jst = data['jst']

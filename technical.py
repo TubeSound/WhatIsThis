@@ -231,8 +231,34 @@ def cross(long, short):
     return 0       
 
 
+def wakeup2(long, short, width, is_up):
+    n = len(long)
+    direction = 1 if is_up else -1
+    x = []
+    for i in range(1, n):
+        if cross(long[ i - 1: i +1], short[i - 1: i +1]) == direction:
+            x.append(i)
+    x.append(n - 1)
+    trend = np.full(n, 0)   
+    for i in range(len(x) - 1):
+        x0 = x[i]
+        x1 = x[i + 1]
+        for j in range(x0 + 5, x1):
+            half = int((j - x0 ) / 2 + x0)
+            l0 = long[x0]
+            s0 = short[x0]
+            l1 = long[j]            
+            s1 = short[j]
+            w1 = width[j]
+            if is_up:
+                if l1 > l0 and s1 > s0 and (s1 - l1) > w1:
+                    trend[j] = 1
+            else:
+                if l1 < l0 and s1 < s0 and (l1 - s1) > w1:
+                    trend[j] = -1 
+    return trend, x
 
-def wakeup(long, mid, short, width, is_up, is_slow=True):
+def wakeup3(long, mid, short, width, is_up, is_slow=True):
     n = len(long)
     direction = 1 if is_up else -1
     x = []
@@ -285,17 +311,40 @@ def TRENDY( dic: dict, short: int, mid: int, long: int):
     dic[Indicators.SMA_LONG_HIGH] = sma_long_high
     dic[Indicators.SMA_LONG_LOW] = sma_long_low
 
-    up, xup = wakeup(sma_long_high, sma_mid, ema_short_low, width, True, is_slow=False)    
-    down, xdown = wakeup(sma_long_low, sma_mid, ema_short_high, width, False, is_slow=False)
-    trend = up + down
-    
+    tup, xup = wakeup2(sma_mid, ema_short_low, width, True)    
+    tdown, xdown = wakeup2(sma_mid, ema_short_high, width, False)
+    trend = tup + tdown
+    up, down = detect_signal(trend)
     
     dic[Indicators.TRENDY] = trend
-    dic[Indicators.TRENDY_XUP] = xup
-    dic[Indicators.TRENDY_XDOWN] = xdown
+    dic[Indicators.TRENDY_XUP] = up
+    dic[Indicators.TRENDY_XDOWN] = down
     
-    
-    
+
+def detect_signal(data):
+    up = []
+    down = []
+    n = len(data)    
+    active = 0
+    for i in range(n):
+        if active == 1:
+            if data[i] <= 0:
+                up.append([begin, i])
+                active = 0
+        elif active == -1:
+            if data[i] >= 0:
+                down.append([begin, i])
+                active = 0
+        else:
+            if data[i] == 1:
+                begin = i
+                active = 1
+            elif data[i] == -1:
+                begin = i
+                active = -1
+    return up, down
+                
+                
 def calc_atr(dic, window):
     hi = dic[Columns.HIGH]
     lo = dic[Columns.LOW]
