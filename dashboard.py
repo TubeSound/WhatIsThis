@@ -58,9 +58,9 @@ MINUTES = list(range(0, 60))
 
 INTERVAL_MSEC = 30 * 1000
 
-technical_param = { 'TRENDY': {'short': 30,
-                           'mid': 50,
-                           'long': 200},
+technical_param = { 'TRENDY': {'short': 15,
+                           'mid': 30,
+                           'long': 100},
                     'VWAP': {'begin_hour_list': [7, 19], 
                             'pivot_threshold':10, 
                             'pivot_left_len':5,
@@ -418,10 +418,7 @@ def indicators1(symbol, data, technical_param):
          param['pivot_right_len'],
          param['median_window'],
          param['ma_window']
-         )
-    param = technical_param['ADX']
-    ADX(data, param['di_window'], param['window'], param['window_long'])
-    
+         )    
     param =technical_param['SUPERTREND']
     SUPERTREND(data, param['window'], param['multiply'],  param['break_count'])
     
@@ -561,7 +558,7 @@ def add_adx_chart(fig, data, row):
     jst = data['jst']
     r = row
     fig.add_trace(go.Scatter(x=jst, y=data['ADX'], line=dict(color='red', width=2)), row=r, col=1)
-    fig.add_trace(go.Scatter(x=jst, y=data['ADX_LONG'], line=dict(color='blue', width=2)), row=r, col=1)
+    #fig.add_trace(go.Scatter(x=jst, y=data['ADX_LONG'], line=dict(color='blue', width=2)), row=r, col=1)
     
 def add_di_chart(fig, data, row):
     jst = data['jst']
@@ -614,7 +611,7 @@ def create_graph(symbol, timeframe, data):
     add_ma_line(fig, data, 1)
     #add_vwap_line(fig, data, 2)
     add_trend_bar(fig, data, 3)
-    add_di_chart(fig, data, 4)
+    #add_di_chart(fig, data, 4)
     add_adx_chart(fig, data, 5)
 
     #add_atr_stop_line(fig, data, 1)
@@ -633,7 +630,7 @@ def create_graph(symbol, timeframe, data):
     fig.update_yaxes(title_text="Volume", row=2, col=1)
     fig.update_yaxes(title_text="Trendy", range=[0, 1], row=3, col=1)
     fig.update_yaxes(title_text="DI", range=[0, 60], row=4, col=1)
-    fig.update_yaxes(title_text="ADX",  range=[0, 60], row=5, col=1)      
+    fig.update_yaxes(title_text="ADX",  range=[20, 80], row=5, col=1)      
     fig.update_yaxes(title_text="Trail Stop", row=6, col=1)    
     return dcc.Graph(id='stock-graph', figure=fig)
 

@@ -206,7 +206,7 @@ class Simulation:
                 
         self.positions = Positions(self.timefilter)
         
-    def run(self, data):
+    def run(self, data, long_signal, short_signal):
         self.data = data
         time = data[Columns.JST]
         op =data[Columns.OPEN]
@@ -214,13 +214,7 @@ class Simulation:
         lo = data[Columns.LOW]
         cl = data[Columns.CLOSE]
         
-        if self.strategy == 'SUPERTREND':
-            signal = self.supertrend(data)
-            return self.run_doten(time, signal, op, hi, lo, cl)
-        elif self.strategy == 'VWAP1':
-            signal = self.adx_ma(data)
-        else:
-            raise Exception('Bad strategy name', self.strategy)
+        
         
         
         
@@ -258,8 +252,20 @@ class Simulation:
         return data[Indicators.SUPERTREND_SIGNAL]
         
         
+        
+        
+        
+        
+        
+        
             
-    def run_doten(self, time, signal,op, hi, lo, cl):
+    def run_doten(self, data):
+        self.data = data
+        time = data[Columns.JST]
+        op =data[Columns.OPEN]
+        hi = data[Columns.HIGH]
+        lo = data[Columns.LOW]
+        cl = data[Columns.CLOSE]
         n = len(time)
         state = None
         for i in range(1, n):

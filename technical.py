@@ -231,7 +231,7 @@ def cross(long, short):
     return 0       
 
 
-def wakeup2(long, short, width, is_up):
+def wakeup(long, short, range_signal, is_up):
     n = len(long)
     direction = 1 if is_up else -1
     x = []
@@ -243,20 +243,43 @@ def wakeup2(long, short, width, is_up):
     for i in range(len(x) - 1):
         x0 = x[i]
         x1 = x[i + 1]
-        for j in range(x0 + 5, x1):
-            half = int((j - x0 ) / 2 + x0)
+        for j in range(x0 + 3, x1):
+            before = j - 3
             l0 = long[x0]
             s0 = short[x0]
-            l1 = long[j]            
-            s1 = short[j]
-            w1 = width[j]
+            l1 = long[before]
+            s1 = short[before]
+            d1 = s1 - s0
+            l2 = long[j]            
+            s2 = short[j]
+            d2 = s2 - s1
+            w2 = range_signal[j]
             if is_up:
-                if l1 > l0 and s1 > s0 and (s1 - l1) > w1:
+                if d1 > 0 and d2 > 0 and (s2 - l2) > w2:
                     trend[j] = 1
             else:
-                if l1 < l0 and s1 < s0 and (l1 - s1) > w1:
+                if d1 < 0 and d2 < 0 and (l2 - s2) < -w2:
                     trend[j] = -1 
     return trend, x
+
+def wakeup2(long, short, range_signal, is_up):
+    n = len(long)
+    trend = np.full(n, 0)   
+    for j in range(5, n):
+        before = j - 5
+        l1 = long[before]
+        s1 = short[before]
+        l2 = long[j]            
+        s2 = short[j]
+        d2 = s2 - s1
+        w2 = range_signal[j]
+        if is_up:
+            if d2 > 0 and (s2 - l2) > w2:
+                trend[j] = 1
+        else:
+            if d2 < 0 and (l2 - s2) < -w2:
+                trend[j] = -1 
+    return trend
 
 def wakeup3(long, mid, short, width, is_up, is_slow=True):
     n = len(long)
@@ -292,6 +315,16 @@ def wakeup3(long, mid, short, width, is_up, is_slow=True):
                     trend[j] = -1 
     return trend, x
     
+def ascend(vector, range_signal, count=5):
+    n = len(vector)
+    asc = np.full(n, 0)
+    for i in range(count, n):
+        if vector[i] > range_signal[i] and vector[i - count] < vector[i]:
+            asc[i] = 1
+        if vector[i] < - range_signal[i] and vector[i - count] > vector[i]:
+            asc[i] = -1
+    return asc
+        
         
 def TRENDY( dic: dict, short: int, mid: int, long: int):
     cl = dic[Columns.CLOSE]
@@ -300,10 +333,14 @@ def TRENDY( dic: dict, short: int, mid: int, long: int):
     
     ema_short_high = ema(hi, short)
     ema_short_low = ema(lo, short)
+    ema_short = ema(cl, short)
     sma_mid = sma(cl, mid)
+    sma_mid_high = sma(hi, mid)
+    sma_mid_low = sma(lo, mid)
+    sma_long = sma(cl, long)
     sma_long_high = sma(hi, long)
     sma_long_low = sma(lo, long)
-    width = sma_long_high - sma_long_low 
+    range_signal = (sma_mid_high - sma_mid_low)
     
     dic[Indicators.EMA_SHORT_HIGH] = ema_short_high
     dic[Indicators.EMA_SHORT_LOW] = ema_short_low
@@ -311,9 +348,20 @@ def TRENDY( dic: dict, short: int, mid: int, long: int):
     dic[Indicators.SMA_LONG_HIGH] = sma_long_high
     dic[Indicators.SMA_LONG_LOW] = sma_long_low
 
-    tup, xup = wakeup2(sma_mid, ema_short_low, width, True)    
-    tdown, xdown = wakeup2(sma_mid, ema_short_high, width, False)
-    trend = tup + tdown
+    band = ema_short - sma_mid
+    asc = ascend(band, range_signal)
+    adx, _, _ = ADX(hi, lo, cl, 10, 20)
+    dic['ADX'] = adx
+    
+    n = len(cl)
+    trend = np.full(n, 0)
+    for i in range(5, n):
+        if adx[i] > 30 and adx[i] > adx[i - 3]:
+            if asc[i] == 1:
+                trend[i] = 1
+            elif asc[i] == -1:
+                trend[i] = -1    
+    
     up, down = detect_signal(trend)
     
     dic[Indicators.TRENDY] = trend
@@ -366,10 +414,7 @@ def ATR(dic: dict, term: int, term_long:int):
         atr_long = sma(tr, term_long)
         dic[Indicators.ATR_LONG] = atr_long
 
-def ADX(data: dict, di_window: int, adx_term: int, adx_term_long:int):
-    hi = data[Columns.HIGH]
-    lo = data[Columns.LOW]
-    cl = data[Columns.CLOSE]
+def ADX(hi, lo, cl, di_window: int, adx_term: int):
     tr = true_range(hi, lo, cl)
     n = len(hi)
     dmp = nans(n)     
@@ -396,13 +441,7 @@ def ADX(data: dict, di_window: int, adx_term: int, adx_term_long:int):
         dim[i] = s_dmm / s_tr * 100
         dx[i] = abs(dip[i] - dim[i]) / (dip[i] + dim[i]) * 100
     adx = sma(dx, adx_term)
-    data[Indicators.DX] = dx
-    data[Indicators.ADX] = adx
-    data[Indicators.DI_PLUS] = dip
-    data[Indicators.DI_MINUS] = dim
-    if adx_term_long is not None:
-        adx_long = sma(dx, adx_term_long)
-        data[Indicators.ADX_LONG] = adx_long
+    return adx, dip, dim
         
         
     
