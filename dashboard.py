@@ -58,9 +58,14 @@ MINUTES = list(range(0, 60))
 
 INTERVAL_MSEC = 30 * 1000
 
-technical_param = { 'TRENDY': {'short': 15,
-                           'mid': 30,
-                           'long': 100},
+technical_param = { 'TRENDY': 
+                                {'short_term': 7,
+                                'mid_term': 15,
+                                'long_term': 100,
+                                'adx_window': 15,
+                                'di_window': 10,
+                                'adx_threshold': 30
+                           },
                     'VWAP': {'begin_hour_list': [7, 19], 
                             'pivot_threshold':10, 
                             'pivot_left_len':5,
@@ -100,7 +105,7 @@ symbol_dropdown = dcc.Dropdown( id='symbol_dropdown',
 symbol = html.Div([ html.P('Ticker Symbol', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'), symbol_dropdown])
 timeframe_dropdown = dcc.Dropdown(  id='timeframe_dropdown', 
                                         multi=False, 
-                                        value=TIMEFRAMES[1], 
+                                        value=TIMEFRAMES[2], 
                                         options=[{'label': x, 'value': x} for x in TIMEFRAMES],
                                         style={'width': '120px'})                
 timeframe =  html.Div(  [   html.P('Time Frame',
@@ -166,13 +171,13 @@ strategy_select = html.Div(     [
 
 
 ma_short = html.Div([    html.P('MA Short'),
-                        dcc.Input(id='ma_short',type="number", min=5, max=50, step=1, value=technical_param['TRENDY']['short'])
+                        dcc.Input(id='ma_short',type="number", min=5, max=50, step=1, value=technical_param['TRENDY']['short_term'])
                    ])
 ma_mid = html.Div([    html.P('Mid'),
-                        dcc.Input(id='ma_mid',type="number", min=5, max=100, step=1, value=technical_param['TRENDY']['mid'])
+                        dcc.Input(id='ma_mid',type="number", min=5, max=100, step=1, value=technical_param['TRENDY']['mid_term'])
                    ])
 ma_long = html.Div([    html.P('MA Long'),
-                        dcc.Input(id='ma_long',type="number", min=5, max=400, step=1, value=technical_param['TRENDY']['long'])
+                        dcc.Input(id='ma_long',type="number", min=5, max=400, step=1, value=technical_param['TRENDY']['long_term'])
                    ])
 supertrend_window = dcc.Input(id='supertrend_window',type="number", min=5, max=50, step=1, value=technical_param['SUPERTREND']['window'])
 supertrend_multiply = dcc.Input(id='supertrend_multiply',type="number", min=0.2, max=5, step=0.1, value=technical_param['SUPERTREND']['multiply'])
@@ -378,8 +383,9 @@ def update_chart(interval,
     sim = Simulation(trade_param)
 
 
-    df, summary, profit_curve = sim.run(data)
-    trade_table = dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
+    #df, summary, profit_curve = sim.run(data)
+    #trade_table = dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
+    trade_table = None
     graph = create_graph(symbol, timeframe, data)
     return graph, trade_table
 
@@ -423,10 +429,10 @@ def indicators1(symbol, data, technical_param):
     SUPERTREND(data, param['window'], param['multiply'],  param['break_count'])
     
     param = technical_param['TRENDY']
-    ma_short = param['short']
-    ma_mid = param['mid']
-    ma_long = param['long']
-    TRENDY(data, ma_short, ma_mid, ma_long)
+    ma_short = param['short_term']
+    ma_mid = param['mid_term']
+    ma_long = param['long_term']
+    TRENDY(data, ma_short, ma_mid, ma_long, param['di_window'], param['adx_window'], param['adx_threshold'])
     
     
 def add_markers(fig, time, signal, data, value, symbol, color, row=1, col=1):
@@ -516,7 +522,7 @@ def add_trend_bar(fig, data, row):
     jst = data['jst']    
     cl = data['close']
     fig.add_trace(go.Bar(x=jst, y=value, marker_color=colors), row=row, col=1)
-    up, down = detect_signal(data['TRENDY'])
+    _, _, up, down = detect_signal(data['TRENDY'])
     for begin, end in up:
         add_marker(fig, jst[begin], cl[begin], 'circle', 'Blue')
         add_marker(fig, jst[end], cl[end], 'cross', 'Blue')

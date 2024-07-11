@@ -315,7 +315,7 @@ def wakeup3(long, mid, short, width, is_up, is_slow=True):
                     trend[j] = -1 
     return trend, x
     
-def ascend(vector, range_signal, count=5):
+def ascend(vector, range_signal, count=3):
     n = len(vector)
     asc = np.full(n, 0)
     for i in range(count, n):
@@ -326,7 +326,7 @@ def ascend(vector, range_signal, count=5):
     return asc
         
         
-def TRENDY( dic: dict, short: int, mid: int, long: int):
+def TRENDY( dic: dict, short: int, mid: int, long: int, adx_window: int, di_window: int, adx_threshold: float):
     cl = dic[Columns.CLOSE]
     hi = dic[Columns.HIGH]
     lo  = dic[Columns.LOW]
@@ -350,47 +350,53 @@ def TRENDY( dic: dict, short: int, mid: int, long: int):
 
     band = ema_short - sma_mid
     asc = ascend(band, range_signal)
-    adx, _, _ = ADX(hi, lo, cl, 10, 20)
+    adx, _, _ = ADX(hi, lo, cl, di_window, adx_window)
     dic['ADX'] = adx
     
     n = len(cl)
     trend = np.full(n, 0)
-    for i in range(5, n):
-        if adx[i] > 30 and adx[i] > adx[i - 3]:
+    for i in range(3, n):
+        if adx[i] > adx_threshold and adx[i] > adx[i - 3]:
             if asc[i] == 1:
                 trend[i] = 1
             elif asc[i] == -1:
                 trend[i] = -1    
     
-    up, down = detect_signal(trend)
+    up, down, up_event, down_event = detect_signal(trend)
     
     dic[Indicators.TRENDY] = trend
-    dic[Indicators.TRENDY_XUP] = up
-    dic[Indicators.TRENDY_XDOWN] = down
+    dic[Indicators.TRENDY_LONG] = up
+    dic[Indicators.TRENDY_SHORT] = down
     
 
 def detect_signal(data):
-    up = []
-    down = []
+    up_event = []
+    down_event = []
     n = len(data)    
+    up = np.full(n, 0)
+    down = np.full(n, 0)
     active = 0
     for i in range(n):
         if active == 1:
             if data[i] <= 0:
-                up.append([begin, i])
+                up_event.append([begin, i])
+                up[i] = -1
                 active = 0
         elif active == -1:
             if data[i] >= 0:
-                down.append([begin, i])
+                down[i] = -1
+                down_event.append([begin, i])
                 active = 0
         else:
             if data[i] == 1:
+                up[i] = 1
                 begin = i
                 active = 1
             elif data[i] == -1:
+                down[i] = 1
                 begin = i
                 active = -1
-    return up, down
+    return up, down, up_event, down_event
                 
                 
 def calc_atr(dic, window):

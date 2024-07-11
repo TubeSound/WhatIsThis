@@ -18,6 +18,7 @@ from data_loader import DataLoader
 
 class GeneticCode:
     DataType = int
+    GeneConst: DataType = 0
     GeneInt: DataType = 1
     GeneFloat: DataType = 2
     GeneList: DataType = 3
@@ -26,7 +27,9 @@ class GeneticCode:
         
     def gen_number(self, gene_space):
         typ = gene_space[0]
-        if typ == self.GeneList:
+        if typ == self.GeneConst:
+            return gene_space[1]
+        elif typ == self.GeneList:
             lis = gene_space[1]
             n = len(lis)
             i = random.randint(0, n - 1)
@@ -72,6 +75,8 @@ class Parameters:
     
     def code_to_technical_param(self, code):
         strategy = self.strategy
+        if strategy.find('TRENDY') >= 0:
+            return self.code_to_trendy_param(code)
         if strategy.find('VWAP') >= 0:
             return self.code_to_vwap_param(code)
         elif strategy == 'RCI':
@@ -83,7 +88,20 @@ class Parameters:
         else:
             raise Exception('Bad strategy', strategy)
         
-        
+    
+        def code_to_trendy_param(self, code):
+            param = {  
+                        'short_term': code[0], 
+                        'mid_term': code[1],
+                        'long_term': code[2],
+                        'di_window': code[3],
+                        'adx_window': code[4],
+                        'adx_threshold': code[5] 
+                    }
+        return {'TRENDY': param}  
+    
+    
+      
     def code_to_supertrend_param(self, code):
         param = {  'window': code[0], 
                     'multiply': code[1],
@@ -122,10 +140,10 @@ class Parameters:
         begin_hour = code[0]
         begin_minute = code[1]
         hours = code[2]
-        sl = code[3]
-        target_profit = code[4]
-        trailing_stop = code[5]
-        only = code[6]
+        sl_method = code[3]
+        sl_value = code[4]
+        target_profit = code[5]
+        trailing_stop = code[6]
         if trailing_stop == 0 or target_profit == 0:
             trailing_stop = target_profit = 0
         elif trailing_stop < target_profit:
@@ -135,7 +153,10 @@ class Parameters:
                     'begin_hour': begin_hour,
                     'begin_minute': begin_minute,
                     'hours': hours,
-                    'sl': sl,
+                    'sl': {
+                            'method': sl_method,
+                            'value': sl_value
+                        },
                     'target_profit': target_profit,
                     'trailing_stop': trailing_stop, 
                     'volume': 0.1, 
@@ -146,7 +167,17 @@ class Parameters:
         
     def technical_gene_space(self):
         strategy = self.strategy        
-        if strategy == 'ATR_TRAIL':
+        if strategy == 'TREND':
+            space = [
+                        [GeneticCode.GeneInt,   5, 30, 1],  # short_term
+                        [GeneticCode.GeneInt, 10, 50, 5],  # mid_term
+                        [GeneticCode.GeneInt, 50, 200, 10],   # long_term
+                        [GeneticCode.GeneInt, 5, 20, 1]      # di_window
+                        [GeneticCode.GeneInt, 10, 100, 1],   # adx_window
+                        [GeneticCode.GeneFloat, 20, 60, 10],  # adx_threshold
+                    ]
+            
+        elif strategy == 'ATR_TRAIL':
             space = [
                         [GeneticCode.GeneInt,   10, 100, 10],  # window
                         [GeneticCode.GeneFloat, 0.6, 5.0, 0.2],  # multiply
@@ -199,19 +230,19 @@ class Parameters:
             raise Exception('Bad symbol')
 
         d = [0.0] + list(np.arange(r[1], r[2], r[3]))
-        sl = r
         trailing_stop =  [GeneticCode.GeneList, d] 
         target = r
         space = [ 
                     [GeneticCode.GeneInt, 7, 23, 1], # begin_hour
                     [GeneticCode.GeneList, [0, 30]], # begin_minute
                     [GeneticCode.GeneInt, 1, 20, 1], # hours
-                    sl,                              # stoploss
+                    [GeneticCode.GeneInt, 0, 3, 1], # sl_method,
+                    [GeneticCode.GeneConst, 0],     # sl_value
                     target,                          # target_profit
                     trailing_stop,                    # trailing_stop    
                     [GeneticCode.GeneInt, -1, 1, 1] #only
                 ] 
-        return space
+        return space, r
     
 class BackTest:
     def __init__(self, name, symbol, timeframe, strategy, data):

@@ -135,6 +135,17 @@ class Positions:
         self.closed_positions += self.positions
         self.positions = []
     
+    def exit_all_signal(self, signal, index, time, price, doten=False):
+        pos = []
+        for i, position in enumerate(self.positions):
+            if position.signal == signal:
+                position.exit(index, time, price, doten=doten)         
+                pos.append(i)     
+        for i in pos:           
+            position  = self.positions.pop(i)
+            self.closed_positions.append(position)
+        
+        
     def summary(self):
         profit_sum = 0
         win = 0
@@ -213,7 +224,25 @@ class Simulation:
         hi = data[Columns.HIGH]
         lo = data[Columns.LOW]
         cl = data[Columns.CLOSE]
-        
+        n = len(time)
+        long = data[long_signal]
+        short = data[short_signal]
+        for i in range(1, n):
+            t = time[i]
+            if i == n - 1:
+                self.positions.exit_all(i, time[i], cl[i])
+                break
+            self.positions.update(i, time[i], op[i], hi[i], lo[i], cl[i])
+            if long[i] == 1:
+                self.entry(sig, i, time[i], cl[i])
+            elif long[i] == -1:
+                self.positions.exit_all_signal(Signal.LONG, i, time[i], cl[i])
+            if short[i] == 1:
+                self.entry(Signal.SHORT, i, time[i], cl[i])
+            elif short[i] == -1:
+                self.positions.exit_all_signal(Signal.SHORT, i, time[i], cl[i])
+        summary, profit_curve = self.positions.summary()
+        return self.positions.to_dataFrame(self.strategy), summary, profit_curve
         
         
         
