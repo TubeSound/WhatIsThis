@@ -16,9 +16,9 @@ def full(value, length):
     return [value for _ in range(length)]
 
 class Position:
-    def __init__(self, trade_param, signal: Signal, index: int, time: datetime, price, volume):
+    def __init__(self, trade_param, signal: Signal, index: int, time: datetime, price, volume, sl):
         self.id = None
-        self.sl = trade_param['sl']
+        self.sl = sl
         try:
             self.target = trade_param['target']
             self.trail_stop = trade_param['trail_stop']
@@ -200,22 +200,30 @@ class Simulation:
             self.timefilter = TimeFilter(JST, begin_hour, begin_minite, hours)
         except:
             self.timefilter = None
-            
-        try:
-            only = self.trade_param['only']
-        except:
-            only = 0
-             
-        if only == 1:
-            self.only = Signal.LONG
-        elif only == -1:
-            self.only = Signal.SHORT
-        elif only == 0:
-            self.only = 0
-        else:
-            raise Exception('Bad parameter in only')
                 
         self.positions = Positions(self.timefilter)
+        
+    def calc_sl(self, data, index, signal, price):
+        method = self.trade_param['sl']['method']
+        value = self.trade_param['sl']['value']
+        if method == 0:
+            return 0
+        elif method == 1:
+            # fix
+            return value
+        elif method == 2:
+            # high_low
+            if signal == Signal.LONG:
+                low = data['low']
+                d = low[index - value: index + 1]
+                return price - np.nanmin(d)
+            else:
+                high  = data['high']
+                d = high[index - value: index + 1]
+                return np.nanmax(d) - price
+        else:
+            return 0
+            
         
     def run(self, data, long_signal, short_signal):
         self.data = data
@@ -234,11 +242,13 @@ class Simulation:
                 break
             self.positions.update(i, time[i], op[i], hi[i], lo[i], cl[i])
             if long[i] == 1:
-                self.entry(sig, i, time[i], cl[i])
+                sl = self.calc_sl(data, i, Signal.LONG, cl[i])
+                self.entry(Signal.LONG, i, time[i], cl[i], sl)
             elif long[i] == -1:
                 self.positions.exit_all_signal(Signal.LONG, i, time[i], cl[i])
             if short[i] == 1:
-                self.entry(Signal.SHORT, i, time[i], cl[i])
+                sl = self.calc_sl(data, i, Signal.SHORT, cl[i])
+                self.entry(Signal.SHORT, i, time[i], cl[i], sl)
             elif short[i] == -1:
                 self.positions.exit_all_signal(Signal.SHORT, i, time[i], cl[i])
         summary, profit_curve = self.positions.summary()
@@ -344,15 +354,12 @@ class Simulation:
         self.entry(signal, index, time, price)
         pass
     
-    def entry(self, signal, index, time, price):
+    def entry(self, signal, index, time, price, sl):
         if self.timefilter is not None:
             if self.timefilter.on(time) == False:
                 return
-            
-        if self.only != 0 and self.only != signal:
-            return
         
         if self.positions.num() < self.position_num_max:
-            position = Position(self.trade_param, signal, index, time, price, self.volume)
+            position = Position(self.trade_param, signal, index, time, price, self.volume, sl)
             self.positions.add(position)
         

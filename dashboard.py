@@ -26,7 +26,7 @@ from dateutil import tz
 
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
-from technical import TRENDY, VWAP, BB, ATR_TRAIL, ADX, SUPERTREND, detect_signal
+from technical import MABAND, VWAP, BB, ATR_TRAIL, ADX, SUPERTREND, CROSS, detect_signal
 
 from utils import Utils
 from mt5_api import Mt5Api
@@ -40,15 +40,14 @@ CHART_HEIGHT = 1000
 trade_param = {'begin_hour':9, 
                'begin_minute':30,
                'hours': 20,
-               'sl': 50,
+               'sl': {'method': 1, 'value': 100},
                'volume': 0.1,
                'position_max':5,
                'target':0, 
                'trail_stop': 0,
-               'timelimit':0,
-               'only': 0}
+               'timelimit':0}
 
-STRATEGY = ['SUPERTREND', 'ADX_MA']
+STRATEGY = ['MABAND', 'EMABREAK']
 
 TICKERS = ['NIKKEI', 'DOW', 'NSDQ', 'USDJPY']
 TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1']
@@ -58,13 +57,12 @@ MINUTES = list(range(0, 60))
 
 INTERVAL_MSEC = 30 * 1000
 
-technical_param = { 'TRENDY': 
+technical_param = { 'MABAND': 
                                 {'short_term': 7,
-                                'mid_term': 15,
-                                'long_term': 100,
-                                'adx_window': 15,
-                                'di_window': 10,
-                                'adx_threshold': 30
+                                'long_term': 15,
+                                'adx_window': 30,
+                                'di_window': 20,
+                                'adx_threshold': 20
                            },
                     'VWAP': {'begin_hour_list': [7, 19], 
                             'pivot_threshold':10, 
@@ -162,7 +160,7 @@ strategy_select = html.Div(     [
                         html.P('Strategy', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'),
                         dcc.Dropdown(id='strategy_select', 
                                     multi=False, 
-                                    value='SUPERTREND',
+                                    value=STRATEGY[0],
                                     options=[{'label': x, 'value': x} for x in STRATEGY],
                                     style={'width': '120px'})
                             ]
@@ -171,13 +169,10 @@ strategy_select = html.Div(     [
 
 
 ma_short = html.Div([    html.P('MA Short'),
-                        dcc.Input(id='ma_short',type="number", min=5, max=50, step=1, value=technical_param['TRENDY']['short_term'])
-                   ])
-ma_mid = html.Div([    html.P('Mid'),
-                        dcc.Input(id='ma_mid',type="number", min=5, max=100, step=1, value=technical_param['TRENDY']['mid_term'])
+                        dcc.Input(id='ma_short',type="number", min=5, max=50, step=1, value=technical_param['MABAND']['short_term'])
                    ])
 ma_long = html.Div([    html.P('MA Long'),
-                        dcc.Input(id='ma_long',type="number", min=5, max=400, step=1, value=technical_param['TRENDY']['long_term'])
+                        dcc.Input(id='ma_long',type="number", min=5, max=400, step=1, value=technical_param['MABAND']['long_term'])
                    ])
 supertrend_window = dcc.Input(id='supertrend_window',type="number", min=5, max=50, step=1, value=technical_param['SUPERTREND']['window'])
 supertrend_multiply = dcc.Input(id='supertrend_multiply',type="number", min=0.2, max=5, step=0.1, value=technical_param['SUPERTREND']['multiply'])
@@ -215,7 +210,6 @@ sidebar =  html.Div([   html.Div([
                                     strategy_select,
                                     html.Hr(),
                                     ma_short,
-                                    ma_mid,
                                     ma_long,
                                     html.Hr(),
                                     param1,
@@ -314,7 +308,6 @@ def update_output(n_clicks1, n_clicks2, date):
     State('supertrend_multiply', 'value'),
     State('supertrend_break_count', 'value'),
     State('ma_short', 'value'),
-    State('ma_mid', 'value'),
     State('ma_long', 'value')
 )
 def update_chart(interval,
@@ -337,7 +330,6 @@ def update_chart(interval,
                  supertrend_multiply,
                  supertrend_break_count,
                  ma_short,
-                 ma_mid,
                  ma_long
                  ):
     global graph
@@ -361,9 +353,8 @@ def update_chart(interval,
         return
     #print('Data... time ', data['time'][0], size)
 
-    technical_param['TRENDY']['short'] = ma_short
-    technical_param['TRENDY']['mid'] = ma_mid
-    technical_param['TRENDY']['long'] = ma_long
+    technical_param['MABAND']['short'] = ma_short
+    technical_param['MABAND']['long'] = ma_long
     technical_param['VWAP']['pivot_threshold'] = pivot_threshold
     technical_param['VWAP']['pivot_left_len'] = pivot_left_len
     technical_param['VWAP']['pivot_center_len'] = pivot_center_len
@@ -428,11 +419,10 @@ def indicators1(symbol, data, technical_param):
     param =technical_param['SUPERTREND']
     SUPERTREND(data, param['window'], param['multiply'],  param['break_count'])
     
-    param = technical_param['TRENDY']
+    param = technical_param['MABAND']
     ma_short = param['short_term']
-    ma_mid = param['mid_term']
     ma_long = param['long_term']
-    TRENDY(data, ma_short, ma_mid, ma_long, param['di_window'], param['adx_window'], param['adx_threshold'])
+    MABAND(data, ma_short, ma_long, param['di_window'], param['adx_window'], param['adx_threshold'])
     
     
 def add_markers(fig, time, signal, data, value, symbol, color, row=1, col=1):
@@ -507,7 +497,7 @@ def add_candle_chart(fig, data, row):
 def add_trend_bar(fig, data, row):
     colors = []
     value = []
-    for trend in data['TRENDY']:
+    for trend in data['MABAND']:
         if trend == 1: 
             color = 'green'
             d = 1
@@ -522,7 +512,7 @@ def add_trend_bar(fig, data, row):
     jst = data['jst']    
     cl = data['close']
     fig.add_trace(go.Bar(x=jst, y=value, marker_color=colors), row=row, col=1)
-    _, _, up, down = detect_signal(data['TRENDY'])
+    _, _, up, down = detect_signal(data['MABAND'])
     for begin, end in up:
         add_marker(fig, jst[begin], cl[begin], 'circle', 'Blue')
         add_marker(fig, jst[end], cl[end], 'cross', 'Blue')
@@ -554,11 +544,11 @@ def add_vwap_line(fig, data, row):
 def add_ma_line(fig, data, row):
     jst = data['jst']
     r = row
-    fig.add_trace(go.Scatter(x=jst, y=data['EMA_SHORT_HIGH'], line=dict(color='red', width=2)), row=r, col=1)
-    fig.add_trace(go.Scatter(x=jst, y=data['EMA_SHORT_LOW'], line=dict(color='red', width=1)), row=r, col=1)
-    fig.add_trace(go.Scatter(x=jst, y=data['SMA_MID'], line=dict(color='green', width=2)), row=r, col=1)
-    fig.add_trace(go.Scatter(x=jst, y=data['SMA_LONG_HIGH'], line=dict(color='purple', width=2)), row=r, col=1)
-    fig.add_trace(go.Scatter(x=jst, y=data['SMA_LONG_LOW'], line=dict(color='purple', width=1)), row=r, col=1)
+    for name, c in zip(['MA_SHORT', 'MA_MID', 'MA_LONG'], ['red', 'blue', 'green']):
+        try:
+            fig.add_trace(go.Scatter(x=jst, y=data[name], line=dict(color=c, width=2)), row=r, col=1)
+        except:
+            pass
     
 def add_adx_chart(fig, data, row):
     jst = data['jst']
@@ -571,6 +561,23 @@ def add_di_chart(fig, data, row):
     r = row
     fig.add_trace(go.Scatter(x=jst, y=data['DI_PLUS'], line=dict(color='green', width=2)), row=r, col=1)
     fig.add_trace(go.Scatter(x=jst, y=data['DI_MINUS'], line=dict(color='red', width=2)), row=r, col=1)
+       
+def add_cross_chart(fig, data, row):
+    jst = data['jst']
+    cl = data['close']
+    up, down = CROSS(data, 7, 15)
+    fig.add_trace(go.Scatter(x=jst, y=cl, line=dict(color='gray', width=1)), row=row, col=1)
+    for begin, end in up:   
+        x = [jst[begin], jst[end]]
+        y = [cl[begin], cl[end]]
+        color = 'green'
+        fig.add_trace(go.Scatter(x=x, y=y, line=dict(color=color, width=2)), row=row, col=1)
+    for begin, end in down:   
+        x = [jst[begin], jst[end]]
+        y = [cl[begin], cl[end]]
+        color = 'red'
+        fig.add_trace(go.Scatter(x=x, y=y, line=dict(color=color, width=2)), row=row, col=1)
+       
        
 def add_vwap_chart(fig, data, row):
     jst = data['jst']
@@ -612,12 +619,12 @@ def create_graph(symbol, timeframe, data):
         form = '%m-%d'
     else:
         form = '%d/%H:%M'
-    fig = create_fig([7.0, 1.0, 1.0, 2.0, 2.0, 1.0])
+    fig = create_fig([5.0, 1.0, 1.0, 4.0, 2.0, 1.0])
     add_candle_chart(fig, data, 1)
     add_ma_line(fig, data, 1)
     #add_vwap_line(fig, data, 2)
     add_trend_bar(fig, data, 3)
-    #add_di_chart(fig, data, 4)
+    add_cross_chart(fig, data, 4)
     add_adx_chart(fig, data, 5)
 
     #add_atr_stop_line(fig, data, 1)
@@ -634,8 +641,8 @@ def create_graph(symbol, timeframe, data):
     #fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])])
     fig.update_yaxes(title_text="Price", row=1, col=1)
     fig.update_yaxes(title_text="Volume", row=2, col=1)
-    fig.update_yaxes(title_text="Trendy", range=[0, 1], row=3, col=1)
-    fig.update_yaxes(title_text="DI", range=[0, 60], row=4, col=1)
+    fig.update_yaxes(title_text="MABAND", range=[0, 1], row=3, col=1)
+    fig.update_yaxes(title_text="CROSS", row=4, col=1)
     fig.update_yaxes(title_text="ADX",  range=[20, 80], row=5, col=1)      
     fig.update_yaxes(title_text="Trail Stop", row=6, col=1)    
     return dcc.Graph(id='stock-graph', figure=fig)

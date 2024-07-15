@@ -244,6 +244,10 @@ class CandleChart:
         self.ax.grid(True)
         self.drawComments(False)
         
+    def plotLine(self, x, y, color='red', linestyle='solid', linewidth=1.0, label=''):
+        tx = awarePyTimeList2Float(x)
+        self.ax.plot(tx, y, color=color, linestyle=linestyle, linewidth=linewidth, label=label)        
+    
     def drawScatter(self, time, values, color='blue', marker='o', size=20):
         tfloat = awarePyTimeList2Float(time)
         self.ax.scatter(tfloat, values, c=color, marker=marker, s=size)
@@ -387,7 +391,9 @@ class CandleChart:
         self.ax.text(t, value, text, size=size)
     
     def xlimit(self, x):
-        self.ax.set_xlim(x[0], x[1])
+        x0 = awarePyTime2Float(x[0])
+        x1 = awarePyTime2Float(x[1])
+        self.ax.set_xlim(x0, x1)
         self.ax.grid(True)
         
     def ylimit(self, yrange):

@@ -325,31 +325,139 @@ def ascend(vector, range_signal, count=3):
             asc[i] = -1
     return asc
         
+def adx_filter(signal, adx, threshold):
+    n = len(signal)
+    trend = np.full(n, 0)
+    for i in range(3, n):
+        if adx[i] > threshold and adx[i] > adx[i - 3]:
+            if signal[i] == 1:
+                trend[i] = 1
+            elif signal[i] == -1:
+                trend[i] = -1
+    return trend    
         
-def TRENDY( dic: dict, short: int, mid: int, long: int, adx_window: int, di_window: int, adx_threshold: float):
+def MABAND( dic: dict, short: int, long: int, di_window: int, adx_window: int, adx_threshold: float):
     cl = dic[Columns.CLOSE]
     hi = dic[Columns.HIGH]
     lo  = dic[Columns.LOW]
     
-    ema_short_high = ema(hi, short)
-    ema_short_low = ema(lo, short)
     ema_short = ema(cl, short)
-    sma_mid = sma(cl, mid)
-    sma_mid_high = sma(hi, mid)
-    sma_mid_low = sma(lo, mid)
     sma_long = sma(cl, long)
-    sma_long_high = sma(hi, long)
-    sma_long_low = sma(lo, long)
-    range_signal = (sma_mid_high - sma_mid_low)
-    
-    dic[Indicators.EMA_SHORT_HIGH] = ema_short_high
-    dic[Indicators.EMA_SHORT_LOW] = ema_short_low
-    dic[Indicators.SMA_MID] = sma_mid
-    dic[Indicators.SMA_LONG_HIGH] = sma_long_high
-    dic[Indicators.SMA_LONG_LOW] = sma_long_low
+    band = ema_short - sma_long
+    adx, _, _ = ADX(hi, lo, cl, di_window, adx_window)
+    atr = calc_atr(dic, 4 * 24)
 
-    band = ema_short - sma_mid
-    asc = ascend(band, range_signal)
+    dic[Indicators.MA_SHORT] = ema_short
+    dic[Indicators.MA_LONG] = sma_long
+    dic[Indicators.ADX] = adx
+    dic[Indicators.ATR] = atr
+    dic[Indicators.MABAND] = band
+
+def MABAND_SIGNAL(dic: dict):
+    atr = dic[Indicators.ATR]
+    band = dic[Indicators.MABAND]
+    threshold = math.sqrt(atr[-1]) * 5
+    print('ATR', atr[-1], threshold)
+    up_entry, down_entry = detect_entry(band, threshold=threshold)   
+    up, down, up_event, down_event = detect_exit(band, up_entry, down_entry)
+    
+    dic[Indicators.MABAND_LONG] = up
+    dic[Indicators.MABAND_SHORT] = down    
+    return up_event, down_event
+
+
+def detect_entry(band, count=1, threshold=20.0):
+    n = len(band)
+    up0 = []
+    down0 = []
+    for i in range(1, n):
+        p0 = band[i - 1]
+        p1 = band[i]
+        if p0 < 0 and p1 > 0:
+            up0.append(i)
+        elif p0 > 0 and p1 < 0:
+            down0.append(i)
+            
+    up = []
+    down = []
+    for i in range(1, 3):
+        if i == 1:
+            old_up = up0
+            old_down = down0
+        else:
+            old_up = up.copy()
+            old_down = down.copy()
+        up = []
+        down = []  
+        for x in old_up:
+            end = x + 5
+            if end >= n - 1:
+                end = n
+            for j in range(x, end):
+                if band[j] > threshold / 2 * i:
+                    up.append(j)
+                    break
+        for x in old_down:
+            end = x + 5
+            if end >= n - 1:
+                end = n
+            for j in range(x, end):
+                if band[j] < -threshold / 2 * i:
+                    down.append(j)
+                    break
+    return up, down
+
+
+def detect_exit(band, up_entry, down_entry, threshold=0.7):
+    n = len(band)
+    up_event = []
+    down_event = []
+    up = np.full(n, 0)
+    down = np.full(n, 0)
+    for xup in up_entry:
+        up[xup] = 1
+        peak = None
+        for j in range(xup, n):
+            p0 = band[j - 1]
+            if peak is None:
+                peak = p0
+            else:
+                if p0 > peak:
+                    peak = p0                   
+            p1 = band[j]
+            if p1 < peak * threshold:
+                up_event.append([xup, j])
+                up[j] = -1
+                break
+    for xdown in down_entry:
+        down[xdown] = 1
+        peak = None
+        for j in range(xdown, n):
+            p0 = band[j - 1]
+            if peak is None:
+                peak = p0
+            else:
+                if p0 < peak:
+                    peak = p0
+            p1 = band[j]
+            if p1 > peak * threshold:
+                down_event.append([xdown, j])
+                down[j] = -1
+                break
+    return up, down, up_event, down_event
+
+    
+def EMABREAK( dic: dict, short: int, long: int, di_window: int, adx_window: int, adx_threshold: float):
+    cl = dic[Columns.CLOSE]
+    hi = dic[Columns.HIGH]
+    lo  = dic[Columns.LOW]
+    
+    ema_short = ema(cl, short)
+    sma_long = sma(cl, long)
+
+    
+    dic[Indicators.MA_SHORT] = ema_short
+    dic[Indicators.MA_LONG] = sma_long
     adx, _, _ = ADX(hi, lo, cl, di_window, adx_window)
     dic['ADX'] = adx
     
@@ -357,16 +465,15 @@ def TRENDY( dic: dict, short: int, mid: int, long: int, adx_window: int, di_wind
     trend = np.full(n, 0)
     for i in range(3, n):
         if adx[i] > adx_threshold and adx[i] > adx[i - 3]:
-            if asc[i] == 1:
-                trend[i] = 1
-            elif asc[i] == -1:
-                trend[i] = -1    
+            if ema_short[i] > sma_long[i] and lo[i] > ema_short[i]:
+                trend[i] = 1 
+            if ema_short[i]  < sma_long[i] and lo[i] < ema_short[i]:
+                trend[i] = -1 
     
     up, down, up_event, down_event = detect_signal(trend)
-    
-    dic[Indicators.TRENDY] = trend
-    dic[Indicators.TRENDY_LONG] = up
-    dic[Indicators.TRENDY_SHORT] = down
+    dic[Indicators.EMABREAK] = trend
+    dic[Indicators.EMABREAK_LONG] = up
+    dic[Indicators.EMABREAK_SHORT] = down
     
 
 def detect_signal(data):
@@ -445,7 +552,12 @@ def ADX(hi, lo, cl, di_window: int, adx_term: int):
         s_dmm = sum(dmm[i - di_window + 1: i + 1])
         dip[i] = s_dmp / s_tr * 100 
         dim[i] = s_dmm / s_tr * 100
-        dx[i] = abs(dip[i] - dim[i]) / (dip[i] + dim[i]) * 100
+        if (dip[i] + dim[i]) == 0:
+            dx[i] = 0.0
+        else:
+            dx[i] = abs(dip[i] - dim[i]) / (dip[i] + dim[i]) * 100
+            if dx[i] < 0:
+                dx[i] = 0.0
     adx = sma(dx, adx_term)
     return adx, dip, dim
         

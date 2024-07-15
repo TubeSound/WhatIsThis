@@ -53,18 +53,15 @@ class TimeFrame:
 
 class Indicators:
     MA = 'MA'
-    SMA_SHORT = 'SMA_SHORT'
-    SMA_MID = 'SMA_MID'
-    SMA_LONG = 'SMA_LONG'
-    SMA_LONG_HIGH = 'SMA_LONG_HIGH'
-    SMA_LONG_LOW = 'SMA_LONG_LOW'
-    EMA_SHORT_HIGH = 'EMA_SHORT_HIGH'
-    EMA_SHORT_LOW = 'EMA_SHORT_LOW'
-    TRENDY = 'TRENDY'
-    TRENDY_LONG = 'TRENDY_LONG'
-    TRENDY_SHORT = 'TRENDY_SHORT'
-    
-    
+    MA_SHORT = 'MA_SHORT'
+    MA_MID = 'MA_MID'
+    MA_LONG = 'MA_LONG'
+    MA_LONG_HIGH = 'MA_LONG_HIGH'
+    MA_LONG_LOW = 'MA_LONG_LOW'
+
+    MABAND = 'MABAND'
+    MABAND_LONG = 'MABAND_LONG'
+    MABAND_SHORT = 'MABAND_SHORT'    
     
     
     TR = 'TR'

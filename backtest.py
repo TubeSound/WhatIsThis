@@ -11,7 +11,7 @@ from dateutil import tz
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
 
-from technical import VWAP, RCI, ATR_TRAIL, SUPERTREND
+from technical import VWAP, RCI, ATR_TRAIL, SUPERTREND, MABAND, EMABREAK
 from strategy import Simulation
 from time_utils import TimeFilter
 from data_loader import DataLoader
@@ -58,49 +58,74 @@ class Parameters:
     def __init__(self, symbol, strategy):
         self.symbol = symbol
         self.strategy = strategy
-        self.trade_space = self.trade_gene_space()
+        self.trade_space, self.sl_space = self.trade_gene_space()
         self.generator_trade = GeneticCode(self.trade_space)
         self.technical_space = self.technical_gene_space()
         self.generator_technical = GeneticCode(self.technical_space)
 
+    def modify(self, code):
+        sl_method = code[3]
+        sl_value = code[4]
+        gc = GeneticCode(code)
+        if sl_method == 0:
+            code[4] = None
+        elif sl_method == 1:
+            # fix
+            code[4] = gc.gen_number(self.sl_space)
+        elif sl_method == 2:
+            # hi_low
+            code[4] = gc.gen_number([GeneticCode.GeneInt, 4, 20, 2])
+        elif sl_method == 3:
+            # range_signal
+            code[4] = gc.gen_number([GeneticCode.GeneInt, 0, 1, 1])
+            
     def generate(self):    
         code1 = self.generator_trade.create_code()
+        self.modify(code1)
         param1 = self.code_to_trade_param(code1)
         while param1 is None:
             code1 = self.generator_trade.create_code()
+            self.modify(code1)
             param1 = self.code_to_trade_param(code1)
         code2 = self.generator_technical.create_code()
         param2 = self.code_to_technical_param(code2)
+        while code2 is None:
+            code2 = self.generator_technical.create_code()
+            param2 = self.code_to_technical_param(code2)
         return param1, param2
     
     def code_to_technical_param(self, code):
         strategy = self.strategy
-        if strategy.find('TRENDY') >= 0:
-            return self.code_to_trendy_param(code)
-        if strategy.find('VWAP') >= 0:
-            return self.code_to_vwap_param(code)
-        elif strategy == 'RCI':
-            return self.code_to_rci_param(code)
-        elif strategy == 'ATR_TRAIL':
-            return self.code_to_atr_param(code)
-        elif strategy == 'SUPERTREND':
-            return self.code_to_supertrend_param(code)
+        if strategy.find('MABAND') >= 0:
+            return self.code_to_maband_param(code)
+        elif strategy.find('EMABREAK') >= 0:
+            return self.code_to_emabreak_param(code)
         else:
             raise Exception('Bad strategy', strategy)
         
     
-        def code_to_trendy_param(self, code):
-            param = {  
-                        'short_term': code[0], 
-                        'mid_term': code[1],
-                        'long_term': code[2],
-                        'di_window': code[3],
-                        'adx_window': code[4],
-                        'adx_threshold': code[5] 
-                    }
-        return {'TRENDY': param}  
-    
-    
+    def code_to_maband_param(self, code):
+        param = {  
+                    'short_term': code[0], 
+                    'long_term': code[1],
+                    'di_window': code[2],
+                    'adx_window': code[3],
+                    'adx_threshold': code[4] 
+                }
+        if code[0] > code[1]:
+            return None
+        return {'MABAND': param}  
+
+
+    def code_to_emabreak_param(self, code):
+        param = {  
+                    'short_term': code[0], 
+                    'long_term': code[1],
+                    'di_window': code[2],
+                    'adx_window': code[3],
+                    'adx_threshold': code[4] 
+                }
+        return {'MABAND': param}  
       
     def code_to_supertrend_param(self, code):
         param = {  'window': code[0], 
@@ -161,18 +186,24 @@ class Parameters:
                     'trailing_stop': trailing_stop, 
                     'volume': 0.1, 
                     'position_max': 5, 
-                    'timelimit': 0,
-                    'only': only}
+                    'timelimit': 0}
         return param
         
     def technical_gene_space(self):
         strategy = self.strategy        
-        if strategy == 'TREND':
+        if strategy == 'MABAND':
             space = [
                         [GeneticCode.GeneInt,   5, 30, 1],  # short_term
-                        [GeneticCode.GeneInt, 10, 50, 5],  # mid_term
                         [GeneticCode.GeneInt, 50, 200, 10],   # long_term
-                        [GeneticCode.GeneInt, 5, 20, 1]      # di_window
+                        [GeneticCode.GeneInt, 5, 20, 1],      # di_window
+                        [GeneticCode.GeneInt, 10, 100, 1],   # adx_window
+                        [GeneticCode.GeneFloat, 20, 60, 10],  # adx_threshold
+                    ]
+        elif strategy == 'EMABREAK':
+            space = [
+                        [GeneticCode.GeneInt,   5, 30, 1],  # short_term
+                        [GeneticCode.GeneInt, 50, 200, 10],   # long_term
+                        [GeneticCode.GeneInt, 5, 20, 1],      # di_window
                         [GeneticCode.GeneInt, 10, 100, 1],   # adx_window
                         [GeneticCode.GeneFloat, 20, 60, 10],  # adx_threshold
                     ]
@@ -253,32 +284,18 @@ class BackTest:
         self.data = data
         
     def indicators(self, data, param):
-        if self.strategy.find('VWAP') >= 0:
-            p = param['VWAP']
-            VWAP(data,
-                p['begin_hour_list'],
-                p['pivot_threshold'],
-                p['pivot_left_len'],
-                p['pivot_center_len'],
-                p['pivot_right_len'],
-                p['median_window'],
-                p['ma_window']
-            )
-        elif self.strategy == 'RCI':
-            p = param['RCI']
-            RCI(data, p['window'], p['pivot_threshold'], p['pivot_len'])
-        elif self.strategy == 'ATR_TRAIL':
-            p = param['ATR_TRAIL']
-            ATR_TRAIL(data, p['window'], p['multiply'], p['peak_hold'], p['horizon'])
-        elif self.strategy == 'SUPERTREND':
-            p = param['SUPERTREND']
-            SUPERTREND(data, p['window'], p['multiply'], p['break_count'])
-        
+        if self.strategy.find('MABAND') >= 0:
+            p = param['MABAND']
+            MABAND(data, p['short_term'], p['long_term'], p['di_window'], p['adx_window'], p['adx_threshold'])
+        elif self.strategy.find('EMABREAK') >= 0:
+            p = param['EMABREAK']
+            EMABREAK(data, p['short_term'],  p['long_term'], p['di_window'], p['adx_window'], p['adx_threshold'])
+            
     def trade(self, trade_param, technical_param):
         data = self.data.copy()
         self.indicators(data, technical_param)
         sim = Simulation(trade_param)        
-        df, summary, profit_curve = sim.run(data)
+        df, summary, profit_curve = sim.run(data, 'MABAND_LONG', 'MABAND_SHORT')
         trade_num, profit, win_rate = summary
         return (df, summary, profit_curve)
 
@@ -333,7 +350,7 @@ class Optimizer:
         year_from = 2018
         month_from = 10
         year_to = 2024
-        month_to = 5
+        month_to = 7
         loader = DataLoader()
         timeframe = self.timeframe
         n, data = loader.load_data(self.symbol, self.timeframe, year_from, month_from, year_to, month_to)
@@ -354,7 +371,7 @@ class Optimizer:
             result.append(d)
             _, profit, _ = summary
             print(i, 'Profit', summary)
-            if profit > 500:
+            if profit > 10000:
                 self.save_profit_curve(symbol, self.timeframe, i, profit_curve, year, month)                    
             try:
                 df = pd.DataFrame(data=result, columns=columns)
@@ -407,7 +424,7 @@ def main():
     elif len(args) == 1:
         symbol = 'DOW'
         timeframe = 'M15'
-        strategy = 'SUPER'
+        strategy = 'MABAND'
         number = 0
     else:
         raise Exception('Bad parameter')
