@@ -9,6 +9,9 @@ from dateutil.relativedelta import relativedelta
 import random
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import matplotlib.gridspec as gridspec
+
 import pandas as pd
 from dateutil import tz
 JST = tz.gettz('Asia/Tokyo')
@@ -21,16 +24,33 @@ from data_loader import DataLoader
 from candle_chart import CandleChart, makeFig, gridFig
 
 
+def makeFig(rows, cols, size):
+    fig, ax = plt.subplots(rows, cols, figsize=(size[0], size[1]))
+    return (fig, ax)
+
+def gridFig(row_rate, size):
+    rows = sum(row_rate)
+    fig = plt.figure(figsize=size)
+    gs = gridspec.GridSpec(rows, 1, hspace=0.6)
+    axes = []
+    begin = 0
+    for rate in row_rate:
+        end = begin + rate
+        ax = plt.subplot(gs[begin: end, 0])
+        axes.append(ax)
+        begin = end
+    return (fig, axes)
+
 
           
 def load():
     year_from = 2020
     month_from = 1
-    year_to = 20212
-    month_to = 3
+    year_to = 2024
+    month_to = 7
     loader = DataLoader()
     timeframe = 'M15'
-    symbol = 'DOW'
+    symbol = 'NIKKEI'
     return loader.load_data(symbol, timeframe, year_from, month_from, year_to, month_to)
 
 def save(filepath, obj):
@@ -40,15 +60,15 @@ def save(filepath, obj):
       
 
 def indicator(data):
-    MABAND(data, 7, 15, 15, 15, 25)
+    MABAND(data, 15, 40, 200, 15, 15, 25)
      
-def plot_line(chart, data, indices, color):
+def plot_bar(ax, data, indices, color):
     jst = data['jst']
     cl = data['close']
     for begin, end in indices:
         x = [jst[begin], jst[end]]
         y = [cl[begin], cl[end]]
-        chart.plotLine(x, y, color=color, linewidth=5.0)    
+        ax.plot(x, y, color=color, linewidth=5.0)    
         
 def calc_profit(data, long, short, ls=300):
     jst = data['jst']
@@ -57,85 +77,91 @@ def calc_profit(data, long, short, ls=300):
     lo = data['low']
     profits = []
     s = 0
+    time = []
+    acc = []
     for i0, i1 in long:
         p0 = cl[i0]
-        cut = False
-        for i in range(i0 + 1, i1 + 1):
-            profit = lo[i] - p0
-            if profit < -ls:
-                s += profit
-                
-                profits.append([1, jst[i0], jst[i], p0, cl[i], profit])
-                cut = True
-        if not cut:
-            profit = cl[i1] - cl[i0]
-            s += profit
-            profits.append([1, jst[i0], jst[i1], cl[i0], cl[i1],profit])
+        profit = cl[i1] - cl[i0]
+        s += profit
+        acc.append([jst[i1], s])
+        profits.append([1, jst[i0], jst[i1], cl[i0], cl[i1],profit])
     for i0, i1 in short:
         p0 = cl[i0]
-        cut = False
-        for i in range(i0 + 1, i1 + 1):
-            profit = p0 - hi[i]
-            if profit < -ls:
-                s += profit
-                profits.append([-1, jst[i0], jst[i], p0, cl[i], profit])
-                cut = True        
-        if not cut:
-            profit = cl[i0] - cl[i1]
-            s += profit
-            profits.append([-1, jst[i0], jst[i1], cl[i0], cl[i1], profit])    
+        profit = cl[i0] - cl[i1]
+        s += profit
+        acc.append([jst[i1], s])
+        profits.append([-1, jst[i0], jst[i1], cl[i0], cl[i1], profit])    
     df = pd.DataFrame(data=profits, columns=['L/S', 'TimeOpen', 'TimeClose', 'PriceOpen', 'PriceClose', 'Profit'])
-    return s, df        
+    df = df.sort_values('TimeOpen')
+    acc = sorted(acc, key=lambda x: x[0])
+    t = [v[0] for v in acc]
+    prf = [v[1] for v in acc]
+    return s, df, (t, prf)
+
+def calc_drawdown(curve, term=20):
+    n = len(curve)
+    dd =[]
+    if n < term:
+        term = n - 1
+    for i in range(term,  n):
+        d = curve[i - term + 1: i + 1]
+        dd.append(min(d) - max(d))
+    return min(dd)
     
 def main():
     n, data0 = load()
-    save('./dw_m15_2020.pkl', data0)
+    save('./nk_m15.pkl', data0)
     fig, axes = gridFig([4, 2, 2], (20, 12))
 
     indicator(data0)
-    t0 = datetime(2020, 3, 1).astimezone(JST)
-    t1 = t0 + timedelta(days=5)
+    t0 = datetime(2020, 3, 9).astimezone(JST)
+    t1 = t0 + timedelta(days=2)
     n, data = TimeUtils.slice(data0, data0['time'], t0, t1)
-    up_event, down_event = MABAND_SIGNAL(data)
+    long_event, short_event = MABAND_SIGNAL(data)
     
     jst = data['jst']
     op = data['open']
     hi = data['high']
     lo = data['low']
     cl = data['close']
-    chart1 = CandleChart(fig, axes[0])
-    chart1.drawCandle(jst, op, hi, lo, cl)
-    chart1.drawLine(jst, data['MA_LONG'], color='blue', linewidth=2.0)
-    chart1.drawLine(jst, data['MA_SHORT'], color='red', linewidth=2.0)
+
+
     ma_short = data['MA_SHORT']
     band = data['MABAND']
+    #profit, df, curve = calc_profit(data, long_event, short_event)
+    #print(df)
+    #drawdown = calc_drawdown(curve[1])
+    #print(df)
+    #print('Profit:', profit, drawdown)
     
-    chart3 = CandleChart(fig, axes[2])
-    chart3.drawLine(jst, data['ADX'])
+    axes[0].plot(jst, cl, color='gray')
+    axes[0].plot(jst, data['MA_LONG'], color='purple', linewidth=2.0)
+    axes[0].plot(jst, data['MA_MID'], color='blue', linewidth=2.0)
+    axes[0].plot(jst, data['MA_SHORT'], color='red', linewidth=2.0)
+    for i0, i1 in long_event:
+        axes[0].scatter(jst[i0], cl[i0], color='green', marker='o', s=200, alpha=0.5)
+        axes[0].scatter(jst[i1], cl[i1], color='green', marker='x', s=200, alpha=0.8)
+
+    for i0, i1 in short_event:
+        axes[0].scatter(jst[i0], cl[i0], color='red', marker='o', s=200, alpha=0.5)
+        axes[0].scatter(jst[i1], cl[i1], color='red', marker='x', s=200, alpha=0.8)
     
-    chart2 = CandleChart(fig, axes[1])
-    chart2.xlimit([jst[0], jst[-1]])
-    for i in range(len(band)):
-        x = [jst[i], jst[i]]
-        y = [0, band[i]]
-        if band[i] > 0:
-            color = 'green'
-        else:
-            color = 'red'
-        chart2.plotLine(x, y, color=color)
+    
+    axes[1].plot(jst, data['MABAND'])
+    axes[1].hlines(0, jst[0], jst[-1])
+    
+    
+    #axes[2].plot(curve[0], curve[1])
+    
+    [ax.set_xlim(jst[0], jst[-1]) for ax in axes]    
+    form = mdates.DateFormatter("%m/%d %H:%M")
+    [ax.xaxis.set_major_formatter(form) for ax in axes]
+
         
         
-    for i0, i1 in up_event:
-        chart2.drawMarker(jst[i0], band[i0], color='red', marker='o', markersize=10)
-        chart2.drawMarker(jst[i1], band[i1], color='red', marker='x', markersize=10)
 
-    for i0, i1 in down_event:
-        chart2.drawMarker(jst[i0], band[i0], color='green', marker='o', markersize=10)
-        chart2.drawMarker(jst[i1], band[i1], color='green', marker='x', markersize=10)
 
-    profit, df = calc_profit(data, up_event, down_event)
-    print(df)
-    print('Profit:', profit)
+    
     #df.to_csv('./Profits.csv', index=False)
 
 if __name__ == '__main__':

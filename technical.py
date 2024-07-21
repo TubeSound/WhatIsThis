@@ -336,18 +336,20 @@ def adx_filter(signal, adx, threshold):
                 trend[i] = -1
     return trend    
         
-def MABAND( dic: dict, short: int, long: int, di_window: int, adx_window: int, adx_threshold: float):
+def MABAND( dic: dict, short: int, mid: int, long: int, di_window: int, adx_window: int, adx_threshold: float):
     cl = dic[Columns.CLOSE]
     hi = dic[Columns.HIGH]
     lo  = dic[Columns.LOW]
     
     ema_short = ema(cl, short)
+    sma_mid = sma(cl, mid)
     sma_long = sma(cl, long)
-    band = ema_short - sma_long
+    band = ema_short - sma_mid
     adx, _, _ = ADX(hi, lo, cl, di_window, adx_window)
     atr = calc_atr(dic, 4 * 24)
 
     dic[Indicators.MA_SHORT] = ema_short
+    dic[Indicators.MA_MID] = sma_mid
     dic[Indicators.MA_LONG] = sma_long
     dic[Indicators.ADX] = adx
     dic[Indicators.ATR] = atr
@@ -356,95 +358,78 @@ def MABAND( dic: dict, short: int, long: int, di_window: int, adx_window: int, a
 def MABAND_SIGNAL(dic: dict):
     atr = dic[Indicators.ATR]
     band = dic[Indicators.MABAND]
+    ma = dic[Indicators.MA_MID]
     threshold = math.sqrt(atr[-1]) * 5
     print('ATR', atr[-1], threshold)
-    up_entry, down_entry = detect_entry(band, threshold=threshold)   
-    up, down, up_event, down_event = detect_exit(band, up_entry, down_entry)
     
-    dic[Indicators.MABAND_LONG] = up
-    dic[Indicators.MABAND_SHORT] = down    
-    return up_event, down_event
-
-
-def detect_entry(band, count=1, threshold=20.0):
+    up, down, signal = detect_cross(band, atr / 2)   
+    print(up)
+    print(down)
     n = len(band)
-    up0 = []
-    down0 = []
-    for i in range(1, n):
-        p0 = band[i - 1]
-        p1 = band[i]
-        if p0 < 0 and p1 > 0:
-            up0.append(i)
-        elif p0 > 0 and p1 < 0:
-            down0.append(i)
-            
-    up = []
-    down = []
-    for i in range(1, 3):
-        if i == 1:
-            old_up = up0
-            old_down = down0
-        else:
-            old_up = up.copy()
-            old_down = down.copy()
-        up = []
-        down = []  
-        for x in old_up:
-            end = x + 5
-            if end >= n - 1:
-                end = n
-            for j in range(x, end):
-                if band[j] > threshold / 2 * i:
-                    up.append(j)
-                    break
-        for x in old_down:
-            end = x + 5
-            if end >= n - 1:
-                end = n
-            for j in range(x, end):
-                if band[j] < -threshold / 2 * i:
-                    down.append(j)
-                    break
+    delay = 1
+    rate = 0.8
+    long = np.full(n, 0)
+    
+    """
+    for x0, x1 in up:
+        long[x0 + delay] = 1
+        for x in range(x0 + 1, x1):
+            d = ma[x0 + 1: x + 1]
+            if max(d) == ma[x]:
+                long[x] = -1
+            else:
+                if (ma[x + 1] - ma[x0]) / (max(d) - ma[x0]) < rate:
+                    long[x] = -1                
+    short = np.full(n, 0)
+    for x0, x1 in down:
+        short[x0 + delay] = 1
+        for x in range(x0 + 1, x1):
+            d = ma[x0 + 1: x + 1]
+            if min(d) == ma[x0]:
+                short[x] = -1 
+            else:
+                if (ma[x + 1] - ma[x0]) / (min(d) - ma[x0]) < rate:
+                    short[x] = -1   
+    dic[Indicators.MABAND_LONG] = long
+    dic[Indicators.MABAND_SHORT] = short
+    """
     return up, down
 
 
-def detect_exit(band, up_entry, down_entry, threshold=0.7):
+def detect_cross(band, range_signal):
     n = len(band)
-    up_event = []
-    down_event = []
-    up = np.full(n, 0)
-    down = np.full(n, 0)
-    for xup in up_entry:
-        up[xup] = 1
-        peak = None
-        for j in range(xup, n):
-            p0 = band[j - 1]
-            if peak is None:
-                peak = p0
-            else:
-                if p0 > peak:
-                    peak = p0                   
-            p1 = band[j]
-            if p1 < peak * threshold:
-                up_event.append([xup, j])
-                up[j] = -1
-                break
-    for xdown in down_entry:
-        down[xdown] = 1
-        peak = None
-        for j in range(xdown, n):
-            p0 = band[j - 1]
-            if peak is None:
-                peak = p0
-            else:
-                if p0 < peak:
-                    peak = p0
-            p1 = band[j]
-            if p1 > peak * threshold:
-                down_event.append([xdown, j])
-                down[j] = -1
-                break
-    return up, down, up_event, down_event
+
+    sig = np.full(n, 0)
+    for i in range(1, n):
+        threshold = range_signal[i]
+        p0 = band[i - 1]
+        p1 = band[i]
+        if p0 <= threshold and p1 > threshold:
+            sig[i] = 1
+        elif p0 >= -threshold and p1 < -threshold:
+            sig[i] = -1
+            
+    up = []
+    down = []
+    signal = np.full(n, 0)
+    state = 0
+    begin = None
+    for i, s in enumerate(sig):
+        if state == 0:
+            state = s
+            signal[i] = s
+            begin = i
+        elif state == 1:
+            if s == -1:
+                up.append([begin, i - 1])
+                begin = i
+                state = s
+        elif state == -1:
+            if s == 1:
+                down.append([begin, i - 1])
+                begin = i
+                state = s
+    return up, down, signal
 
     
 def EMABREAK( dic: dict, short: int, long: int, di_window: int, adx_window: int, adx_threshold: float):
