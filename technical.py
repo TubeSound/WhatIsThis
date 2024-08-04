@@ -378,7 +378,7 @@ def MABAND_SIGNAL(dic: dict):
             if max(d) == ma[x]:
                 long[x] = -1
             else:
-                if (ma[x + 1] - ma[x0]) / (max(d) - ma[x0]) < rate:
+                if (ma[x + 1] - ma[x0]) / (max(d) - ma[x0]) < rate:S
                     long[x] = -1                
     short = np.full(n, 0)
     for x0, x1 in down:
@@ -957,7 +957,7 @@ def ATR_TRAIL(data: dict, atr_window: int, atr_multiply: float, peak_hold_term: 
     data[Indicators.ATR_TRAIL_SIGNAL] = signal
 
              
-def SUPERTREND(data: dict,  atr_window: int, multiply, break_count, column=Columns.MID):
+def SUPERTREND(data: dict,  atr_window: int, multiply, ma_short, column=Columns.MID):
     time = data[Columns.TIME]
     if column == Columns.MID:
         MID(data)
@@ -965,69 +965,81 @@ def SUPERTREND(data: dict,  atr_window: int, multiply, break_count, column=Colum
     n = len(time)
     atr = calc_atr(data, atr_window)
     atr_u, atr_l = band(data[column], atr, multiply)
+    data[Indicators.ATR_UPPER] = atr_u
+    data[Indicators.ATR_LOWER] = atr_l
+    ma = ema(data[Columns.CLOSE], ma_short)
+    data[Indicators.MA_SHORT] = ma
+    
+def SUPERTREND_SIGNAL(data: dict, break_count):
+    time = data[Columns.TIME]
+    n = len(time)
+    
+    atr_u = data[Indicators.ATR_UPPER]
+    atr_l = data[Indicators.ATR_LOWER]
+    price = data[Indicators.MA_SHORT] 
+    
     trend = nans(n)
-    sig = nans(n)
+    sig = np.full(n, 0)
     stop_price = nans(n)
-    super_upper = nans(n)
-    super_lower = nans(n)
+    upper = nans(n)
+    lower = nans(n)
     is_valid = False
     for i in range(break_count, n):
         if is_valid == False:
             if is_nans([atr_l[i - 1], atr_u[i - 1]]):
                 continue
             else:
-                super_lower[i - 1] = atr_l[i - 1]
+                lower[i - 1] = atr_l[i - 1]
                 trend[i - 1] = UP
                 is_valid = True            
         if trend[i - 1] == UP:
             # up trend
-            if np.isnan(super_lower[i - 1]):
-                super_lower[i] = atr_l[i -1]
+            if np.isnan(lower[i - 1]):
+                lower[i] = atr_l[i -1]
             else:
-                if atr_l[i] > super_lower[i - 1]:
-                    super_lower[i] = atr_l[i]
+                if atr_l[i] > lower[i - 1]:
+                    lower[i] = atr_l[i]
                 else:
-                    super_lower[i] = super_lower[i - 1]
+                    lower[i] = lower[i - 1]
             is_break = True
             for j in range(i - break_count - 1, i + 1):
-                if price[i] >= super_lower[i]:
+                if price[i] >= lower[i]:
                     is_break = False
                     break
             if is_break:
                  # up->down trend 
                 trend[i] = DOWN
                 sig[i] = Signal.SHORT
-                stop_price[i] = super_lower[i]
+                stop_price[i] = lower[i]
             else:
                 trend[i] = UP
         else:
             # down trend
-            if np.isnan(super_upper[i - 1]):
-                super_upper[i] = atr_u[i]
+            if np.isnan(upper[i - 1]):
+                upper[i] = atr_u[i]
             else:
-                if atr_u[i] < super_upper[i - 1]:
-                    super_upper[i] = atr_u[i]
+                if atr_u[i] < upper[i - 1]:
+                    upper[i] = atr_u[i]
                 else:
-                    super_upper[i] = super_upper[i - 1]
+                    upper[i] = upper[i - 1]
                     
             is_break = True
             for j in range(i - break_count - 1, i + 1):
-                if price[i] <= super_upper[i]:
+                if price[i] <= upper[i]:
                     is_break = False
                     break
             if is_break:
                 # donw -> up trend
                 trend[i] = UP
                 sig[i] = Signal.LONG
-                stop_price[i] = super_upper[i]
+                stop_price[i] = upper[i]
             else:
                 trend[i] = DOWN
            
-    data[Indicators.SUPERTREND_UPPER] = super_upper
-    data[Indicators.SUPERTREND_LOWER] = super_lower
     data[Indicators.SUPERTREND] = trend  
     data[Indicators.SUPERTREND_SIGNAL] = sig    
-    data[Indicators.SUPERTREND_STOP_PRICE] = stop_price  
+    data[Indicators.SUPERTREND_UPPER] = upper  
+    data[Indicators.SUPERTREND_LOWER] = lower  
     return 
 
 def diff(data: dict, column: str):

@@ -150,6 +150,7 @@ class Positions:
         profit_sum = 0
         win = 0
         profits = []
+        tacc = []
         acc = []
         time = []
         for position in self.closed_positions:
@@ -159,6 +160,7 @@ class Positions:
                 if not np.isnan(prf):
                     profit_sum += prf
             time.append(position.entry_time)
+            tacc.append(position.exit_time)
             acc.append(profit_sum)
             if position.profit > 0:
                 win += 1
@@ -167,7 +169,7 @@ class Positions:
             win_rate = float(win) / float(n)
         else:
             win_rate = 0
-        return (n, profit_sum, win_rate), acc
+        return (n, profit_sum, win_rate), (tacc, acc)
     
     def to_dataFrame(self, strategy: str):
         def bool2str(v):
@@ -188,7 +190,12 @@ class Positions:
         return df 
     
 class Simulation:
-    def __init__(self, trade_param:dict):
+    SL_NONE = 0
+    SL_FIX = 1
+    SL_HIGH_LOW = 2
+    
+    def __init__(self, data, trade_param:dict):
+        self.data = data
         self.trade_param = trade_param
         self.strategy = self.trade_param['strategy'].upper()
         self.volume = trade_param['volume']
@@ -197,28 +204,28 @@ class Simulation:
             begin_hour = self.trade_param['begin_hour']
             begin_minute = self.trade_param['begin_minute']
             hours = self.trade_param['hours']
-            self.timefilter = TimeFilter(JST, begin_hour, begin_minite, hours)
+            self.timefilter = TimeFilter(JST, begin_hour, begin_minute, hours)
         except:
             self.timefilter = None
                 
         self.positions = Positions(self.timefilter)
         
-    def calc_sl(self, data, index, signal, price):
+    def calc_sl(self, index, signal, price):
         method = self.trade_param['sl']['method']
         value = self.trade_param['sl']['value']
-        if method == 0:
+        if method == self.SL_NONE:
             return 0
-        elif method == 1:
+        elif method == self.SL_FIX:
             # fix
             return value
-        elif method == 2:
+        elif method == self.SL_HIGH_LOW:
             # high_low
             if signal == Signal.LONG:
-                low = data['low']
+                low = self.data['low']
                 d = low[index - value: index + 1]
                 return price - np.nanmin(d)
             else:
-                high  = data['high']
+                high  = self.data['high']
                 d = high[index - value: index + 1]
                 return np.nanmax(d) - price
         else:
@@ -255,53 +262,12 @@ class Simulation:
         return self.positions.to_dataFrame(self.strategy), summary, profit_curve
         
         
-        
-        
-    def adx_ma(self, data):
-        param = self.trade_param['ADX_MA']
-        adx_threshold = param['adx_threshold']
-        cl = data[Columns.CLOSE]
-        lo = data[Columns.LOW]
-        n = len(cl)
-        adx = data[Indicators.ADX]
-        sma_long_high = data[Indicators.SMA_LONG_HIGH]
-        sma_long_low = data[Indicators.SMA_LONG_LOW]
-        ema_short_high = data[Indicatrs.EMA_SHORT_HIGH]
-        ema_long_low = data[Indicators.EMA_SHORT_LOW]
-        width = sma_long_high - sma_long_low
-        signal = np.full(n, np.nan)
-        for i in range(n):
-            if adx[i] > adx_threshold:
-                if sma_long_high[i] + width < ema_short_low[i]:        
-                    if ema_short_high[i] < cl[i]:
-                        signal[i] = Signal.LONG
-                elif sma_long_low[i] - width > ema_short_high[i]:
-                    if ema_short_low[i] > cl[i]:
-                        signal[i] = Signal.SHORT
-        
-        
-        
-        
-        
-        
-        
-        
     
-    def supertrend(self, data):
-        return data[Indicators.SUPERTREND_SIGNAL]
-        
-        
-        
-        
-        
-        
-        
-        
-            
-    def run_doten(self, data):
-        self.data = data
+    def run_doten(self, signal_column):        
+        data = self.data
+        signal = data[signal_column]
         time = data[Columns.JST]
-        op =data[Columns.OPEN]
+        op = data[Columns.OPEN]
         hi = data[Columns.HIGH]
         lo = data[Columns.LOW]
         cl = data[Columns.CLOSE]
@@ -354,7 +320,8 @@ class Simulation:
         self.entry(signal, index, time, price)
         pass
     
-    def entry(self, signal, index, time, price, sl):
+    def entry(self, signal, index, time, price):
+        sl = self.calc_sl(index, signal, price)
         if self.timefilter is not None:
             if self.timefilter.on(time) == False:
                 return

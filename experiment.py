@@ -17,7 +17,9 @@ from dateutil import tz
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
 
-from technical import MABAND, MABAND_SIGNAL, EMABREAK
+from common import Indicators
+
+from technical import MABAND, MABAND_SIGNAL, EMABREAK, SUPERTREND, SUPERTREND_SIGNAL
 from strategy import Simulation
 from time_utils import TimeFilter, TimeUtils
 from data_loader import DataLoader
@@ -47,7 +49,7 @@ def load():
     year_from = 2020
     month_from = 1
     year_to = 2024
-    month_to = 7
+    month_to = 8
     loader = DataLoader()
     timeframe = 'M15'
     symbol = 'NIKKEI'
@@ -60,7 +62,7 @@ def save(filepath, obj):
       
 
 def indicator(data):
-    MABAND(data, 15, 40, 200, 15, 15, 25)
+    MABAND(data, 15, 40, 400, 15, 15, 25)
      
 def plot_bar(ax, data, indices, color):
     jst = data['jst']
@@ -110,14 +112,13 @@ def calc_drawdown(curve, term=20):
     
 def main():
     n, data0 = load()
-    save('./nk_m15.pkl', data0)
-    fig, axes = gridFig([4, 2, 2], (20, 12))
+    fig, axes = gridFig([4, 1], (15, 8))
 
-    indicator(data0)
-    t0 = datetime(2020, 3, 9).astimezone(JST)
-    t1 = t0 + timedelta(days=2)
+    SUPERTREND(data0, 30, 3.0, 10)
+    t0 = datetime(2024, 7, 31).astimezone(JST)
+    t1 = t0 + timedelta(days=4)
     n, data = TimeUtils.slice(data0, data0['time'], t0, t1)
-    long_event, short_event = MABAND_SIGNAL(data)
+    SUPERTREND_SIGNAL(data, 0)
     
     jst = data['jst']
     op = data['open']
@@ -127,30 +128,32 @@ def main():
 
 
     ma_short = data['MA_SHORT']
-    band = data['MABAND']
+    limit_upper = data[Indicators.SUPERTREND_UPPER]
+    limit_lower = data[Indicators.SUPERTREND_LOWER]
+    atr_u = data[Indicators.ATR_UPPER]
+    atr_l = data[Indicators.ATR_LOWER]
+    signal = data[Indicators.SUPERTREND_SIGNAL]
     #profit, df, curve = calc_profit(data, long_event, short_event)
     #print(df)
     #drawdown = calc_drawdown(curve[1])
     #print(df)
     #print('Profit:', profit, drawdown)
     
-    axes[0].plot(jst, cl, color='gray')
-    axes[0].plot(jst, data['MA_LONG'], color='purple', linewidth=2.0)
-    axes[0].plot(jst, data['MA_MID'], color='blue', linewidth=2.0)
-    axes[0].plot(jst, data['MA_SHORT'], color='red', linewidth=2.0)
-    for i0, i1 in long_event:
-        axes[0].scatter(jst[i0], cl[i0], color='green', marker='o', s=200, alpha=0.5)
-        axes[0].scatter(jst[i1], cl[i1], color='green', marker='x', s=200, alpha=0.8)
+    #axes[0].plot(jst, cl, color='blue')
+    axes[0].plot(jst, ma_short, color='blue')
+    axes[0].plot(jst, atr_u, color='gray', linewidth=1.0)
+    axes[0].plot(jst, atr_l, color='gray', linewidth=1.0)
+    axes[0].plot(jst, limit_upper, color='orange', linewidth=2.0)
+    axes[0].plot(jst, limit_lower, color='green', linewidth=2.0)
+    
+    
+    for i, s in enumerate(signal):
+        if s == 1:
+            axes[0].scatter(jst[i], ma_short[i], color='green', marker='o', s=200, alpha=0.5)
+        if s == -1:
+            axes[0].scatter(jst[i], ma_short[i], color='red', marker='o', s=200, alpha=0.8)
 
-    for i0, i1 in short_event:
-        axes[0].scatter(jst[i0], cl[i0], color='red', marker='o', s=200, alpha=0.5)
-        axes[0].scatter(jst[i1], cl[i1], color='red', marker='x', s=200, alpha=0.8)
-    
-    
-    axes[1].plot(jst, data['MABAND'])
-    axes[1].hlines(0, jst[0], jst[-1])
-    
-    
+  
     #axes[2].plot(curve[0], curve[1])
     
     [ax.set_xlim(jst[0], jst[-1]) for ax in axes]    
@@ -163,6 +166,8 @@ def main():
 
     
     #df.to_csv('./Profits.csv', index=False)
+    
+
 
 if __name__ == '__main__':
     main()

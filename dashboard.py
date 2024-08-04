@@ -26,7 +26,7 @@ from dateutil import tz
 
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
-from technical import MABAND, VWAP, BB, ATR_TRAIL, ADX, SUPERTREND, CROSS, detect_signal
+from technical import MABAND, VWAP, BB, ATR_TRAIL, ADX, SUPERTREND, SUPERTREND_SIGNAL, detect_signal
 
 from utils import Utils
 from mt5_api import Mt5Api
@@ -47,7 +47,7 @@ trade_param = {'begin_hour':9,
                'trail_stop': 0,
                'timelimit':0}
 
-STRATEGY = ['MABAND', 'EMABREAK']
+STRATEGY = ['SUPERTREND', 'EMABREAK']
 
 TICKERS = ['NIKKEI', 'DOW', 'NSDQ', 'USDJPY']
 TIMEFRAMES = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1']
@@ -74,8 +74,9 @@ technical_param = { 'MABAND':
                     'ADX': {'window': 30,
                             'window_long': 70,
                             'di_window': 20},
-                    'SUPERTREND': {'window': 30,
-                                  'multiply':2.2,
+                    'SUPERTREND': {'atr_window': 30,
+                                  'atr_multiply':2.2,
+                                  'ma_short': 20,
                                   'break_count': 2
                                   }
                     }
@@ -174,19 +175,21 @@ ma_short = html.Div([    html.P('MA Short'),
 ma_long = html.Div([    html.P('MA Long'),
                         dcc.Input(id='ma_long',type="number", min=5, max=400, step=1, value=technical_param['MABAND']['long_term'])
                    ])
-supertrend_window = dcc.Input(id='supertrend_window',type="number", min=5, max=50, step=1, value=technical_param['SUPERTREND']['window'])
-supertrend_multiply = dcc.Input(id='supertrend_multiply',type="number", min=0.2, max=5, step=0.1, value=technical_param['SUPERTREND']['multiply'])
+supertrend_window = dcc.Input(id='supertrend_window',type="number", min=5, max=50, step=1, value=technical_param['SUPERTREND']['atr_window'])
+supertrend_multiply = dcc.Input(id='supertrend_multiply',type="number", min=0.2, max=5, step=0.1, value=technical_param['SUPERTREND']['atr_multiply'])
+supertrend_ma = dcc.Input(id='supertrend_ma',type="number", min=5, max=50, step=1, value=technical_param['SUPERTREND']['ma_short'])
 supertrend_break = dcc.Input(id='supertrend_break_count',type="number", min=0, max=10, step=1, value=technical_param['SUPERTREND']['break_count'])
-param1 = html.Div([html.P('SUPERTREND window'), supertrend_window])
+param1 = html.Div([html.P('SUPERTREND ATR window'), supertrend_window])
 param2 = html.Div([html.P('multiply'), supertrend_multiply])
-param3 = html.Div([html.P('break count'), supertrend_break])
+param3 = html.Div([html.P('MA window'), supertrend_ma])
+param4 = html.Div([html.P('break count'), supertrend_break])
 
 adx_window = dcc.Input(id='adx_window',type="number", min=10, max=100, step=1, value=technical_param['ADX']['window'])
 adx_window_long = dcc.Input(id='adx_window_long',type="number", min=10, max=100, step=1, value=technical_param['ADX']['window_long'])
 adx_di_window = dcc.Input(id='adx_di_window',type="number", min=1, max=100, step=1, value=technical_param['ADX']['di_window'])
-param4 = html.Div([html.P('ADX window'), adx_window])
-param5 = html.Div([html.P('window long'), adx_window_long])
-param6 = html.Div([html.P('DI window'), adx_di_window])
+param11 = html.Div([html.P('ADX window'), adx_window])
+param12 = html.Div([html.P('window long'), adx_window_long])
+param13 = html.Div([html.P('DI window'), adx_di_window])
 
 pivot_threshold = dcc.Input(id='pivot_threshold',type="number", min=1, max=70, step=1, value=technical_param['VWAP']['pivot_threshold'])
 pivot_left_len = dcc.Input(id='pivot_left_len',type="number", min=1, max=30, step=1, value=technical_param['VWAP']['pivot_left_len'])
@@ -194,12 +197,12 @@ pivot_center_len = dcc.Input(id='pivot_center_len',type="number", min=1, max=30,
 pivot_right_len = dcc.Input(id='pivot_right_len',type="number", min=1, max=30, step=1, value=technical_param['VWAP']['pivot_right_len'])
 median_window = dcc.Input(id='median_window',type="number", min=1, max=50, step=1, value=technical_param['VWAP']['median_window'])
 ma_window = dcc.Input(id='ma_window',type="number", min=1, max=50, step=1, value=technical_param['VWAP']['ma_window'])
-param8 = html.Div([html.P('Pivot threshold'), pivot_threshold])
-param9 = html.Div([html.P('Pivot left len'), pivot_left_len])
-param10 = html.Div([html.P('Pivot center len'), pivot_center_len])
-param11 = html.Div([html.P('Pivot right len'), pivot_right_len])
-param12 = html.Div([html.P('VWAP median window'), median_window])
-param13 = html.Div([html.P('VWAP ma window'), ma_window])
+param21 = html.Div([html.P('Pivot threshold'), pivot_threshold])
+param22 = html.Div([html.P('Pivot left len'), pivot_left_len])
+param23 = html.Div([html.P('Pivot center len'), pivot_center_len])
+param24 = html.Div([html.P('Pivot right len'), pivot_right_len])
+param25 = html.Div([html.P('VWAP median window'), median_window])
+param26 = html.Div([html.P('VWAP ma window'), ma_window])
 
 
 
@@ -215,17 +218,18 @@ sidebar =  html.Div([   html.Div([
                                     param1,
                                     param2,
                                     param3,
-                                    html.Hr(),
                                     param4,
-                                    param5,
-                                    param6,
                                     html.Hr(),
-                                    param8,
-                                    param9,
-                                    param10,
                                     param11,
                                     param12,
-                                    param13],
+                                    param13,
+                                    html.Hr(),
+                                    param21,
+                                    param22,
+                                    param23,
+                                    param24,
+                                    param25,
+                                    param26],
                         style={'height': '50vh', 'margin': '8px'})
                     ])
 
@@ -306,6 +310,7 @@ def update_output(n_clicks1, n_clicks2, date):
     State('adx_di_window', 'value'),
     State('supertrend_window', 'value'),
     State('supertrend_multiply', 'value'),
+    State('supertrend_ma', 'value'),
     State('supertrend_break_count', 'value'),
     State('ma_short', 'value'),
     State('ma_long', 'value')
@@ -328,6 +333,7 @@ def update_chart(interval,
                  adx_di_window,
                  supertrend_window,
                  supertrend_multiply,
+                 supertrend_ma,
                  supertrend_break_count,
                  ma_short,
                  ma_long
@@ -364,8 +370,9 @@ def update_chart(interval,
     technical_param['ADX']['window'] = adx_window
     technical_param['ADX']['window_long'] = adx_window_long
     technical_param['ADX']['di_window'] = adx_di_window
-    technical_param['SUPERTREND']['window'] = supertrend_window
-    technical_param['SUPERTREND']['window_multiply'] = supertrend_multiply
+    technical_param['SUPERTREND']['atr_window'] = supertrend_window
+    technical_param['SUPERTREND']['atr_multiply'] = supertrend_multiply
+    technical_param['SUPERTREND']['ma_short'] = supertrend_ma
     technical_param['SUPERTREND']['break_count'] = supertrend_break_count
 
     indicators1(symbol, data, technical_param)
@@ -417,13 +424,15 @@ def indicators1(symbol, data, technical_param):
          param['ma_window']
          )    
     param =technical_param['SUPERTREND']
-    SUPERTREND(data, param['window'], param['multiply'],  param['break_count'])
+    SUPERTREND(data, param['atr_window'], param['atr_multiply'],  param['ma_short'])
+    SUPERTREND_SIGNAL(data, param['break_count'])
     
+    '''
     param = technical_param['MABAND']
     ma_short = param['short_term']
     ma_long = param['long_term']
     MABAND(data, ma_short, ma_long, param['di_window'], param['adx_window'], param['adx_threshold'])
-    
+    '''
     
 def add_markers(fig, time, signal, data, value, symbol, color, row=1, col=1):
     if len(signal) == 0:
@@ -562,6 +571,7 @@ def add_di_chart(fig, data, row):
     fig.add_trace(go.Scatter(x=jst, y=data['DI_PLUS'], line=dict(color='green', width=2)), row=r, col=1)
     fig.add_trace(go.Scatter(x=jst, y=data['DI_MINUS'], line=dict(color='red', width=2)), row=r, col=1)
        
+'''    
 def add_cross_chart(fig, data, row):
     jst = data['jst']
     cl = data['close']
@@ -577,7 +587,7 @@ def add_cross_chart(fig, data, row):
         y = [cl[begin], cl[end]]
         color = 'red'
         fig.add_trace(go.Scatter(x=x, y=y, line=dict(color=color, width=2)), row=row, col=1)
-       
+'''       
        
 def add_vwap_chart(fig, data, row):
     jst = data['jst']
@@ -605,10 +615,11 @@ def add_supertrend_line(fig, data, row):
     jst = data['jst']
     #fig.add_trace(go.Scatter(x=jst, y=data['VWAP_SLOPE'], line=dict(color='Green', width=2)), row=row, col=1)
     r = row
+    fig.add_trace(go.Scatter(x=jst, y=data[Indicators.MA_SHORT], line=dict(color='gray', width=1)), row=r, col=1)
     fig.add_trace(go.Scatter(x=jst, y=data[Indicators.SUPERTREND_UPPER], line=dict(color='blue', width=2)), row=r, col=1)
     fig.add_trace(go.Scatter(x=jst, y=data[Indicators.SUPERTREND_LOWER], line=dict(color='Orange', width=2)), row=r, col=1)
-    #add_markers(fig, jst, data[Indicators.SUPERTREND_SIGNAL], data[Indicators.SUPERTREND_UPPER], 1, 'triangle-up', 'Green', row=r, col=1)
-    #add_markers(fig, jst, data[Indicators.SUPERTREND_SIGNAL], data[Indicators.SUPERTREND_LOWER], -1, 'triangle-down', 'Red', row=r, col=1)    
+    add_markers(fig, jst, data[Indicators.SUPERTREND_SIGNAL], data[Columns.CLOSE], 1, 'triangle-up', 'Green', row=r, col=1)
+    add_markers(fig, jst, data[Indicators.SUPERTREND_SIGNAL], data[Columns.CLOSE], -1, 'triangle-down', 'Red', row=r, col=1)    
 
 def create_graph(symbol, timeframe, data):    
     jst = data['jst']
@@ -619,32 +630,27 @@ def create_graph(symbol, timeframe, data):
         form = '%m-%d'
     else:
         form = '%d/%H:%M'
-    fig = create_fig([5.0, 1.0, 1.0, 4.0, 2.0, 1.0])
+    fig = create_fig([5.0, 1.0, 1.0])
     add_candle_chart(fig, data, 1)
-    add_ma_line(fig, data, 1)
+    #add_ma_line(fig, data, 1)
     #add_vwap_line(fig, data, 2)
-    add_trend_bar(fig, data, 3)
-    add_cross_chart(fig, data, 4)
-    add_adx_chart(fig, data, 5)
+    #add_trend_bar(fig, data, 3)
+    #add_cross_chart(fig, data, 4)
+    #add_adx_chart(fig, data, 5)
 
     #add_atr_stop_line(fig, data, 1)
-    #add_supertrend_line(fig, data, 1)
+    add_supertrend_line(fig, data, 1)
     fig.update_layout(height=CHART_HEIGHT, width=CHART_WIDTH, showlegend=False, xaxis_rangeslider_visible=False)
     fig.update_layout({  'title': symbol + '  ' + timeframe + '  ('  +  str(tfrom) + ')  ...  (' + str(tto) + ')'})
-    """
     fig.update_xaxes(   {'title': 'Time',
                                         'showgrid': True,
                                         'ticktext': [x.strftime(form) for x in jst][xtick::5],
                                         'tickvals': np.arange(xtick, len(jst), 5)
                         })
-    """
+
     #fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])])
     fig.update_yaxes(title_text="Price", row=1, col=1)
     fig.update_yaxes(title_text="Volume", row=2, col=1)
-    fig.update_yaxes(title_text="MABAND", range=[0, 1], row=3, col=1)
-    fig.update_yaxes(title_text="CROSS", row=4, col=1)
-    fig.update_yaxes(title_text="ADX",  range=[20, 80], row=5, col=1)      
-    fig.update_yaxes(title_text="Trail Stop", row=6, col=1)    
     return dcc.Graph(id='stock-graph', figure=fig)
 
 if __name__ == '__main__':    

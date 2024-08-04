@@ -11,9 +11,9 @@ from dateutil import tz
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
 
-from technical import VWAP, RCI, ATR_TRAIL, SUPERTREND, MABAND, EMABREAK
+from technical import VWAP, RCI, ATR_TRAIL, SUPERTREND, SUPERTREND_SIGNAL, MABAND, EMABREAK
 from strategy import Simulation
-from time_utils import TimeFilter
+from time_utils import TimeFilter, TimeUtils
 from data_loader import DataLoader
 
 class GeneticCode:
@@ -96,8 +96,8 @@ class Parameters:
     
     def code_to_technical_param(self, code):
         strategy = self.strategy
-        if strategy.find('MABAND') >= 0:
-            return self.code_to_maband_param(code)
+        if strategy.find('SUPERTREND') >= 0:
+            return self.code_to_supertrend_param(code)
         elif strategy.find('EMABREAK') >= 0:
             return self.code_to_emabreak_param(code)
         else:
@@ -128,9 +128,10 @@ class Parameters:
         return {'MABAND': param}  
       
     def code_to_supertrend_param(self, code):
-        param = {  'window': code[0], 
-                    'multiply': code[1],
-                    'break_count': code[2]
+        param = {  'atr_window': code[0], 
+                   'atr_multiply': code[1],
+                   'ma_window': code[2],
+                   'break_count': code[3]
                 }
         return {'SUPERTREND': param}    
         
@@ -230,8 +231,9 @@ class Parameters:
             ]
         elif strategy == 'SUPERTREND':
             space = [
-                        [GeneticCode.GeneInt,   10, 100, 10],    # window
-                        [GeneticCode.GeneFloat, 0.6, 5.0, 0.2],  # multiply
+                        [GeneticCode.GeneInt,   5, 100, 5],    # atr_window
+                        [GeneticCode.GeneFloat, 0.6, 5.0, 0.2],  # atr_multiply
+                        [GeneticCode.GeneInt, 5, 100, 5],
                         [GeneticCode.GeneInt,   0, 10, 1]        # break_count    
             ]
         return space
@@ -318,7 +320,7 @@ def expand(name: str, dic: dict):
   
 class Optimizer:
     def __init__(self, number : int, symbol: str, timeframe: float, strategy: float, repeat: int):
-        self.number = number
+        self.number = numberAll-NaN axis encountered
         self.symbol = symbol
         self.timeframe = timeframe
         
@@ -346,14 +348,23 @@ class Optimizer:
         path = os.path.join(dirpath, filename)      
         return path
           
+    def from_pickle(self, year_from, month_from, year_to, month_to):
+        import pickle
+        filepath = './data/pickle/' + self.symbol + '_' + self.timeframe + '.pkl'
+        with open(filepath, 'rb') as f:
+            data0 = pickle.load(f)
+        
+        t0 = datetime(year_from, month_from, 1).astimezone(JST)
+        t1 = datetime(year_to, month_to, 1).astimezone(JST)
+        return TimeUtils.slice(data0, data0['jst'], t0, t1)
+        
+    
     def run(self):
         year_from = 2018
         month_from = 10
         year_to = 2024
         month_to = 7
-        loader = DataLoader()
-        timeframe = self.timeframe
-        n, data = loader.load_data(self.symbol, self.timeframe, year_from, month_from, year_to, month_to)
+        n, data = self.from_pickle(year_from, month_from, year_to, month_to)
         if n < 100:
             print('Data size small')
             return
@@ -414,7 +425,7 @@ class Optimizer:
             plt.close()               
         except:
             pass      
-def main():
+def opt():
     args = sys.argv
     if len(args) == 5:
         symbol = args[1]
@@ -424,7 +435,7 @@ def main():
     elif len(args) == 1:
         symbol = 'DOW'
         timeframe = 'M15'
-        strategy = 'MABAND'
+        strategy = 'SUPERTREND'
         number = 0
     else:
         raise Exception('Bad parameter')
@@ -433,10 +444,8 @@ def main():
     opt.run()
     
 def test():
-    dic = {'a': 2.0, 'b': [3, 4], 'x': {'x0': 10, 'x1': {'y': 666, 'z':{'aho': True}}}}
-    ret = expand('', dic)
-    print(ret)
+    
                 
 if __name__ == '__main__':
-    main()
+    test()
     #test()

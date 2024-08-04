@@ -13,6 +13,8 @@ from mt5_api import Mt5Api
 from common import TimeFrame
 from datetime import datetime, timedelta
 from dateutil import tz
+from time_utils import TimeFilter, TimeUtils
+from data_loader import DataLoader
 
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc') 
@@ -22,8 +24,8 @@ def download(symbols, save_holder):
     api.connect()
     for symbol in symbols:
         for tf in [TimeFrame.M1, TimeFrame.M5, TimeFrame.M15, TimeFrame.M30, TimeFrame.H1, TimeFrame.H4, TimeFrame.D1]:
-            for year in range(2018, 2025):
-                for month in range(1, 13):
+            for year in range(2024, 2025):
+                for month in range(8, 9):
                     t0 = datetime(year, month, 1, 7)
                     t0 = t0.replace(tzinfo=JST)
                     t1 = t0 + relativedelta(months=1) - timedelta(seconds=1)
@@ -52,7 +54,26 @@ def dl2():
     symbols = ['NIKKEI', 'USDJPY']
     download(symbols, '../MarketData/Axiory/')
     
+def save(filepath, obj):
+    import pickle
+    with open(filepath, mode='wb') as f:
+        pickle.dump(obj, f)
+    
+def save_data():
+    year_from = 2020
+    month_from = 1
+    year_to = 2024
+    month_to = 8
+    loader = DataLoader()
+    for symbol in ['NIKKEI', 'DOW', 'NSDQ', 'USDJPY']:
+        for tf in ['M15', 'M30']:
+            n, data = loader.load_data(symbol, tf, year_from, month_from, year_to, month_to)
+            os.makedirs('./data/pickle', exist_ok=True)
+            save('./data/pickle/' + symbol + '_' + tf + ".pkl", data)
+    
+def main():
+    dl1()
+    save_data()
     
 if __name__ == '__main__':
-    dl1()
-
+    main()
