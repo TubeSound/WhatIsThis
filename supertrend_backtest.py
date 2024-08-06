@@ -269,6 +269,8 @@ def trade(symbol, timeframe, year, month_from, month_to, param):
     SUPERTREND(data0, param['atr_window'], param['atr_multiply'], param['ma_window'])
     n, data = timefilter(data0, year, month_from, year, month_to)
     print('data size', n)
+    if n < 100:
+        return None
     #print(n)
     SUPERTREND_SIGNAL(data, 0)
     #plot(data)
@@ -297,8 +299,8 @@ def expand(name: str, dic: dict):
     
 
 def optimize(symbol, timeframe):
-    
-    months = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 2]]
+    print(symbol, timeframe)
+    months = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
     
     for year in range(2020, 2025):
         for m in range(len(months)):
@@ -323,7 +325,11 @@ def sim(symbol, timeframe, year, month_from, month_to):
             p2 = 3.0
             number += 1
             param = {'atr_window': p0, 'atr_multiply': p2, 'ma_window': p1}
-            df , summary, curve = trade(symbol, timeframe, year, month_from, month_to, param)
+            r = trade(symbol, timeframe, year, month_from, month_to, param)
+            if r is None:
+                line.append(0)
+                continue
+            df , summary, curve = r
             p, columns = expand('supertrend', param)
             out.append([number] + p + list(summary))
             line.append(summary[1])
@@ -348,7 +354,7 @@ def main():
     else:
         symbol = 'DOW'
         timeframe = 'M15'
-        optimize(symbol, timeframe)
+    optimize(symbol, timeframe)
     
 if __name__ == '__main__':
     main()
