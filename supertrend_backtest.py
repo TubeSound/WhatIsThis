@@ -44,9 +44,11 @@ def from_pickle(symbol, timeframe):
         data0 = pickle.load(f)
     return data0
 
-def timefilter(data, year_from, month_from, day_from, year_to, month_to, day_to):
-    t0 = datetime(year_from, month_from, day_from).astimezone(JST)
-    t1 = datetime(year_to, month_to, day_to).astimezone(JST)
+def timefilter(data, year_from, month_from, year_to, month_to):
+    t0 = datetime(year_from, month_from, 1).astimezone(JST)
+    t1 = datetime(year_to, month_to, 1).astimezone(JST)
+    t1 += relativedelta(months=1)
+    t1 -= timedelta(days=1)
     return TimeUtils.slice(data, data['jst'], t0, t1)
         
 class BackTest:
@@ -198,9 +200,9 @@ def opt():
 def get_trade_param():
     param =  {
                 'strategy': 'supertrend',
-                'begin_hour': 20,
+                'begin_hour': 0,
                 'begin_minute': 0,
-                'hours': 8,
+                'hours': 0,
                 'sl': {
                         'method': 'fix',
                         'value': 400
@@ -262,10 +264,10 @@ def plot_profit(path, number, param, curve):
     axes[0].set_title("#" + str(number) + ' ' + str(param))
     fig.savefig(path)
     
-def trade(symbol, timeframe, year, param):
+def trade(symbol, timeframe, year, month_from, month_to, param):
     data0 = from_pickle(symbol, timeframe)
     SUPERTREND(data0, param['atr_window'], param['atr_multiply'], param['ma_window'])
-    n, data = timefilter(data0, year, 1, 1, year, 12, 31)
+    n, data = timefilter(data0, year, month_from, year, month_to)
     print('data size', n)
     #print(n)
     SUPERTREND_SIGNAL(data, 0)
@@ -293,34 +295,60 @@ def expand(name: str, dic: dict):
             columns.append(column)
     return data, columns     
     
-def optimize(symbol, timeframe, year):
+
+def optimize(symbol, timeframe):
+    
+    months = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 2]]
+    
+    for year in range(2020, 2025):
+        for m in range(len(months)):
+            month = months[m]
+            month_from = month[0]
+            month_to = month[-1]
+            print(symbol, timeframe, year, month)
+            sim(symbol, timeframe, year, month_from, month_to)
+
+def sim(symbol, timeframe, year, month_from, month_to):
+    dir_path = f'./optimize/{symbol}/{timeframe}'
+    os.makedirs(dir_path, exist_ok=True)
     number = 0
     out = []
-    for p0 in range(5, 50, 5):
-        for p1 in range(5, 50, 5):
-            for p2 in np.arange(1.0, 5.0, 0.5):
-                number += 1
-                param = {'atr_window': p0, 'atr_multiply': p2, 'ma_window': p1}
-                df , summary, curve = trade(symbol, timeframe, year, param)
-                p, columns = expand('supertrend', param)
-                out.append([number] + p + list(summary))
-                if summary[1]> 5000:
-                    print(summary)
-                    print(param)
-                    dir_path = f'./optimize/{symbol}/{timeframe}'
-                    os.makedirs(dir_path, exist_ok=True)
-                    path = f'profit_curve_{symbol}_{timeframe}_{year}_#{number}.png'
-                    plot_profit(os.path.join(dir_path, path), number, param, curve)
-    df = pd.DataFrame(data=out)             
-    df.to_excel(f'./optimize/summary_{symbol}_{timeframe}_{year}.xlsx', index=False)           
+    matrix = []
+    cols = []
+    for p0 in range(5, 100, 5):
+        line = [p0]
+        cols = ['->ma']
+        for p1 in range(5, 90, 5):
+            cols.append(str(p1))
+            p2 = 3.0
+            number += 1
+            param = {'atr_window': p0, 'atr_multiply': p2, 'ma_window': p1}
+            df , summary, curve = trade(symbol, timeframe, year, month_from, month_to, param)
+            p, columns = expand('supertrend', param)
+            out.append([number] + p + list(summary))
+            line.append(summary[1])
+            if summary[1]> 2000:
+                print(summary)
+                print(param)
+                path = f'profit_curve_{symbol}_{timeframe}_{year}_{month_from}_#{number}.png'
+                plot_profit(os.path.join(dir_path, path), number, param, curve)
+        matrix.append(line)
+    df = pd.DataFrame(data=out, columns=['no', 'atr_window', 'atr_multiply', 'ma_wndow', 'n', 'profit', 'drawdown'])             
+    df.to_excel(f'./optimize/summary_{symbol}_{timeframe}_{year}_{month_from}.xlsx', index=False)           
+
+    df = pd.DataFrame(data=matrix, columns=cols)
+    df.to_excel(f'./optimize/matrix_{symbol}_{timeframe}_{year}_{month_from}.xlsx', index=False)    
+
     
 def main():
     args = sys.argv
-    if len(args) == 4:
+    if len(args) == 3:
         symbol = args[1]
         timeframe = args[2]
-        year = int(args[3])
-        optimize(symbol, timeframe, year)
+    else:
+        symbol = 'DOW'
+        timeframe = 'M15'
+        optimize(symbol, timeframe)
     
 if __name__ == '__main__':
     main()

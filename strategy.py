@@ -204,7 +204,10 @@ class Simulation:
             begin_hour = self.trade_param['begin_hour']
             begin_minute = self.trade_param['begin_minute']
             hours = self.trade_param['hours']
-            self.timefilter = TimeFilter(JST, begin_hour, begin_minute, hours)
+            if hours == 0:
+                self.timefilter = None
+            else:
+                self.timefilter = TimeFilter(JST, begin_hour, begin_minute, hours)
         except:
             self.timefilter = None
                 
