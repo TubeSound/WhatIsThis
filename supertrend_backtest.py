@@ -263,6 +263,7 @@ def plot_profit(path, number, param, curve):
     axes[0].plot(curve[0], curve[1], color='blue')
     axes[0].set_title("#" + str(number) + ' ' + str(param))
     fig.savefig(path)
+    plt.close()
     
 def trade(symbol, timeframe, year, month_from, month_to, param):
     data0 = from_pickle(symbol, timeframe)
