@@ -259,9 +259,9 @@ def plot(data):
     
     
 def plot_profit(path, number, param, curve):
-    fig, axes = gridFig([4], (15, 4))
-    axes[0].plot(curve[0], curve[1], color='blue')
-    axes[0].set_title("#" + str(number) + ' ' + str(param))
+    fig, ax = plt.subplots(1, 1, figsize=(15, 4))
+    ax.plot(curve[0], curve[1], color='blue')
+    ax.set_title("#" + str(number) + ' ' + str(param))
     fig.savefig(path)
     plt.close()
     
@@ -299,17 +299,15 @@ def expand(name: str, dic: dict):
     return data, columns     
     
 
-def optimize(symbol, timeframe):
+def optimize(symbol, timeframe, year):
     print(symbol, timeframe)
-    months = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
-    
-    for year in range(2020, 2025):
-        for m in range(len(months)):
-            month = months[m]
-            month_from = month[0]
-            month_to = month[-1]
-            print(symbol, timeframe, year, month)
-            sim(symbol, timeframe, year, month_from, month_to)
+    months = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]    
+    for m in range(len(months)):
+        month = months[m]
+        month_from = month[0]
+        month_to = month[-1]
+        print(symbol, timeframe, year, month)
+        sim(symbol, timeframe, year, month_from, month_to)
 
 def sim(symbol, timeframe, year, month_from, month_to):
     dir_path = f'./optimize/{symbol}/{timeframe}'
@@ -334,11 +332,11 @@ def sim(symbol, timeframe, year, month_from, month_to):
             p, columns = expand('supertrend', param)
             out.append([number] + p + list(summary))
             line.append(summary[1])
-            if summary[1]> 2000:
+            if summary[1]> 3000:
                 print(summary)
                 print(param)
                 path = f'profit_curve_{symbol}_{timeframe}_{year}_{month_from}_#{number}.png'
-                plot_profit(os.path.join(dir_path, path), number, param, curve)
+                #plot_profit(os.path.join(dir_path, path), number, param, curve)
         matrix.append(line)
     df = pd.DataFrame(data=out, columns=['no', 'atr_window', 'atr_multiply', 'ma_wndow', 'n', 'profit', 'drawdown'])             
     df.to_excel(f'./optimize/summary_{symbol}_{timeframe}_{year}_{month_from}.xlsx', index=False)           
@@ -349,13 +347,15 @@ def sim(symbol, timeframe, year, month_from, month_to):
     
 def main():
     args = sys.argv
-    if len(args) == 3:
+    if len(args) == 4:
         symbol = args[1]
         timeframe = args[2]
+        year = int(args[3])
     else:
         symbol = 'DOW'
         timeframe = 'M15'
-    optimize(symbol, timeframe)
+        year = 2024
+    optimize(symbol, timeframe, year)
     
 if __name__ == '__main__':
     main()
