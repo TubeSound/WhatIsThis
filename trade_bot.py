@@ -16,6 +16,7 @@ from data_buffer import DataBuffer
 from time_utils import TimeUtils
 from utils import Utils
 from technical import *
+from common import Signal
 
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')  
@@ -137,7 +138,8 @@ class TradeBot:
         
     def calc_indicators(self, data: dict, param: dict):
         p = param['SUPERTREND']
-        SUPERTREND(data, p['atr_window'], p['atr_multiply'], p['break_count'])
+        SUPERTREND(data, p['atr_window'], p['atr_multiply'], p['ma_window'])
+        SUPERTREND_SIGNAL(data, 0)
         
     def set_sever_time(self, begin_month, begin_sunday, end_month, end_sunday, delta_hour_from_gmt_in_summer):
         now = datetime.now(JST)
@@ -191,22 +193,41 @@ class TradeBot:
                 self.entry(self.buffer.data, sig, current_index, current_time)
         return n
     
-    def detect_entry(self, data: dict):
+    def update_doten(self):
+        self.remove_closed_positions()
+        self.trailing()
+        df = self.mt5.get_rates(self.timeframe, 2)
+        df = df.iloc[:-1, :]
+        n = self.buffer.update(df)
+        if n > 0:
+            current_time = self.buffer.last_time()
+            current_index = self.buffer.last_index()
+            save(self.buffer.data, './debug/update_' + self.symbol + '_' + datetime.now().strftime('%Y-%m-%d_%H_%M_%S') + '.xlsx')
+            #self.check_timeup(current_index)
+            sig = self.detect_doten(self.buffer.data)
+            if sig == Signal.LONG or sig == Signal.SHORT:
+                self.debug_print('<Signal> ', sig)
+                if self.trade_param['trail_stop'] == 0 or self.trade_param['trail_target'] == 0:
+                    # ドテン
+                    self.debug_print('<Closed All positions> Doten ', self.symbol)
+                    positions = self.trade_manager.open_positions()
+                else:
+                    # trail not fired 
+                    self.debug_print('<Closed Trail Not fired positions> ', self.symbol)
+                    positions = self.trade_manager.untrail_positions()
+                self.close_positions(positions)
+                self.entry(self.buffer.data, sig, current_index, current_time)
+        return n
+    
+    def detect_doten(self, data: dict):
         signal = data[self.signal_name]
         sig = signal[-1]
-        only = self.trade_param['only']
-        if only > 0:
-            if sig == Signal.LONG:
-                return sig
-            else:
-                return None
-        elif only < 0:
-            if sig == Signal.SHORT:
-                return sig
-            else:
-                return None
-        else:   
+        if sig == Signal.LONG or sig == Signal.SHORT:
             return sig
+        else:
+            return None
+  
+        
                 
     def mt5_position_num(self):
         positions = self.mt5.get_positions()
@@ -242,7 +263,7 @@ class TradeBot:
         
     def trailing(self):
         trailing_stop = self.trade_param['trail_stop'] 
-        target_profit = self.trade_param['target']
+        target_profit = self.trade_param['trail_target']
         if trailing_stop == 0 or target_profit == 0:
             return
         remove_tickets = []
@@ -290,24 +311,24 @@ class TradeBot:
                 self.debug_print('<Closed Doten> Fail', self.symbol, position.desc())           
         self.trade_manager.remove_positions(removed_tickets)
 
-def create_dow_bot():
-    symbol = 'DOW'
+def create_bot():
+    symbol = 'NIKKEI'
     timeframe = 'M15'
     technical = {'SUPERTREND': {
-                                    'atr_window': 70,
-                                    'atr_multiply': 4.0,
-                                    'break_count': 4}
+                                    'atr_window': 5,
+                                    'atr_multiply': 4.5,
+                                    'ma_window': 25,
+                                    'break_count': 0}
                                 }
-    trade_param = {'begin_hour':10, 
-               'begin_minute':30,
-               'hours': 11,
-               'sl': 150,
-               'volume': 0.1,
-               'position_max':5,
-               'target':50, 
-               'trail_stop': 200,
-               'timelimit':0,
-               'only': 1}
+    trade_param = {'begin_hour':8, 
+                   'begin_minute':0,
+                   'hours': 24,
+                   'sl': 200,
+                   'volume': 0.1,
+                   'position_max':5,
+                   'trail_target':0, 
+                   'trail_stop': 200,
+                   'timelimit':0}
     
     bot = TradeBot(symbol, timeframe, 1, Indicators.SUPERTREND_SIGNAL, technical, trade_param)    
     return bot
@@ -317,19 +338,19 @@ def create_usdjpy_bot():
     timeframe = 'M5'
     technical = {'atr_window': 40, 'atr_multiply': 3.0}
     trade = {'sl': 0.3, 'target_profit': 0.4, 'trailing_stop': 0.1, 'volume': 0.1, 'position_max': 5, 'timelimit': 40}
-    bot = TradeBot(symbol, timeframe, 1, technical, trade)    
+    bot = TradeBot(symbol, timeframe, 1, Indicators.SUPERTREND_SIGNAL, technical, trade)    
     return bot
      
 def test():
     Mt5Trade.connect()
-    bot1 = create_dow_bot()
+    bot1 = create_bot()
     bot1.set_sever_time(3, 2, 11, 1, 3.0)
     bot1.run()
     #bot2 = create_usdjpy_bot()
     #bot2.set_sever_time(3, 2, 11, 1, 3.0)
     #bot2.run()
     while True:
-        scheduler.enter(10, 1, bot1.update)
+        scheduler.enter(10, 1, bot1.update_doten)
         #scheduler.run()
         #scheduler.enter(10, 2, bot2.update)
         scheduler.run()

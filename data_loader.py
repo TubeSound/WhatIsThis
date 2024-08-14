@@ -71,3 +71,53 @@ class DataLoader:
     
     def data(self):
         return self.dic
+    
+    
+def save(filepath, obj):
+    import pickle
+    with open(filepath, mode='wb') as f:
+        pickle.dump(obj, f)
+        
+        
+def arrange(data):
+    time = data['time']
+    jst = []
+    utc = []
+    for t in time:
+        tj = t + timedelta(hours=14) 
+        jst.append(tj.astimezone(JST))
+        tu = t + timedelta(hours=2)
+        utc.append(tu.astimezone(UTC))
+    data['jst'] = jst
+    data['utc'] = utc   
+    
+    
+def load_backtest_market():
+    file = './data/BacktestMarket/nikkei_15min.csv'
+    df = pd.read_csv(file)
+    date = df['date']
+    time0 = df['time']
+    
+    time = []
+    for d, t in zip(date, time0):
+        tim = datetime.strptime(d + ' ' + t, '%d/%m/%Y %H:%M:%S')
+        time.append(tim)
+    
+    data = {}    
+    data['time'] = time
+    data['open'] = df['open'].to_list()
+    data['high'] = df['high'].to_list()
+    data['low'] = df['low'].to_list()
+    data['close']  = df['close'].to_list()
+    arrange(data)
+    save('./data/BacktestMarket/BM_nikkei_15min.pkl', data)
+    
+if __name__ == '__main__':
+    load_backtest_market()
+        
+        
+        
+        
+        
+        
+        

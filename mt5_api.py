@@ -27,8 +27,8 @@ def adjust(time):
     utc = []
     jst = []
     for ts in time:
-        t0 = pd.to_datetime(ts)
-        t0 = t0.replace(tzinfo=UTC)
+        #t0 = pd.to_datetime(ts)
+        t0 = ts.replace(tzinfo=UTC)
         t = server_time_to_utc(t0)
         utc.append(t)
         tj = t.astimezone(JST)
@@ -86,6 +86,29 @@ class Mt5Api:
         if rates is None:
             raise Exception('get_rates error')
         return self.parse_rates(rates)
+    
+    def get_ticks(self, symbol: str, jst_from: datetime, jst_to: datetime):
+        utc_from = jst_from.astimezone(tz=UTC)
+        utc_to = jst_to.astimezone(tz=UTC)
+        t_from = utc_to_server_time(utc_from)
+        t_to = utc_to_server_time(utc_to)
+        ticks = mt5.copy_ticks_range(symbol, t_from, t_to, mt5.COPY_TICKS_ALL)
+        df = pd.DataFrame(ticks)
+        # 秒での時間をdatetime形式に変換する
+        t0 = pd.to_datetime(df['time'], unit='s')
+        tmsec = [t % 1000 for t in df['time_msc']]
+        
+        utc, jst = adjust(t0)
+        
+        
+        utc = [t + timedelta(milliseconds=msec) for t, msec in zip(utc, tmsec)]
+        jst = [t + timedelta(milliseconds=msec) for t, msec in zip(jst, tmsec)]
+        
+        
+        df['jst'] = jst
+        df['time'] = utc
+        return df
+
 
     def parse_rates(self, rates):
         df = pd.DataFrame(rates)

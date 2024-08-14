@@ -43,6 +43,28 @@ def download(symbols, save_holder):
     
     pass
 
+
+def download_tick(symbols, save_holder):
+    api = Mt5Api()
+    api.connect()
+    for symbol in symbols:
+        year = 2024
+        month = 7
+        tf = 'TICK'
+        t0 = datetime(year, month, 25, 7)
+        t0 = t0.replace(tzinfo=JST)
+        t1 = datetime.now(JST)
+        df = api.get_ticks(symbol, t0, t1)
+        path = save_holder
+        os.makedirs(path, exist_ok=True)
+        path = os.path.join(path, symbol + '_' + tf + '_' + str(year) + '_' + str(month).zfill(2) + '.pkl')
+        #print(path, symbol, len(df))
+        save(path, df)
+        print(path, symbol, tf, year, '-', month, 'size: ', len(df))
+    
+    pass
+
+
 def dl1():
     symbols = ['NIKKEI', 'DOW', 'NSDQ', 'SP', 'HK50', 'DAX', 'FTSE', 'XAUUSD']
     symbols += ['CL', 'USDJPY', 'GBPJPY']
@@ -66,14 +88,16 @@ def save_data():
     month_to = 8
     loader = DataLoader()
     for symbol in ['NIKKEI', 'DOW', 'NSDQ', 'USDJPY']:
-        for tf in ['M15', 'M30']:
+        for tf in ['M1', 'M5', 'M15', 'M30']:
             n, data = loader.load_data(symbol, tf, year_from, month_from, year_to, month_to)
-            os.makedirs('./data/pickle', exist_ok=True)
-            save('./data/pickle/' + symbol + '_' + tf + ".pkl", data)
+            os.makedirs('./data', exist_ok=True)
+            save('./data/' + symbol + '_' + tf + ".pkl", data)
     
 def main():
     dl1()
     save_data()
+    #download_tick(['NIKKEI', 'DOW', 'USDJPY'], '../data/tick')
+    
     
 if __name__ == '__main__':
     main()

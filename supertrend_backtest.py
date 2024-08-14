@@ -39,7 +39,12 @@ def gridFig(row_rate, size):
 
 def from_pickle(symbol, timeframe):
     import pickle
-    filepath = './data/pickle/' + symbol + '_' + timeframe + '.pkl'
+    if symbol == 'DOW' and timeframe == 'M15':
+        filepath = './data/BacktestMarket/BM_dji_15min.pkl'
+    elif symbol == 'NIKKEI' and timeframe == 'M15':
+        filepath = './data/BacktestMarket/BM_nikkei_15min.pkl'
+    else:
+        filepath = './data/Axiory/' + symbol + '_' + timeframe + '.pkl'
     with open(filepath, 'rb') as f:
         data0 = pickle.load(f)
     return data0
@@ -265,21 +270,10 @@ def plot_profit(path, number, param, curve):
     fig.savefig(path)
     plt.close()
     
-def trade(symbol, timeframe, year, month_from, month_to, param):
-    data0 = from_pickle(symbol, timeframe)
-    SUPERTREND(data0, param['atr_window'], param['atr_multiply'], param['ma_window'])
-    n, data = timefilter(data0, year, month_from, year, month_to)
-    print('data size', n)
-    if n < 100:
-        return None
-    #print(n)
-    SUPERTREND_SIGNAL(data, 0)
-    #plot(data)
+def trade(symbol, timeframe, data, param):
     trade_param = get_trade_param()
     sim = Simulation(data, trade_param)        
     return sim.run_doten(Indicators.SUPERTREND_SIGNAL)
-    #print(summary)
-    #plot_profit(curve)
     
 def expand(name: str, dic: dict):
     data = []
@@ -302,29 +296,46 @@ def expand(name: str, dic: dict):
 def optimize(symbol, timeframe, year):
     print(symbol, timeframe)
     months = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]    
+    data0 = from_pickle(symbol, timeframe)
+    root = './optimize'
     for m in range(len(months)):
+        data = data0.copy()
         month = months[m]
         month_from = month[0]
         month_to = month[-1]
         print(symbol, timeframe, year, month)
-        sim(symbol, timeframe, year, month_from, month_to)
-
-def sim(symbol, timeframe, year, month_from, month_to):
-    dir_path = f'./optimize/{symbol}/{timeframe}'
+        n, data = timefilter(data0, year, month_from, year, month_to)
+        title = f'{symbol}_{timeframe}_{year}_{month_from}'
+        sim(root, symbol, timeframe, title, data)
+        
+def optimize_fulltime(symbol, timeframe):
+    print(symbol, timeframe)
+    ma_window = 25
+    limit = 20000
+    data0 = from_pickle(symbol, timeframe)
+    root = f'./optimize_full2/MA{ma_window}'
+    data = data0.copy()
+    title = f'{symbol}_{timeframe}_MA{ma_window}'
+    sim(root, symbol, timeframe, title, data, ma_window, limit)    
+    
+def sim(root, symbol, timeframe, title, data, ma_window, limit):
+    dir_path = os.path.join(root, f'{symbol}/{timeframe}')
     os.makedirs(dir_path, exist_ok=True)
     number = 0
     out = []
     matrix = []
     cols = []
-    for p0 in range(5, 100, 5):
-        line = [p0]
-        cols = ['->ma']
-        for p1 in range(5, 90, 5):
-            cols.append(str(p1))
-            p2 = 3.0
+
+    for atr_window in range(5, 90, 5):
+        line = [atr_window]
+        cols = ['->multiply']
+        for multiply in np.arange(1, 5, 0.5):
+            cols.append(str(multiply))
             number += 1
-            param = {'atr_window': p0, 'atr_multiply': p2, 'ma_window': p1}
-            r = trade(symbol, timeframe, year, month_from, month_to, param)
+            param = {'atr_window': atr_window, 'atr_multiply': multiply, 'ma_window': ma_window}
+            SUPERTREND(data, param['atr_window'], param['atr_multiply'], param['ma_window'])
+            SUPERTREND_SIGNAL(data, 0)
+            r = trade(symbol, timeframe, data, param)
             if r is None:
                 line.append(0)
                 continue
@@ -332,20 +343,33 @@ def sim(symbol, timeframe, year, month_from, month_to):
             p, columns = expand('supertrend', param)
             out.append([number] + p + list(summary))
             line.append(summary[1])
-            if summary[1]> 3000:
+            if summary[1]> limit:
                 print(summary)
                 print(param)
-                path = f'profit_curve_{symbol}_{timeframe}_{year}_{month_from}_#{number}.png'
-                #plot_profit(os.path.join(dir_path, path), number, param, curve)
+                path = f'profit_curve_#{number}_{title}.png'
+                plot_profit(os.path.join(dir_path, path), number, param, curve)
         matrix.append(line)
-    df = pd.DataFrame(data=out, columns=['no', 'atr_window', 'atr_multiply', 'ma_wndow', 'n', 'profit', 'drawdown'])             
-    df.to_excel(f'./optimize/summary_{symbol}_{timeframe}_{year}_{month_from}.xlsx', index=False)           
-
+    df = pd.DataFrame(data=out, columns=['no', 'atr_window', 'atr_multiply', 'ma_wndow', 'n', 'profit', 'drawdown'])           
+    path = os.path.join(dir_path, f'summary_{title}.xlsx')
+    df.to_excel(path, index=False)           
     df = pd.DataFrame(data=matrix, columns=cols)
-    df.to_excel(f'./optimize/matrix_{symbol}_{timeframe}_{year}_{month_from}.xlsx', index=False)    
+    path = os.path.join(dir_path, f'matrix_{title}.xlsx')
+    df.to_excel(path, index=False)    
 
     
-def main():
+def optimize_crash(symbol, timeframe):
+    print(symbol, timeframe)  
+    data0 = from_pickle(symbol, timeframe)
+    root = './optimize_great_reset'
+   
+    year = 2024
+    month_from = 7
+    month_to = 8
+    n, data = timefilter(data0, year, month_from, year, month_to)
+    title = f'{symbol}_{timeframe}_{year}_{month_from}'
+    sim(root, symbol, timeframe, title, data, 25    , 8000)
+
+def main1():
     args = sys.argv
     if len(args) == 4:
         symbol = args[1]
@@ -357,6 +381,22 @@ def main():
         year = 2024
     optimize(symbol, timeframe, year)
     
+def main2():
+    args = sys.argv
+    if len(args) == 3:
+        symbol = args[1]
+        timeframe = args[2]
+    else:
+        symbol = 'NIKKEI'
+        timeframe = 'M15'
+    optimize_fulltime(symbol, timeframe)
+    
+    
+def main3():
+    symbol = 'DOW'
+    timeframe = 'M15'
+    optimize_crash(symbol, timeframe)
+    
 if __name__ == '__main__':
-    main()
+    main2()
     #test()

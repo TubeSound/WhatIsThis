@@ -74,10 +74,10 @@ technical_param = { 'MABAND':
                     'ADX': {'window': 30,
                             'window_long': 70,
                             'di_window': 20},
-                    'SUPERTREND': {'atr_window': 30,
-                                  'atr_multiply':2.2,
-                                  'ma_short': 20,
-                                  'break_count': 2
+                    'SUPERTREND': {'atr_window': 5,
+                                  'atr_multiply':4.5,
+                                  'ma_short': 25,
+                                  'break_count': 0
                                   }
                     }
 
@@ -378,7 +378,7 @@ def update_chart(interval,
     indicators1(symbol, data, technical_param)
     data = Utils.sliceDictLast(data, num_bars)
     trade_param['strategy'] = strategy_select    
-    sim = Simulation(trade_param)
+    sim = Simulation(data, trade_param)
 
 
     #df, summary, profit_curve = sim.run(data)

@@ -225,8 +225,8 @@ class CandleChart:
         dw = (vmax - vmin) * ymargin
         self.ylimit([vmin - dw, vmax + dw])
         #tick = self.ticks(Time[0], Time[-1], tick_minutes)       
-        #self.ax.set_xticks(tick)
-        new_ticks = self.ticks(Time) 
+        #new_ticks = self.ticks(Time) 
+        #self.ax.set_xticks(new_ticks)
         self.ax.xaxis.set_major_locator(ticker.AutoLocator())
         self.ax.set_xlim(t0, t1)
         self.drawComments(self.write_time_range)
