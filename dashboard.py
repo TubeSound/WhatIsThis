@@ -75,8 +75,8 @@ technical_param = { 'MABAND':
                             'window_long': 70,
                             'di_window': 20},
                     'SUPERTREND': {'atr_window': 5,
-                                  'atr_multiply':4.5,
-                                  'ma_short': 25,
+                                  'atr_multiply':0.5,
+                                  'ma_short': 5,
                                   'break_count': 0
                                   }
                     }
@@ -97,14 +97,14 @@ old_timeframe = None
 
 symbol_dropdown = dcc.Dropdown( id='symbol_dropdown',
                                     multi=False,
-                                    value=TICKERS[1],
+                                    value=TICKERS[0],
                                     options=[{'label': x, 'value': x} for x in TICKERS],
                                     style={'width': '140px'})
 
 symbol = html.Div([ html.P('Ticker Symbol', style={'margin-top': '16px', 'margin-bottom': '4px'}, className='font-weight-bold'), symbol_dropdown])
 timeframe_dropdown = dcc.Dropdown(  id='timeframe_dropdown', 
                                         multi=False, 
-                                        value=TIMEFRAMES[2], 
+                                        value=TIMEFRAMES[0], 
                                         options=[{'label': x, 'value': x} for x in TIMEFRAMES],
                                         style={'width': '120px'})                
 timeframe =  html.Div(  [   html.P('Time Frame',
@@ -114,7 +114,7 @@ timeframe =  html.Div(  [   html.P('Time Frame',
 
 barsize_dropdown = dcc.Dropdown(id='barsize_dropdown', 
                                     multi=False, 
-                                    value=BARSIZE[2],
+                                    value=BARSIZE[0],
                                     options=[{'label': x, 'value': x} for x in BARSIZE],
                                     style={'width': '120px'})
 

@@ -17,6 +17,9 @@ TICK_COLUMNS = [Columns.TIME, Columns.ASK, Columns.BID]
 def nans(length):
     return [np.nan for _ in range(length)]
 
+def nones(length):
+    return [None for _ in range(length)]
+
 def jst2utc(jst: datetime): 
     return jst.astimezone(UTC)
 
@@ -112,7 +115,13 @@ class DataBuffer:
                 d = dic[key]
                 value += d
             else:
-                value += nans(n)
+                try:
+                    if isinstance(value[0], int):
+                        value += [0 for _ in range(n)]
+                    else:
+                        value += nans(n)
+                except:
+                    print(value[:10])
         self.indicator_function(self.data, self.technical_params)
         return n
                 

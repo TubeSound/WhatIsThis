@@ -88,7 +88,7 @@ def save_data():
     month_to = 8
     loader = DataLoader()
     for symbol in ['NIKKEI', 'DOW', 'NSDQ', 'USDJPY']:
-        for tf in ['M1', 'M5', 'M15', 'M30']:
+        for tf in ['M1', 'M5', 'M15', 'M30', 'H1']:
             n, data = loader.load_data(symbol, tf, year_from, month_from, year_to, month_to)
             os.makedirs('./data', exist_ok=True)
             save('./data/' + symbol + '_' + tf + ".pkl", data)

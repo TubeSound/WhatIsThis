@@ -92,10 +92,10 @@ class TradeManager:
         return self.positions
     
     def untrail_positions(self):
-        positions = []
+        positions = {}
         for ticket, position in self.positions.items():
             if position.profit_max is None:
-                positions.append(position)
+                positions[ticket] = position
         return positions
     
     def remove_position_auto(self, mt5_positions):
@@ -240,8 +240,8 @@ class TradeBot:
     def entry(self, data, signal, index, time):
         volume = self.trade_param['volume']
         sl = self.trade_param['sl']
-        target_profit = self.trade_param['target_profit']
-        trailing_stop = self.trade_param['trailing_stop']          
+        target_profit = self.trade_param['trail_target']
+        trailing_stop = self.trade_param['trail_stop']          
         timelimit = self.trade_param['timelimit']                       
         position_max = int(self.trade_param['position_max'])
         num =  self.mt5_position_num()
@@ -302,7 +302,7 @@ class TradeBot:
        
     def close_positions(self, positions):   
         removed_tickets = []
-        for position in positions:
+        for ticket, position in positions.items():
             ret, _ = self.mt5.close_by_position_info(position)
             if ret:
                 removed_tickets.append(position.ticket)
@@ -311,13 +311,11 @@ class TradeBot:
                 self.debug_print('<Closed Doten> Fail', self.symbol, position.desc())           
         self.trade_manager.remove_positions(removed_tickets)
 
-def create_bot():
-    symbol = 'NIKKEI'
-    timeframe = 'M15'
+def create_bot(symbol, timeframe):
     technical = {'SUPERTREND': {
-                                    'atr_window': 5,
-                                    'atr_multiply': 4.5,
-                                    'ma_window': 25,
+                                    'atr_window':5,
+                                    'atr_multiply': 0.5,
+                                    'ma_window': 5,
                                     'break_count': 0}
                                 }
     trade_param = {'begin_hour':8, 
@@ -326,8 +324,8 @@ def create_bot():
                    'sl': 200,
                    'volume': 0.1,
                    'position_max':5,
-                   'trail_target':0, 
-                   'trail_stop': 200,
+                   'trail_target':50, 
+                   'trail_stop': 50,
                    'timelimit':0}
     
     bot = TradeBot(symbol, timeframe, 1, Indicators.SUPERTREND_SIGNAL, technical, trade_param)    
@@ -343,16 +341,15 @@ def create_usdjpy_bot():
      
 def test():
     Mt5Trade.connect()
-    bot1 = create_bot()
+    bot1 = create_bot( 'NIKKEI', 'M1')
     bot1.set_sever_time(3, 2, 11, 1, 3.0)
     bot1.run()
-    #bot2 = create_usdjpy_bot()
-    #bot2.set_sever_time(3, 2, 11, 1, 3.0)
-    #bot2.run()
+    bot2 = create_bot('DOW', 'M1')
+    bot2.set_sever_time(3, 2, 11, 1, 3.0)
+    bot2.run()
     while True:
         scheduler.enter(10, 1, bot1.update_doten)
-        #scheduler.run()
-        #scheduler.enter(10, 2, bot2.update)
+        scheduler.enter(10, 2, bot2.update_doten)
         scheduler.run()
 
 if __name__ == '__main__':

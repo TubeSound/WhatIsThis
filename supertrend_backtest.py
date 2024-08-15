@@ -329,7 +329,7 @@ def sim(root, symbol, timeframe, title, data, ma_window, limit):
     for atr_window in range(5, 90, 5):
         line = [atr_window]
         cols = ['->multiply']
-        for multiply in np.arange(1, 5, 0.5):
+        for multiply in np.arange(0.5, 5, 0.5):
             cols.append(str(multiply))
             number += 1
             param = {'atr_window': atr_window, 'atr_multiply': multiply, 'ma_window': ma_window}
@@ -360,14 +360,15 @@ def sim(root, symbol, timeframe, title, data, ma_window, limit):
 def optimize_crash(symbol, timeframe):
     print(symbol, timeframe)  
     data0 = from_pickle(symbol, timeframe)
-    root = './optimize_great_reset'
+    for ma_window in range(10, 60, 5):
+        root = f'./optimize/Axiory/covid/MA{ma_window}'
    
-    year = 2024
-    month_from = 7
-    month_to = 8
-    n, data = timefilter(data0, year, month_from, year, month_to)
-    title = f'{symbol}_{timeframe}_{year}_{month_from}'
-    sim(root, symbol, timeframe, title, data, 25    , 8000)
+        year = 2020
+        month_from = 1
+        month_to = 4
+        n, data = timefilter(data0, year, month_from, year, month_to)
+        title = f'{symbol}_{timeframe}_MA{ma_window}_{year}_{month_from}'
+        sim(root, symbol, timeframe, title, data, ma_window, 5000)
 
 def main1():
     args = sys.argv
@@ -393,10 +394,10 @@ def main2():
     
     
 def main3():
-    symbol = 'DOW'
-    timeframe = 'M15'
+    symbol = 'NIKKEI'
+    timeframe = 'M5'
     optimize_crash(symbol, timeframe)
     
 if __name__ == '__main__':
-    main2()
+    main3()
     #test()

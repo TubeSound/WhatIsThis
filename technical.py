@@ -14,7 +14,7 @@ UTC = tz.gettz('utc')
 def nans(length):
     return [np.nan for _ in range(length)]
 
-def full(value, length):
+def full(length, value):
     return [value for _ in range(length)]
 
 def is_nan(value):
@@ -33,7 +33,7 @@ def is_nans(values):
 def sma(vector, window):
     window = int(window)
     n = len(vector)
-    out = np.full(n, np.nan)
+    out = full(n, np.nan)
     ivalid = window- 1
     if ivalid < 0:
         return out
@@ -47,7 +47,7 @@ def ema(vector, window):
     weights = np.exp(np.linspace(-1., 0., window))
     weights /= weights.sum()
     n = len(vector)
-    out = np.full(n, np.nan)
+    out = full(n, np.nan)
     ivalid = window- 1
     if ivalid < 0:
         return out
@@ -58,7 +58,7 @@ def ema(vector, window):
 
 def slope(signal: list, window: int, minutes: int, tolerance=0.0):
     n = len(signal)
-    out = full(np.nan, n)
+    out = full(n, np.nan)
     for i in range(window - 1, n):
         d = signal[i - window + 1: i + 1]
         if np.min(d) == 0:
@@ -142,7 +142,7 @@ def roi(vector:list):
 
 def pivot(up: list, down: list, threshold: float=7 , left_length: int=5, right_length: int=5):
     n = len(up)
-    state = full(0, n)
+    state = full(n, 0)
     for i in range(left_length + right_length, n):
         if up[i] + down[i] < 90:
             continue
@@ -162,7 +162,7 @@ def cross_value(vector: list, value):
     n = len(vector)
     up = nans(n)
     down = nans(n)
-    cross = full(HOLD, n)
+    cross = full(n, HOLD)
     for i in range(1, n):
         if vector[i - 1] < value and vector[i] >= value:
             up[i] = 1
@@ -185,7 +185,7 @@ def median(vector, window):
         
 def band_position(data, lower, center, upper):
     n = len(data)
-    pos = full(0, n)
+    pos = full(n, 0)
     for i in range(n):
         if is_nan(data[i]):
             continue 
@@ -203,7 +203,7 @@ def band_position(data, lower, center, upper):
 
 def probability(position, states, window):
     n = len(position)
-    prob = full(0, n)
+    prob = full(n, 0)
     for i in range(window - 1, n):
         s = 0
         for j in range(i - window + 1, i + 1):
@@ -239,7 +239,7 @@ def wakeup(long, short, range_signal, is_up):
         if cross(long[ i - 1: i +1], short[i - 1: i +1]) == direction:
             x.append(i)
     x.append(n - 1)
-    trend = np.full(n, 0)   
+    trend = full(n, 0)   
     for i in range(len(x) - 1):
         x0 = x[i]
         x1 = x[i + 1]
@@ -264,7 +264,7 @@ def wakeup(long, short, range_signal, is_up):
 
 def wakeup2(long, short, range_signal, is_up):
     n = len(long)
-    trend = np.full(n, 0)   
+    trend = full(n, 0)   
     for j in range(5, n):
         before = j - 5
         l1 = long[before]
@@ -294,7 +294,7 @@ def wakeup3(long, mid, short, width, is_up, is_slow=True):
                 x.append(i)
             
     x.append(n - 1)
-    trend = np.full(n, 0)   
+    trend = full(n, 0)   
     for i in range(len(x) - 1):
         x0 = x[i]
         x1 = x[i + 1]
@@ -317,7 +317,7 @@ def wakeup3(long, mid, short, width, is_up, is_slow=True):
     
 def ascend(vector, range_signal, count=3):
     n = len(vector)
-    asc = np.full(n, 0)
+    asc = full(n, 0)
     for i in range(count, n):
         if vector[i] > range_signal[i] and vector[i - count] < vector[i]:
             asc[i] = 1
@@ -327,7 +327,7 @@ def ascend(vector, range_signal, count=3):
         
 def adx_filter(signal, adx, threshold):
     n = len(signal)
-    trend = np.full(n, 0)
+    trend = full(n, 0)
     for i in range(3, n):
         if adx[i] > threshold and adx[i] > adx[i - 3]:
             if signal[i] == 1:
@@ -368,7 +368,7 @@ def MABAND_SIGNAL(dic: dict):
     n = len(band)
     delay = 1
     rate = 0.8
-    long = np.full(n, 0)
+    long = full(n, 0)
     
     """
     for x0, x1 in up:
@@ -380,7 +380,7 @@ def MABAND_SIGNAL(dic: dict):
             else:
                 if (ma[x + 1] - ma[x0]) / (max(d) - ma[x0]) < rate:S
                     long[x] = -1                
-    short = np.full(n, 0)
+    short = full(n, 0)
     for x0, x1 in down:
         short[x0 + delay] = 1
         for x in range(x0 + 1, x1):
@@ -399,7 +399,7 @@ def MABAND_SIGNAL(dic: dict):
 def detect_cross(band, range_signal):
     n = len(band)
 
-    sig = np.full(n, 0)
+    sig = full(n, 0)
     for i in range(1, n):
         threshold = range_signal[i]
         p0 = band[i - 1]
@@ -411,7 +411,7 @@ def detect_cross(band, range_signal):
             
     up = []
     down = []
-    signal = np.full(n, 0)
+    signal = full(n, 0)
     state = 0
     begin = None
     for i, s in enumerate(sig):
@@ -447,7 +447,7 @@ def EMABREAK( dic: dict, short: int, long: int, di_window: int, adx_window: int,
     dic['ADX'] = adx
     
     n = len(cl)
-    trend = np.full(n, 0)
+    trend = full(n, 0)
     for i in range(3, n):
         if adx[i] > adx_threshold and adx[i] > adx[i - 3]:
             if ema_short[i] > sma_long[i] and lo[i] > ema_short[i]:
@@ -465,8 +465,8 @@ def detect_signal(data):
     up_event = []
     down_event = []
     n = len(data)    
-    up = np.full(n, 0)
-    down = np.full(n, 0)
+    up = full(n, 0)
+    down = full(n, 0)
     active = 0
     for i in range(n):
         if active == 1:
@@ -511,6 +511,31 @@ def ATR(dic: dict, term: int, term_long:int):
     if term_long is not None:
         atr_long = sma(tr, term_long)
         dic[Indicators.ATR_LONG] = atr_long
+        
+        
+        
+def ATRP(dic: dict, window, ma_window=0):
+    hi = dic[Columns.HIGH]
+    lo = dic[Columns.LOW]
+    cl = dic[Columns.CLOSE]
+    window = int(window)
+    tr = true_range(hi, lo, cl)
+    dic[Indicators.TR] = tr
+    atr = sma(tr, window)
+
+    n = len(cl)
+    atrp = nans(n)
+    for i in range(n):
+        a = atr[i]
+        c = cl[i]
+        if is_nans([a, c]):
+            continue
+        atrp[i] = a / c * 100.0 
+        
+    if ma_window > 0:
+        atrp = sma(atrp, ma_window)        
+    dic[Indicators.ATRP] = atrp
+
 
 def ADX(hi, lo, cl, di_window: int, adx_term: int):
     tr = true_range(hi, lo, cl)
@@ -638,8 +663,8 @@ def time_jst(year, month, day, hour=0):
 
 def pivot2(signal, threshold, left_length=2, right_length=2):
     n = len(signal)
-    out = full(np.nan, n) 
-    out_mid = full(np.nan, n)
+    out = full(n, np.nan) 
+    out_mid = full(n, np.nan)
     for i in range(left_length + right_length, n):
         if is_nans(signal[i - right_length - right_length: i + 1]):
             continue
@@ -683,7 +708,7 @@ def vwap_rate(price, vwap, std, median_window, ma_window):
 
 def vwap_pivot(signal, threshold, left_length, center_length, right_length):
     n = len(signal)
-    out = full(np.nan, n) 
+    out = full(n, np.nan) 
     for i in range(left_length + center_length + right_length, n):
         if is_nans(signal[i - right_length - center_length - right_length: i + 1]):
             continue
@@ -745,10 +770,10 @@ def VWAP(data: dict, begin_hour_list, pivot_threshold, pivot_left_len, pivot_cen
     mid = data[Columns.MID]
     volume = data[Columns.VOLUME]
     
-    vwap = full(np.nan, n)
-    power_acc = full(np.nan, n)
-    volume_acc = full(np.nan, n)
-    std = full(0, n)
+    vwap = full(n, np.nan)
+    power_acc = full(n, np.nan)
+    volume_acc = full(n, np.nan)
+    std = full(n, 0)
     valid = False
     for i in range(n):
         t = jst[i]
@@ -870,7 +895,7 @@ def TREND_ADX_DI(data: dict, adx_threshold: float):
     di_p = data[Indicators.DI_PLUS]
     di_m = data[Indicators.DI_MINUS]
     n = len(adx)
-    trend = full(0, n)
+    trend = full(n, 0)
     for i in range(n):
         if adx[i] > adx_threshold and adx_slope[i] > 0: 
             delta = di_p[i] - di_m[i]
@@ -920,9 +945,9 @@ def ATR_TRAIL(data: dict, atr_window: int, atr_multiply: float, peak_hold_term: 
             continue
         trail_stop[i] = max(d)
         
-    trend = full(np.nan, n)
-    up = full(np.nan, n)
-    down = full(np.nan, n)
+    trend = full(n, np.nan)
+    up = full(n, np.nan)
+    down = full(n, np.nan)
     for i in range(n):
         c = cl[i]
         s = trail_stop[i]
@@ -938,14 +963,14 @@ def ATR_TRAIL(data: dict, atr_window: int, atr_multiply: float, peak_hold_term: 
     data[Indicators.ATR_TRAIL_UP] = up
     data[Indicators.ATR_TRAIL_DOWN] = down
             
-    break_signal = full(np.nan, n)
+    break_signal = full(n, np.nan)
     for  i in range(1, n):
         if trend[i - 1] == UP and trend[i] == DOWN:
             break_signal[i] = DOWN
         if trend[i - 1] == DOWN and trend[i] == UP:
             break_signal[i] = UP
 
-    signal = full(np.nan, n)
+    signal = full(n, np.nan)
     for i in range(horizon, n):
         brk = break_signal[i - horizon]
         if brk == DOWN and trail_stop[i] > cl[i]:
@@ -979,7 +1004,7 @@ def SUPERTREND_SIGNAL(data: dict, break_count):
     price = data[Indicators.MA_SHORT] 
     
     trend = nans(n)
-    sig = np.full(n, 0)
+    sig = full(n, 0)
     stop_price = nans(n)
     upper = nans(n)
     lower = nans(n)
