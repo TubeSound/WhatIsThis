@@ -251,12 +251,16 @@ class TradeBot:
         if sl == 0:
             atr = data[Indicators.ATR]
             sl = atr[index] * 2.0
-        ret, position_info = self.mt5.entry(signal, index, time, volume, stoploss=sl, takeprofit=None)
-        position_info.target_profit = target_profit
-        if ret:
-            self.trade_manager.add_position(position_info)
-            self.debug_print('<Entry> signal', position_info.signal, position_info.symbol, position_info.entry_index, position_info.entry_time)
-
+            
+        try:
+            ret, position_info = self.mt5.entry(signal, index, time, volume, stoploss=sl, takeprofit=None)
+            position_info.target_profit = target_profit
+            if ret:
+                self.trade_manager.add_position(position_info)
+                self.debug_print('<Entry> signal', position_info.signal, position_info.symbol, position_info.entry_index, position_info.entry_time)
+        except Exception as e:
+            print(' ... Entry Error', e)
+            
     def remove_closed_positions(self):
         positions = self.mt5.get_positions()
         self.trade_manager.remove_position_auto(positions)
@@ -329,6 +333,7 @@ def create_bot(symbol, timeframe):
                    'timelimit':0}
     
     bot = TradeBot(symbol, timeframe, 1, Indicators.SUPERTREND_SIGNAL, technical, trade_param)    
+    bot.set_sever_time(3, 2, 11, 1, 3.0)
     return bot
 
 def create_usdjpy_bot():
@@ -340,12 +345,11 @@ def create_usdjpy_bot():
     return bot
      
 def test():
-    Mt5Trade.connect()
+    
     bot1 = create_bot( 'NIKKEI', 'M1')
-    bot1.set_sever_time(3, 2, 11, 1, 3.0)
+    Mt5Trade.connect()
     bot1.run()
     bot2 = create_bot('DOW', 'M1')
-    bot2.set_sever_time(3, 2, 11, 1, 3.0)
     bot2.run()
     while True:
         scheduler.enter(10, 1, bot1.update_doten)

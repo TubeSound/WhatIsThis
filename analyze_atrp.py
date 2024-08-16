@@ -41,7 +41,7 @@ def from_pickle(symbol, timeframe):
     
 def main(): 
     symbol = 'DOW'
-    timeframe = 'H1'
+    timeframe = 'M15'
     number = 1
     data0 = from_pickle(symbol, timeframe)
     ATRP(data0, 24, ma_window=20)
@@ -88,48 +88,71 @@ def main():
     
 def detect(data, threshold):
     atrp = data['ATRP']
-    sig = [0 for _ in range(len(atrp))]
-    for i in range(len(atrp)):
+    n = len(atrp)
+    sig = [0 for _ in range(n)]
+    for i in range(n):
         if is_nan(atrp[i]):
             continue
         if atrp[i] >= threshold:
             sig[i] = 1 
-    return sig
+            
+    xup = []
+    for i in range(1, n):
+        if sig[i - 1] == 0 and sig[i] == 1:
+            xup.append(i)
+            
+    break_points = []
+    length1 = 24 * 40
+    length2 = 24 * 5
+    length = length1 + length2
+    
+    for i in range(length, n):
+        d = atrp[i - length: i - length + length1]
+        maxv = np.nanmax(d)
+        if atrp[i] > maxv * 1.1 and atrp[i] > 0.5:
+            break_points.append(i)
+            
+    return sig, xup, break_points
         
 def main2(): 
     symbol = 'NIKKEI'
     timeframe = 'H1'
-    number = 1
-    data = from_pickle(symbol, timeframe)
-    ATRP(data, 24, ma_window=20)
-    threshold = 1.0
-    signal = detect(data, threshold)
+    data0 = from_pickle(symbol, timeframe)
+    for year in range(2008, 2025):
+        t0 = datetime(year-1, 10, 1).astimezone(JST)
+        t1 = datetime(year, 12, 31).astimezone(JST)
+        n, data = TimeUtils.slice(data0, data0['jst'], t0, t1)
+        ATRP(data, 40, ma_window=40)
+        threshold = 1.0
+        signal, xup, break_points = detect(data, threshold)
+        jst = data['jst']
+        atrp = data['ATRP']
+        cl = data['close']
     
-    jst = data['jst']
-    atrp = data['ATRP']
-    cl = data['close']
-
-    fig, axes = plt.subplots(2, 1, figsize=(20, 10))
-    axes[0].plot(jst, cl, color='blue')
-    axes[1].scatter(jst, atrp, color='green', alpha=0.1, s=1)
-    [ax.legend() for ax in axes]
-    locator = mdates.AutoDateLocator(minticks=12, maxticks=20)
-    [ax.xaxis.set_major_locator(locator) for ax in axes]
-    axes[0].set_title(f'{symbol} {timeframe} ATRP threshold: {threshold}')
-    n = len(atrp)
-    for i in range(len(signal)):
-        if signal[i] == 1:
-            axes[1].scatter(jst[i], atrp[i], color='red', s=10, alpha=0.2)
-            end = n - 1 if (i + 480) >= n else i + 480
-            axes[1].hlines(0, jst[i], jst[end], color='red', linewidth=5.0)
-    [ax.grid() for ax in axes]
-
-    
-    
-
-    
+        fig, axes = plt.subplots(2, 1, figsize=(20, 8))
+        axes[0].plot(jst, cl, color='blue')
+        axes[1].scatter(jst, atrp, color='green', alpha=0.1, s=1)
+        [ax.legend() for ax in axes]
+        locator = mdates.AutoDateLocator(minticks=12, maxticks=20)
+        [ax.xaxis.set_major_locator(locator) for ax in axes]
+        axes[0].set_title(f'{year} {symbol} {timeframe}  ATRP(40, 40) threshold: {threshold}')
+        n = len(atrp)
+        for i in range(len(signal)):
+            if signal[i] == 1:
+                axes[1].scatter(jst[i], atrp[i], color='red', s=10, alpha=0.2)
+                #end = n - 1 if (i + 480) >= n else i + 480
+                #axes[1].hlines(0, jst[i], jst[end], color='red', linewidth=5.0)
+        for p in break_points:
+            axes[0].scatter(jst[p], cl[p], color='orange', alpha=0.3, s=50)
+        
+        for x in xup:
+            axes[0].scatter(jst[x], cl[x], color='red', alpha=0.9, marker='x', s= 400)
+            
+        [ax.grid() for ax in axes]
+        [ax.set_xlim(t0, t1) for ax in axes]
+        axes[1].set_ylim(0, 3)
     
 if __name__ == '__main__':
-    main()
+    main2()
     
 
