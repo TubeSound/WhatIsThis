@@ -81,9 +81,21 @@ class TradeManager:
         if ticket in self.positions.keys():
             pos = self.positions.pop(ticket)
             self.positions_closed[ticket] = pos
+            self.save()
         else:
             print('move_to_closed, No tickt')
         
+    def save(self):
+        out = []
+        for ticket, pos in self.positions_closed.items():
+            d, columns = pos.array()
+            out.append(d)
+        df = pd.DataFrame(data=out, columns=columns)
+        os.makedirs('./log', exist_ok=True)
+        try:
+            df.to_csv(f'./log/Trade_report_{self.symbol}.csv', index=False)
+        except:
+            pass
     def remove_positions(self, tickets):
         for ticket in tickets:
             self.move_to_closed(ticket)
@@ -207,14 +219,7 @@ class TradeBot:
             sig = self.detect_doten(self.buffer.data)
             if sig == Signal.LONG or sig == Signal.SHORT:
                 self.debug_print('<Signal> ', sig)
-                if self.trade_param['trail_stop'] == 0 or self.trade_param['trail_target'] == 0:
-                    # ドテン
-                    self.debug_print('<Closed All positions> Doten ', self.symbol)
-                    positions = self.trade_manager.open_positions()
-                else:
-                    # trail not fired 
-                    self.debug_print('<Closed Trail Not fired positions> ', self.symbol)
-                    positions = self.trade_manager.untrail_positions()
+                positions = self.trade_manager.open_positions()
                 self.close_positions(positions)
                 self.entry(self.buffer.data, sig, current_index, current_time)
         return n

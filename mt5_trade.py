@@ -138,6 +138,12 @@ class PositionInfo:
         s = 'symbol: ' + self.symbol + ' type: ' + type_str + ' volume: ' + str(self.volume) + ' ticket: ' + str(self.ticket)
         return s
     
+    def array(self):
+        columns = ['symbol', 'type', 'volume', 'ticket', 'sl', 'entry_time', 'entry_price', 'exit_time', 'exit_price', 'profit', 'closed', 'losscutted', 'trailing_stopped', 'time_upped']
+        type_str = order_types[self.type]
+        data = [self.symbol, type_str, self.volume, self.ticket, self.sl, self.entry_time, self.entry_price, self.exit_time, self.exit_price, self.profit, self.closed, self.losscutted, self.trailing_stopped, self.time_upped]
+        return data, columns
+    
 class Mt5Trade:
     def __init__(self, symbol):
         self.symbol = symbol
