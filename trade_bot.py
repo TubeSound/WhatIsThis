@@ -259,8 +259,8 @@ class TradeBot:
             
         try:
             ret, position_info = self.mt5.entry(signal, index, time, volume, stoploss=sl, takeprofit=None)
-            position_info.target_profit = target_profit
             if ret:
+                position_info.target_profit = target_profit
                 self.trade_manager.add_position(position_info)
                 self.debug_print('<Entry> signal', position_info.signal, position_info.symbol, position_info.entry_index, position_info.entry_time)
         except Exception as e:
