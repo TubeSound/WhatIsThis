@@ -93,7 +93,7 @@ def arrange(data):
     
     
 def load_backtest_market():
-    file = './data/BacktestMarket/csv/dji_h1.csv'
+    file = './data/BacktestMarket/csv/spi500_h1.csv'
     df = pd.read_csv(file)
     date = df['date']
     time0 = df['time']
@@ -110,7 +110,7 @@ def load_backtest_market():
     data['low'] = df['low'].to_list()
     data['close']  = df['close'].to_list()
     arrange(data)
-    save('./data/BacktestMarket/BM_dow_H1.pkl', data)
+    save('./data/BacktestMarket/BM_spi500_H1.pkl', data)
     
 if __name__ == '__main__':
     load_backtest_market()

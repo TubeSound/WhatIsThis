@@ -26,13 +26,16 @@ from utils import TimeUtils
 from technical import sma, ATRP, is_nan
 
 
+cmap = plt.get_cmap("tab10")
 
-
-def from_pickle(symbol, timeframe):
+def from_pickle(symbol, timeframe, axiory=False):
     import pickle
     symbol = symbol.lower()
     timeframe = timeframe.upper()
-    filepath = f'./data/BacktestMarket/BM_{symbol}_{timeframe}.pkl'
+    if axiory:
+        filepath = f'./data/Axiory/{symbol}_{timeframe}.pkl'
+    else:
+        filepath = f'./data/BacktestMarket/BM_{symbol}_{timeframe}.pkl'
     with open(filepath, 'rb') as f:
         data0 = pickle.load(f)
     return data0
@@ -115,7 +118,7 @@ def detect(data, threshold=0.5):
     return sig, xup, break_points
         
 def main2(): 
-    symbol = 'DOW'
+    symbol = 'NASDAQ'
     timeframe = 'H1'
     data0 = from_pickle(symbol, timeframe)
     ATRP(data0, 40, ma_window=40)
@@ -160,7 +163,7 @@ def plot(data0, year, symbol, timeframe, t0, t1):
         axes[1].set_ylim(0, 3)
         
 def main4():
-    symbol = 'NIKKEI'
+    symbol = 'SPI500'
     timeframe = 'H1'
     data0 = from_pickle(symbol, timeframe)
     ATRP(data0, 40, ma_window=40)
@@ -168,7 +171,44 @@ def main4():
     t1 = datetime(2024, 8, 10).astimezone(JST)
     plot(data0, 2024, symbol, timeframe, t0, t1)
     
+def main5():
+    symbols = ['NIKKEI', 'DOW', 'SP', 'USDJPY', 'XAUUSD']
+    timeframe = 'H1'
+    data = {}
+    for symbol in symbols:
+        data0 = from_pickle(symbol, timeframe, axiory=True)
+        ATRP(data0, 40, ma_window=40)
+        data[symbol] = data0
+
+    dic = {}        
+    for year in range(2020, 2025):
+        for symbol, d in data.items():
+            t0 = datetime(year, 1, 1).astimezone(JST)
+            t1 = datetime(year, 8, 31).astimezone(JST)
+            n, d1 = TimeUtils.slice(d, d['jst'], t0, t1)
+            dic[symbol] = d1
+        plot_atrp(dic, year, t0, t1)
+    
+def plot_atrp(dic, year, t0, t1):
+    fig, axes = plt.subplots(2, 1, figsize=(18, 10))
+    i = 0
+    for symbol, data in dic.items():
+        jst = data['jst']
+        cl = data['close']
+        atrp = data['ATRP']
+        if symbol == 'NIKKEI':
+            axes[0].plot(jst, cl, color='blue')
+        axes[1].plot(jst, atrp, color=cmap(i), label=symbol, alpha=0.95)
+        i += 1
+    [ax.grid() for ax in axes]
+    [ax.legend() for ax in axes]
+    [ax.set_xlim(t0, t1) for ax in axes]
+    axes[1].set_ylim(0, 3.0)
+    axes[1].set_title('ATRP')
+    axes[0].set_title('NIKKEI225 close')
+    
+    
 if __name__ == '__main__':
-    main2()
+    main5()
     
 

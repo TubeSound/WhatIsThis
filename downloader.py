@@ -19,6 +19,13 @@ from data_loader import DataLoader
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc') 
 
+
+def all_symbols():
+    symbols = ['NIKKEI', 'DOW', 'NSDQ', 'SP', 'HK50', 'DAX', 'FTSE', 'XAUUSD']
+    symbols += ['CL', 'USDJPY', 'GBPJPY']
+    symbols += ['HK50', 'NGAS', 'EURJPY', 'AUDJPY', 'EURUSD']
+    return symbols
+
 def download(symbols, save_holder):
     api = Mt5Api()
     api.connect()
@@ -66,9 +73,7 @@ def download_tick(symbols, save_holder):
 
 
 def dl1():
-    symbols = ['NIKKEI', 'DOW', 'NSDQ', 'SP', 'HK50', 'DAX', 'FTSE', 'XAUUSD']
-    symbols += ['CL', 'USDJPY', 'GBPJPY']
-    symbols += ['HK50', 'NGAS', 'EURJPY', 'AUDJPY', 'EURUSD']
+    symbols = all_symbols()
     download(symbols, '../MarketData/Axiory/')
     
 def dl2():
@@ -87,11 +92,11 @@ def save_data():
     year_to = 2024
     month_to = 8
     loader = DataLoader()
-    for symbol in ['NIKKEI', 'DOW', 'NSDQ', 'USDJPY']:
+    for symbol in all_symbols():
         for tf in ['M1', 'M5', 'M15', 'M30', 'H1']:
             n, data = loader.load_data(symbol, tf, year_from, month_from, year_to, month_to)
             os.makedirs('./data', exist_ok=True)
-            save('./data/' + symbol + '_' + tf + ".pkl", data)
+            save('./data/Axiory/' + symbol + '_' + tf + ".pkl", data)
     
 def main():
     dl1()
