@@ -23,7 +23,7 @@ UTC = tz.gettz('utc')
 def all_symbols():
     symbols = ['NIKKEI', 'DOW', 'NSDQ', 'SP', 'HK50', 'DAX', 'FTSE', 'XAUUSD']
     symbols += ['CL', 'USDJPY', 'GBPJPY']
-    symbols += ['HK50', 'NGAS', 'EURJPY', 'AUDJPY', 'EURUSD']
+    #symbols += ['HK50', 'NGAS', 'EURJPY', 'AUDJPY', 'EURUSD']
     return symbols
 
 def download(symbols, save_holder):

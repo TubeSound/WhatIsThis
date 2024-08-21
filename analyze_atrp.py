@@ -172,7 +172,7 @@ def main4():
     plot(data0, 2024, symbol, timeframe, t0, t1)
     
 def main5():
-    symbols = ['NIKKEI', 'DOW', 'SP', 'USDJPY', 'XAUUSD']
+    symbols = ['NIKKEI', 'DOW', 'SP', 'NSDQ', 'USDJPY', 'XAUUSD']
     timeframe = 'H1'
     data = {}
     for symbol in symbols:
@@ -187,17 +187,17 @@ def main5():
             t1 = datetime(year, 8, 31).astimezone(JST)
             n, d1 = TimeUtils.slice(d, d['jst'], t0, t1)
             dic[symbol] = d1
-        plot_atrp(dic, year, t0, t1)
+        plot_atrp(dic, year, timeframe, t0, t1)
     
-def plot_atrp(dic, year, t0, t1):
+def plot_atrp(dic, year, timeframe, t0, t1):
     fig, axes = plt.subplots(2, 1, figsize=(18, 10))
     i = 0
     for symbol, data in dic.items():
         jst = data['jst']
         cl = data['close']
         atrp = data['ATRP']
-        if symbol == 'NIKKEI':
-            axes[0].plot(jst, cl, color='blue')
+        if symbol == 'NIKKEI' or symbol == 'DOW':
+            axes[0].plot(jst, cl, label=symbol, color=cmap(i))
         axes[1].plot(jst, atrp, color=cmap(i), label=symbol, alpha=0.95)
         i += 1
     [ax.grid() for ax in axes]
@@ -205,10 +205,46 @@ def plot_atrp(dic, year, t0, t1):
     [ax.set_xlim(t0, t1) for ax in axes]
     axes[1].set_ylim(0, 3.0)
     axes[1].set_title('ATRP')
-    axes[0].set_title('NIKKEI225 close')
+    axes[0].set_title(timeframe)
     
+def strength(data, term):
+    op = data['open']
+    hi = data['high']
+    lo = data['low']
+    cl = data['close']
+
+    posneg = []
+    for o, c in zip(op, cl):
+        if c > o:
+            posneg.append(1.0)
+        elif c < o:
+            posneg.append(-1.0)
+    n = len(cl)
+    strng = np.full(n, 0.0)
+    for i in range(term - 1, n):
+        d = posneg[i - term + 1: i + 1]
+        strng[i] = np.nanmean(d)   
+    return strng
+        
+    
+def main6():
+    symbol = 'NIKKEI'
+    timeframe = 'M5'
+    data0 = from_pickle(symbol, timeframe, axiory=True)
+    t0 = datetime(2024, 7, 25).astimezone(JST)
+    t1 = datetime(2024, 8, 6).astimezone(JST)
+    n, data = TimeUtils.slice(data0, data0['jst'], t0, t1)
+    streng = strength(data, 60)
+    jst = data['jst']
+    cl = data['close']
+    fig, axes = plt.subplots(2, 1, figsize=(15, 10))
+    axes[0].plot(jst, cl)
+    axes[1].plot(jst, streng)
+    axes[1].set_ylim(-1, 1)    
+
+        
     
 if __name__ == '__main__':
-    main5()
+    main6()
     
 
