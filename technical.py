@@ -335,6 +335,10 @@ def adx_filter(signal, adx, threshold):
             elif signal[i] == -1:
                 trend[i] = -1
     return trend    
+
+def MA(dic: dict, term):
+    ma = sma(dic[Columns.CLOSE], term)
+    dic[Indicators.MA] = ma
         
 def MABAND( dic: dict, short: int, mid: int, long: int, di_window: int, adx_window: int, adx_threshold: float):
     cl = dic[Columns.CLOSE]
@@ -1066,6 +1070,25 @@ def SUPERTREND_SIGNAL(data: dict, break_count):
     data[Indicators.SUPERTREND_UPPER] = upper  
     data[Indicators.SUPERTREND_LOWER] = lower  
     return 
+
+def FILTER_MA_ATRP(data: dict, ma, atrp, threshold):
+    op = data[Columns.OPEN]
+    hi = data[Columns.HIGH]
+    lo = data[Columns.LOW]
+    cl = data[Columns.CLOSE]
+    n = len(op)
+    filt = []
+    for h, l, a, m in zip(hi, lo, atrp, ma):
+        if is_nans([h, l, a, m]):
+            filt.append(0)
+            continue
+        if a > threshold:
+            if l > m:
+                filt.append(1)
+            elif m > h:
+                filt.append(-1)
+    data[Indicators.FILTER_MA_ATRP] = filt
+    return filt
 
 def diff(data: dict, column: str):
     signal = data[column]

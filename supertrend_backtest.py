@@ -14,7 +14,7 @@ JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
 
 from common import Indicators
-from technical import SUPERTREND, SUPERTREND_SIGNAL
+from technical import SUPERTREND, SUPERTREND_SIGNAL, ATRP, MA, FILTER_MA_ATRP
 from strategy import Simulation
 from time_utils import TimeFilter, TimeUtils
 from data_loader import DataLoader
@@ -273,7 +273,7 @@ def plot_profit(path, number, param, curve):
 def trade(symbol, timeframe, data, param):
     trade_param = get_trade_param()
     sim = Simulation(data, trade_param)        
-    return sim.run_doten(Indicators.SUPERTREND_SIGNAL)
+    return sim.run_doten(Indicators.SUPERTREND_SIGNAL, entry_filter_column=Indicators.FILTER_MA_ATRP)
     
 def expand(name: str, dic: dict):
     data = []
@@ -332,9 +332,12 @@ def sim(root, symbol, timeframe, title, data, ma_window, limit):
         for multiply in np.arange(0.5, 5, 0.5):
             cols.append(str(multiply))
             number += 1
-            param = {'atr_window': atr_window, 'atr_multiply': multiply, 'ma_window': ma_window}
+            param = {'atr_window': atr_window, 'atr_multiply': multiply, 'ma_window': ma_window, 'filter_ma': 4 * 24 * 4, 'atrp_window': 40, 'atrp_ma': 40, 'atrp_threshold': 0.2}
             SUPERTREND(data, param['atr_window'], param['atr_multiply'], param['ma_window'])
             SUPERTREND_SIGNAL(data, 0)
+            ATRP(data, param['atrp_window'], param['atrp_ma'])
+            MA(data, param['filter_ma'])
+            FILTER_MA_ATRP(data, data[Indicators.MA], data[Indicators.ATRP], param['atrp_threshold'])
             r = trade(symbol, timeframe, data, param)
             if r is None:
                 line.append(0)
@@ -389,7 +392,7 @@ def main2():
         timeframe = args[2]
     else:
         symbol = 'NIKKEI'
-        timeframe = 'M15'
+        timeframe = 'M5'
     optimize_fulltime(symbol, timeframe)
     
     
@@ -399,5 +402,5 @@ def main3():
     optimize_crash(symbol, timeframe)
     
 if __name__ == '__main__':
-    main3()
+    main2()
     #test()

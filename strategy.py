@@ -266,7 +266,7 @@ class Simulation:
         
         
     
-    def run_doten(self, signal_column):        
+    def run_doten(self, signal_column, entry_filter_column=None):        
         data = self.data
         signal = data[signal_column]
         time = data[Columns.JST]
@@ -275,6 +275,9 @@ class Simulation:
         lo = data[Columns.LOW]
         cl = data[Columns.CLOSE]
         n = len(time)
+        entry_filter = None
+        if entry_filter_column is not None:
+            entry_filter = data[entry_filter_column]
         state = None
         for i in range(1, n):
             t = time[i]
@@ -287,13 +290,23 @@ class Simulation:
                 if state == Signal.SHORT:
                     self.doten(sig, i, time[i], cl[i])
                 else:
-                    self.entry(sig, i, time[i], cl[i])
+                    do = True
+                    if entry_filter is not None:
+                        if entry_filter[i] != sig:
+                            do = False
+                    if do:
+                        self.entry(sig, i, time[i], cl[i])
                 state = Signal.LONG
             elif sig == Signal.SHORT:               
                 if state == Signal.LONG:
                     self.doten(sig, i, time[i], cl[i])
                 else:
-                    self.entry(sig, i, time[i], cl[i])
+                    do = True
+                    if entry_filter is not None:
+                        if entry_filter[i] != sig:
+                            do = False
+                    if do:
+                        self.entry(sig, i, time[i], cl[i])
                 state = Signal.SHORT
         summary, profit_curve = self.positions.summary()
         return self.positions.to_dataFrame(self.strategy), summary, profit_curve
