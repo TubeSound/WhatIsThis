@@ -313,7 +313,7 @@ def optimize_fulltime(symbol, timeframe):
     ma_window = 25
     limit = 20000
     data0 = from_pickle(symbol, timeframe)
-    root = f'./optimize_full2/MA{ma_window}'
+    root = f'./optimize_full/MA{ma_window}'
     data = data0.copy()
     title = f'{symbol}_{timeframe}_MA{ma_window}'
     sim(root, symbol, timeframe, title, data, ma_window, limit)    
@@ -335,7 +335,7 @@ def sim(root, symbol, timeframe, title, data, ma_window, limit):
             param = {'atr_window': atr_window, 'atr_multiply': multiply, 'ma_window': ma_window, 'filter_ma': 4 * 24 * 4, 'atrp_window': 40, 'atrp_ma': 40, 'atrp_threshold': 0.2}
             SUPERTREND(data, param['atr_window'], param['atr_multiply'], param['ma_window'])
             SUPERTREND_SIGNAL(data, 0)
-            ATRP(data, param['atrp_window'], param['atrp_ma'])
+            ATRP(data, param['atrp_window'], ma_window=param['atrp_ma'])
             MA(data, param['filter_ma'])
             FILTER_MA_ATRP(data, data[Indicators.MA], data[Indicators.ATRP], param['atrp_threshold'])
             r = trade(symbol, timeframe, data, param)
