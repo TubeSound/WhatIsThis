@@ -21,9 +21,10 @@ from dateutil import tz
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
 
+from common import Indicators, Signal
 from candle_chart import CandleChart, makeFig, gridFig
 from utils import TimeUtils
-from technical import sma, ATRP, is_nan
+from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, FILTER_MA_ATRP
 
 
 cmap = plt.get_cmap("tab10")
@@ -173,78 +174,97 @@ def main4():
     
 def main5():
     symbols = ['NIKKEI', 'DOW', 'SP', 'NSDQ', 'USDJPY', 'XAUUSD']
-    timeframe = 'H1'
+    symbols = ['DOW']
+    timeframe = 'M15'
     data = {}
+    atrp_threshold=0.1
     for symbol in symbols:
         data0 = from_pickle(symbol, timeframe, axiory=True)
-        ATRP(data0, 40, ma_window=40)
+        SUPERTREND(data0, 40, 2.5, 25)
+        SUPERTREND_SIGNAL(data0, 0)
+        ATRP(data0, 20, ma_window=20)
+        MA(data0, 4 * 24 * 2)
+        FILTER_MA_ATRP(data0, data0['MA'], data0['ATRP'],  atrp_threshold)
         data[symbol] = data0
 
     dic = {}        
     for year in range(2020, 2025):
         for symbol, d in data.items():
-            t0 = datetime(year, 1, 1).astimezone(JST)
+            t0 = datetime(year, 5, 1).astimezone(JST)
             t1 = datetime(year, 8, 31).astimezone(JST)
             n, d1 = TimeUtils.slice(d, d['jst'], t0, t1)
             dic[symbol] = d1
-        plot_atrp(dic, year, timeframe, t0, t1)
+            if symbol == 'DOW':
+                signals = detect_signal(d1[Indicators.SUPERTREND_SIGNAL], d1[Indicators.FILTER_MA_ATRP])
+            else:
+                signals = None
+        plot_atrp(dic, signals, year, 'DOW', timeframe, t0, t1)
     
-def plot_atrp(dic, year, timeframe, t0, t1):
-    fig, axes = plt.subplots(2, 1, figsize=(18, 10))
+def plot_atrp(dic, signals, year, symbol, timeframe, t0, t1):
+    fig, axes = gridFig([5, 2, 1], (40, 12))
     i = 0
-    for symbol, data in dic.items():
+    for symb, data in dic.items():
         jst = data['jst']
         cl = data['close']
         atrp = data['ATRP']
-        if symbol == 'NIKKEI' or symbol == 'DOW':
-            axes[0].plot(jst, cl, label=symbol, color=cmap(i))
-        axes[1].plot(jst, atrp, color=cmap(i), label=symbol, alpha=0.95)
+        if symb == symbol:
+            candle = CandleChart(fig, axes[0])
+            candle.drawCandle(jst, data['open'], data['high'], data['low'], data['close'])
+            candle.drawLine(jst, data[Indicators.SUPERTREND_U], color='green')
+            candle.drawLine(jst, data[Indicators.SUPERTREND_L], color='orange')
+            candle.drawLine(jst, data['MA'], color='purple')
+            #axes[0].plot(jst, cl, label=symbol, color=cmap(i))
+        axes[1].plot(jst, atrp, color=cmap(i), label=symb, alpha=0.95)
+        axes[2].plot(jst, data[Indicators.FILTER_MA_ATRP], color='red')
         i += 1
+        
+    if signals is not None:
+        long, short = signals
+        for l in long:
+            candle.drawMarker(jst[l], cl[l], 'v', color='green')
+        for s in short:
+            candle.drawMarker(jst[s], cl[s], '^', color='red')
+        
     [ax.grid() for ax in axes]
     [ax.legend() for ax in axes]
     [ax.set_xlim(t0, t1) for ax in axes]
-    axes[1].set_ylim(0, 3.0)
+    candle.xlimit((t0, t1))
+    axes[1].set_ylim(0, 0.4)
     axes[1].set_title('ATRP')
+    axes[2].set_title('FILTER_MA_ATRP')
     axes[0].set_title(timeframe)
     
-def strength(data, term):
-    op = data['open']
-    hi = data['high']
-    lo = data['low']
-    cl = data['close']
 
-    posneg = []
-    for o, c in zip(op, cl):
-        if c > o:
-            posneg.append(1.0)
-        elif c < o:
-            posneg.append(-1.0)
-    n = len(cl)
-    strng = np.full(n, 0.0)
-    for i in range(term - 1, n):
-        d = posneg[i - term + 1: i + 1]
-        strng[i] = np.nanmean(d)   
-    return strng
-        
+def detect_signal(signal, entry_filter):
+    n = len(signal)
+    entry_long = []
+    entry_short = []
+    for i in range(n):
+        if signal[i] == Signal.LONG and entry_filter[i] == Signal.LONG:
+            entry_long.append(i)
+        elif signal[i] == Signal.SHORT and entry_filter[i] == Signal.SHORT:
+            entry_short.append(i)
+    return entry_long, entry_short
     
 def main6():
-    symbol = 'NIKKEI'
+    symbol = 'DOW'
     timeframe = 'M5'
     data0 = from_pickle(symbol, timeframe, axiory=True)
-    t0 = datetime(2024, 7, 25).astimezone(JST)
-    t1 = datetime(2024, 8, 6).astimezone(JST)
+    SUPERTREND(data0, 40, 2.5, 25)
+    SUPERTREND_SIGNAL(data0, 0)
+    ATRP(data0, 40, ma_window=40)
+    MA(data0, 4 * 24 * 2)
+    FILTER_MA_ATRP(data0, data0['MA'], data0['ATRP'], 0.1)
+    t0 = datetime(2024, 8, 23).astimezone(JST)
+    t1 = datetime(2024, 8, 24, 6).astimezone(JST)
     n, data = TimeUtils.slice(data0, data0['jst'], t0, t1)
-    streng = strength(data, 60)
-    jst = data['jst']
-    cl = data['close']
-    fig, axes = plt.subplots(2, 1, figsize=(15, 10))
-    axes[0].plot(jst, cl)
-    axes[1].plot(jst, streng)
-    axes[1].set_ylim(-1, 1)    
+    dic = {symbol: data}
+    signals = detect_signal(data[Indicators.SUPERTREND_SIGNAL], data[Indicators.FILTER_MA_ATRP])
+    plot_atrp(dic, signals, 2024, symbol, timeframe, t0, t1)
 
         
     
 if __name__ == '__main__':
-    main6()
+    main5()
     
 

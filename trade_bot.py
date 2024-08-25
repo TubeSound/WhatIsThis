@@ -125,13 +125,14 @@ class TradeManager:
             print('<Closed by Meta Trader Stoploss or Takeprofit> ', self.symbol, 'tickets:', remove_tickets)
             
 class TradeBot:
-    def __init__(self, symbol:str, timeframe:str, interval_seconds:int, signal_name: str, technical_param: dict, trade_param:dict, simulate=False):
+    def __init__(self, symbol:str, timeframe:str, interval_seconds:int, signal_name: str, technical_param: dict, trade_param:dict, entry_filter_column: str=None, simulate=False):
         self.symbol = symbol
         self.timeframe = timeframe
         self.invterval_seconds = interval_seconds
         self.signal_name = signal_name
         self.technical_param = technical_param
         self.trade_param = trade_param
+        self.entry_filter_column = entry_filter_column
         if not simulate:
             mt5 = Mt5Trade(symbol)
             self.mt5 = mt5
@@ -152,6 +153,11 @@ class TradeBot:
         p = param['SUPERTREND']
         SUPERTREND(data, p['atr_window'], p['atr_multiply'], p['ma_window'])
         SUPERTREND_SIGNAL(data, 0)
+        MA(data, param['MA']['window'])
+        p = param['ATRP']
+        ATRP(data, p['window'], ma_window=p['ma_window'] )
+        FILTER_MA_ATRP(data, data['MA'], data['ATRP'], p['threshold'])
+        
         
     def set_sever_time(self, begin_month, begin_sunday, end_month, end_sunday, delta_hour_from_gmt_in_summer):
         now = datetime.now(JST)
@@ -216,21 +222,36 @@ class TradeBot:
             current_index = self.buffer.last_index()
             save(self.buffer.data, './debug/update_' + self.symbol + '_' + datetime.now().strftime('%Y-%m-%d_%H_%M_%S') + '.xlsx')
             #self.check_timeup(current_index)
-            sig = self.detect_doten(self.buffer.data)
-            if sig == Signal.LONG or sig == Signal.SHORT:
-                self.debug_print('<Signal> ', sig)
+            entry_sig, do_exit = self.detect_doten(self.buffer.data)
+            if do_exit:
                 positions = self.trade_manager.open_positions()
                 self.close_positions(positions)
+            if entry_sig == Signal.LONG or entry_sig == Signal.SHORT:
+                self.debug_print('<Signal> ', sig)
                 self.entry(self.buffer.data, sig, current_index, current_time)
         return n
     
+    
     def detect_doten(self, data: dict):
+        if self.entry_filter_column == None:
+            entry_filter = None
+        else:
+            entry_filter = self.buffer.data[self.entry_filter_column]
         signal = data[self.signal_name]
         sig = signal[-1]
-        if sig == Signal.LONG or sig == Signal.SHORT:
-            return sig
+        if sig != Signal.LONG and sig != Signal.SHORT:
+            return (0, False)
+        enable = True
+        if entry_filter is not None:
+            entry_filter = data[self.entry_filter_column]
+            if entry_filter[-1] != sig:
+                enable = False                
+        print('<Signal> ', sig, 'Entry enable: ', enable)
+        if enable:
+            entry_sig = sig
         else:
-            return None
+            entry_sig = 0
+        return (entry_sig, True)
   
         
                 
@@ -322,22 +343,26 @@ class TradeBot:
 
 def create_bot(symbol, timeframe):
     technical = {'SUPERTREND': {
-                                    'atr_window':5,
-                                    'atr_multiply': 0.5,
-                                    'ma_window': 5,
-                                    'break_count': 0}
-                                }
+                                    'atr_window':25,
+                                    'atr_multiply': 2.5,
+                                    'ma_window': 50,
+                                    'break_count': 0,
+                                },
+                'MA': {'window': 12 * 24 * 2},
+                'ATRP': {'window': 40, 'ma_window': 40, 'threshold': 2.0}
+                }
+    
     trade_param = {'begin_hour':8, 
                    'begin_minute':0,
                    'hours': 24,
                    'sl': 200,
-                   'volume': 0.1,
+                   'volume': 0.02,
                    'position_max':5,
                    'trail_target':50, 
                    'trail_stop': 50,
                    'timelimit':0}
     
-    bot = TradeBot(symbol, timeframe, 1, Indicators.SUPERTREND_SIGNAL, technical, trade_param)    
+    bot = TradeBot(symbol, timeframe, 1, Indicators.SUPERTREND_SIGNAL, technical, trade_param, entry_filter_column=Indicators.FILTER_MA_ATRP)    
     bot.set_sever_time(3, 2, 11, 1, 3.0)
     return bot
 
@@ -351,10 +376,10 @@ def create_usdjpy_bot():
      
 def test():
     
-    bot1 = create_bot( 'NIKKEI', 'M1')
+    bot1 = create_bot( 'NIKKEI', 'M5')
     Mt5Trade.connect()
     bot1.run()
-    bot2 = create_bot('DOW', 'M1')
+    bot2 = create_bot('DOW', 'M5')
     bot2.run()
     while True:
         scheduler.enter(10, 1, bot1.update_doten)

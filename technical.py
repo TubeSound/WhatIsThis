@@ -1067,8 +1067,8 @@ def SUPERTREND_SIGNAL(data: dict, break_count):
            
     data[Indicators.SUPERTREND] = trend  
     data[Indicators.SUPERTREND_SIGNAL] = sig    
-    data[Indicators.SUPERTREND_UPPER] = upper  
-    data[Indicators.SUPERTREND_LOWER] = lower  
+    data[Indicators.SUPERTREND_U] = upper  
+    data[Indicators.SUPERTREND_L] = lower  
     return 
 
 def FILTER_MA_ATRP(data: dict, ma, atrp, threshold):
@@ -1077,16 +1077,18 @@ def FILTER_MA_ATRP(data: dict, ma, atrp, threshold):
     lo = data[Columns.LOW]
     cl = data[Columns.CLOSE]
     n = len(op)
-    filt = []
+    filt = [0 for _ in range(n)]
+    i = -1
     for h, l, a, m in zip(hi, lo, atrp, ma):
+        i += 1
         if is_nans([h, l, a, m]):
-            filt.append(0)
+            filt[i] = 0 
             continue
         if a > threshold:
             if l > m:
-                filt.append(1)
+                filt[i] = 1
             elif m > h:
-                filt.append(-1)
+                filt[i] = -1
     data[Indicators.FILTER_MA_ATRP] = filt
     return filt
 

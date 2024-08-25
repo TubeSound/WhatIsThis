@@ -40,9 +40,9 @@ def gridFig(row_rate, size):
 def from_pickle(symbol, timeframe):
     import pickle
     if symbol == 'DOW' and timeframe == 'M15':
-        filepath = './data/BacktestMarket/BM_dji_15min.pkl'
+        filepath = './data/BacktestMarket/BM_dow_M15.pkl'
     elif symbol == 'NIKKEI' and timeframe == 'M15':
-        filepath = './data/BacktestMarket/BM_nikkei_15min.pkl'
+        filepath = './data/BacktestMarket/BM_nikkei_M15.pkl'
     else:
         filepath = './data/Axiory/' + symbol + '_' + timeframe + '.pkl'
     with open(filepath, 'rb') as f:
@@ -313,7 +313,7 @@ def optimize_fulltime(symbol, timeframe):
     ma_window = 25
     limit = 20000
     data0 = from_pickle(symbol, timeframe)
-    root = f'./optimize_full/MA{ma_window}'
+    root = f'./optimize_full2/MA{ma_window}'
     data = data0.copy()
     title = f'{symbol}_{timeframe}_MA{ma_window}'
     sim(root, symbol, timeframe, title, data, ma_window, limit)    
@@ -332,7 +332,7 @@ def sim(root, symbol, timeframe, title, data, ma_window, limit):
         for multiply in np.arange(0.5, 5, 0.5):
             cols.append(str(multiply))
             number += 1
-            param = {'atr_window': atr_window, 'atr_multiply': multiply, 'ma_window': ma_window, 'filter_ma': 4 * 24 * 4, 'atrp_window': 40, 'atrp_ma': 40, 'atrp_threshold': 0.2}
+            param = {'atr_window': atr_window, 'atr_multiply': multiply, 'ma_window': ma_window, 'filter_ma': 4 * 24 * 4, 'atrp_window': 40, 'atrp_ma': 40, 'atrp_threshold': 0.1}
             SUPERTREND(data, param['atr_window'], param['atr_multiply'], param['ma_window'])
             SUPERTREND_SIGNAL(data, 0)
             ATRP(data, param['atrp_window'], ma_window=param['atrp_ma'])
@@ -352,7 +352,7 @@ def sim(root, symbol, timeframe, title, data, ma_window, limit):
                 path = f'profit_curve_#{number}_{title}.png'
                 plot_profit(os.path.join(dir_path, path), number, param, curve)
         matrix.append(line)
-    df = pd.DataFrame(data=out, columns=['no', 'atr_window', 'atr_multiply', 'ma_wndow', 'n', 'profit', 'drawdown'])           
+    df = pd.DataFrame(data=out, columns=['no'] + columns + ['n', 'profit', 'drawdown'])           
     path = os.path.join(dir_path, f'summary_{title}.xlsx')
     df.to_excel(path, index=False)           
     df = pd.DataFrame(data=matrix, columns=cols)
@@ -391,14 +391,19 @@ def main2():
         symbol = args[1]
         timeframe = args[2]
     else:
-        symbol = 'NIKKEI'
-        timeframe = 'M5'
+        symbol = 'DOW'
+        timeframe = 'M15'
     optimize_fulltime(symbol, timeframe)
     
     
 def main3():
-    symbol = 'NIKKEI'
-    timeframe = 'M5'
+    args = sys.argv
+    if len(args) == 3:
+        symbol = args[1]
+        timeframe = args[2]
+    else:
+        symbol = 'DOW'
+        timeframe = 'M5'
     optimize_crash(symbol, timeframe)
     
 if __name__ == '__main__':
