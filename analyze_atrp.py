@@ -182,7 +182,7 @@ def main5():
         data0 = from_pickle(symbol, timeframe, axiory=True)
         SUPERTREND(data0, 40, 2.5, 25)
         SUPERTREND_SIGNAL(data0, 0)
-        ATRP(data0, 20, ma_window=20)
+        ATRP(data0, 4 * 20, ma_window=4 * 20)
         MA(data0, 4 * 24 * 2)
         FILTER_MA_ATRP(data0, data0['MA'], data0['ATRP'],  atrp_threshold)
         data[symbol] = data0
@@ -221,9 +221,9 @@ def plot_atrp(dic, signals, year, symbol, timeframe, t0, t1):
     if signals is not None:
         long, short = signals
         for l in long:
-            candle.drawMarker(jst[l], cl[l], 'v', color='green')
+            candle.drawMarker(jst[l], cl[l], '^', color='green')
         for s in short:
-            candle.drawMarker(jst[s], cl[s], '^', color='red')
+            candle.drawMarker(jst[s], cl[s], 'v', color='red')
         
     [ax.grid() for ax in axes]
     [ax.legend() for ax in axes]
