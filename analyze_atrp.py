@@ -24,7 +24,7 @@ UTC = tz.gettz('utc')
 from common import Indicators, Signal
 from candle_chart import CandleChart, makeFig, gridFig
 from utils import TimeUtils
-from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, FILTER_MA_ATRP
+from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, FILTER_MA
 
 
 cmap = plt.get_cmap("tab10")
@@ -172,6 +172,9 @@ def main4():
     t1 = datetime(2024, 8, 10).astimezone(JST)
     plot(data0, 2024, symbol, timeframe, t0, t1)
     
+
+        
+    
 def main5():
     symbols = ['NIKKEI', 'DOW', 'SP', 'NSDQ', 'USDJPY', 'XAUUSD']
     symbols = ['DOW']
@@ -182,26 +185,26 @@ def main5():
         data0 = from_pickle(symbol, timeframe, axiory=True)
         SUPERTREND(data0, 40, 2.5, 25)
         SUPERTREND_SIGNAL(data0, 0)
-        ATRP(data0, 4 * 20, ma_window=4 * 20)
-        MA(data0, 4 * 24 * 2)
-        FILTER_MA_ATRP(data0, data0['MA'], data0['ATRP'],  atrp_threshold)
+        ATRP(data0, 20, ma_window=20)
+        MA(data0, 4 * 24 * 2, 4 * 8)
+        FILTER_MA(data0, data0['MA_LONG'], data0['MA_SHORT'])
         data[symbol] = data0
 
     dic = {}        
-    for year in range(2020, 2025):
+    for year in range(2024, 2025):
         for symbol, d in data.items():
-            t0 = datetime(year, 5, 1).astimezone(JST)
-            t1 = datetime(year, 8, 31).astimezone(JST)
+            t0 = datetime(year, 8, 1).astimezone(JST)
+            t1 = datetime(year, 8, 24, 6).astimezone(JST)
             n, d1 = TimeUtils.slice(d, d['jst'], t0, t1)
             dic[symbol] = d1
+            signals = []
             if symbol == 'DOW':
-                signals = detect_signal(d1[Indicators.SUPERTREND_SIGNAL], d1[Indicators.FILTER_MA_ATRP])
-            else:
-                signals = None
+                signal = detect_signal(d1[Indicators.SUPERTREND_SIGNAL], d1[Indicators.FILTER_MA])
+                signals.append(signal)
         plot_atrp(dic, signals, year, 'DOW', timeframe, t0, t1)
     
 def plot_atrp(dic, signals, year, symbol, timeframe, t0, t1):
-    fig, axes = gridFig([5, 2, 1], (40, 12))
+    fig, axes = gridFig([5, 2, 1], (20, 12))
     i = 0
     for symb, data in dic.items():
         jst = data['jst']
@@ -210,16 +213,17 @@ def plot_atrp(dic, signals, year, symbol, timeframe, t0, t1):
         if symb == symbol:
             candle = CandleChart(fig, axes[0])
             candle.drawCandle(jst, data['open'], data['high'], data['low'], data['close'])
-            candle.drawLine(jst, data[Indicators.SUPERTREND_U], color='green')
-            candle.drawLine(jst, data[Indicators.SUPERTREND_L], color='orange')
-            candle.drawLine(jst, data['MA'], color='purple')
+            candle.drawLine(jst, data[Indicators.SUPERTREND_U], color='green', linewidth=2.0)
+            candle.drawLine(jst, data[Indicators.SUPERTREND_L], color='red', linewidth=2.0)
+            candle.drawLine(jst, data['MA_LONG'], color='purple')
+            candle.drawLine(jst, data['MA_SHORT'], color='orange')
             #axes[0].plot(jst, cl, label=symbol, color=cmap(i))
         axes[1].plot(jst, atrp, color=cmap(i), label=symb, alpha=0.95)
-        axes[2].plot(jst, data[Indicators.FILTER_MA_ATRP], color='red')
+        axes[2].plot(jst, data[Indicators.FILTER_MA], color='red')
         i += 1
         
-    if signals is not None:
-        long, short = signals
+    for signal in signals:
+        long, short = signal
         for l in long:
             candle.drawMarker(jst[l], cl[l], '^', color='green')
         for s in short:

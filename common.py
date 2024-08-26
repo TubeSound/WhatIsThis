@@ -115,7 +115,7 @@ class Indicators:
     RCI = 'RCI'
     RCI_SIGNAL = 'RCI_SIGNAL'
     
-    FILTER_MA_ATRP = 'FILTER_MA_ATRP'
+    FILTER_MA = 'FILTER_MA'
 
 class Signal:
     LONG = 1

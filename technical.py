@@ -56,7 +56,7 @@ def ema(vector, window):
         out[i] = np.sum(d * weights)
     return out
 
-def slope(signal: list, window: int, minutes: int, tolerance=0.0):
+def slopes(signal: list, window: int, minutes: int, tolerance=0.0):
     n = len(signal)
     out = full(n, np.nan)
     for i in range(window - 1, n):
@@ -68,6 +68,13 @@ def slope(signal: list, window: int, minutes: int, tolerance=0.0):
             out[i] = m / np.mean(d[:3]) * 100.0 / (window * minutes)  * 60 * 24
     return out
 
+
+def slope(vector):
+    n = len(vector)
+    d = np.array(vector)
+    m, offset = np.polyfit(range(n), d, 1)
+    return m, offset    
+    
 def subtract(signal1: list, signal2:list):
     n = len(signal1)
     if len(signal2) != n:
@@ -336,9 +343,11 @@ def adx_filter(signal, adx, threshold):
                 trend[i] = -1
     return trend    
 
-def MA(dic: dict, term):
-    ma = sma(dic[Columns.CLOSE], term)
-    dic[Indicators.MA] = ma
+def MA(dic: dict, long_term, short_term):
+    ma_long = sma(dic[Columns.CLOSE], long_term)
+    dic[Indicators.MA_LONG] = ma_long
+    ma_short = sma(dic[Columns.CLOSE], short_term)
+    dic[Indicators.MA_SHORT] = ma_short
         
 def MABAND( dic: dict, short: int, mid: int, long: int, di_window: int, adx_window: int, adx_threshold: float):
     cl = dic[Columns.CLOSE]
@@ -1071,7 +1080,7 @@ def SUPERTREND_SIGNAL(data: dict, break_count):
     data[Indicators.SUPERTREND_L] = lower  
     return 
 
-def FILTER_MA_ATRP(data: dict, ma, atrp, threshold):
+def FILTER_MA(data: dict, ma_long, ma_short, term=10):
     op = data[Columns.OPEN]
     hi = data[Columns.HIGH]
     lo = data[Columns.LOW]
@@ -1079,17 +1088,19 @@ def FILTER_MA_ATRP(data: dict, ma, atrp, threshold):
     n = len(op)
     filt = [0 for _ in range(n)]
     i = -1
-    for h, l, a, m in zip(hi, lo, atrp, ma):
+    for h, l, long, short in zip(hi, lo, ma_long, ma_short):
         i += 1
-        if is_nans([h, l, a, m]):
-            filt[i] = 0 
+        if i < term:
             continue
-        if a > threshold:
-            if l > m:
-                filt[i] = 1
-            elif m > h:
-                filt[i] = -1
-    data[Indicators.FILTER_MA_ATRP] = filt
+        if is_nans([h, l, long, short]):
+            continue
+        d = ma_short[i - term - 1: i + 1]
+        slp, _ = slope(d)
+        if l > long and slp > 0:
+            filt[i] = 1
+        elif long > h and slp < 0:
+            filt[i] = -1
+    data[Indicators.FILTER_MA] = filt
     return filt
 
 def diff(data: dict, column: str):

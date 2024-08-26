@@ -220,6 +220,7 @@ class TradeBot:
         if n > 0:
             current_time = self.buffer.last_time()
             current_index = self.buffer.last_index()
+            os.makedirs('./debug', exist_ok=True)
             save(self.buffer.data, './debug/update_' + self.symbol + '_' + datetime.now().strftime('%Y-%m-%d_%H_%M_%S') + '.xlsx')
             #self.check_timeup(current_index)
             entry_sig, do_exit = self.detect_doten(self.buffer.data)
@@ -349,7 +350,7 @@ def create_bot(symbol, timeframe):
                                     'break_count': 0,
                                 },
                 'MA': {'window': 12 * 24 * 2},
-                'ATRP': {'window': 40, 'ma_window': 40, 'threshold': 2.0}
+                'ATRP': {'window': 40, 'ma_window': 40, 'threshold': 1.5}
                 }
     
     trade_param = {'begin_hour':8, 
