@@ -63,6 +63,8 @@ class Indicators:
     MABAND_LONG = 'MABAND_LONG'
     MABAND_SHORT = 'MABAND_SHORT'    
     
+    MA_GAP = 'MA_GAP'
+    MA_TREND = 'MA_TREND'
     
     TR = 'TR'
     ATR = 'ATR'

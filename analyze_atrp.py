@@ -24,7 +24,7 @@ UTC = tz.gettz('utc')
 from common import Indicators, Signal
 from candle_chart import CandleChart, makeFig, gridFig
 from utils import TimeUtils
-from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, FILTER_MA
+from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, TREND_MA
 
 
 cmap = plt.get_cmap("tab10")
@@ -177,28 +177,28 @@ def main4():
     
 def main5():
     symbols = ['NIKKEI', 'DOW', 'SP', 'NSDQ', 'USDJPY', 'XAUUSD']
-    symbols = ['DOW']
-    timeframe = 'M15'
+    #symbols = ['DOW']
+    timeframe = 'H1'
     data = {}
     atrp_threshold=0.1
     for symbol in symbols:
         data0 = from_pickle(symbol, timeframe, axiory=True)
         SUPERTREND(data0, 40, 2.5, 25)
         SUPERTREND_SIGNAL(data0, 0)
-        ATRP(data0, 20, ma_window=20)
+        ATRP(data0, 40, ma_window=40)
         MA(data0, 4 * 24 * 2, 4 * 8)
         FILTER_MA(data0, data0['MA_LONG'], data0['MA_SHORT'])
         data[symbol] = data0
 
     dic = {}        
-    for year in range(2024, 2025):
+    for year in range(2020, 2025):
         for symbol, d in data.items():
-            t0 = datetime(year, 8, 1).astimezone(JST)
-            t1 = datetime(year, 8, 24, 6).astimezone(JST)
+            t0 = datetime(year, 1, 1).astimezone(JST)
+            t1 = datetime(year, 12, 31).astimezone(JST)
             n, d1 = TimeUtils.slice(d, d['jst'], t0, t1)
             dic[symbol] = d1
             signals = []
-            if symbol == 'DOW':
+            if symbol == 'DOWx':
                 signal = detect_signal(d1[Indicators.SUPERTREND_SIGNAL], d1[Indicators.FILTER_MA])
                 signals.append(signal)
         plot_atrp(dic, signals, year, 'DOW', timeframe, t0, t1)
@@ -252,23 +252,45 @@ def detect_signal(signal, entry_filter):
     
 def main6():
     symbol = 'DOW'
-    timeframe = 'M5'
+    timeframe = 'M15'
     data0 = from_pickle(symbol, timeframe, axiory=True)
-    SUPERTREND(data0, 40, 2.5, 25)
-    SUPERTREND_SIGNAL(data0, 0)
+    SUPERTREND(data0, 40, 2.5)
+    SUPERTREND_SIGNAL(data0, 5)
     ATRP(data0, 40, ma_window=40)
-    MA(data0, 4 * 24 * 2)
-    FILTER_MA_ATRP(data0, data0['MA'], data0['ATRP'], 0.1)
-    t0 = datetime(2024, 8, 23).astimezone(JST)
-    t1 = datetime(2024, 8, 24, 6).astimezone(JST)
+    TREND_MA(data0, 4 * 24 * 2, 4 * 2)
+    t0 = datetime(2024, 7, 1).astimezone(JST)
+    t1 = datetime(2024, 8, 8, 6).astimezone(JST)
     n, data = TimeUtils.slice(data0, data0['jst'], t0, t1)
-    dic = {symbol: data}
-    signals = detect_signal(data[Indicators.SUPERTREND_SIGNAL], data[Indicators.FILTER_MA_ATRP])
-    plot_atrp(dic, signals, 2024, symbol, timeframe, t0, t1)
+    plot6(data, 2024, symbol, timeframe, t0, t1)
 
+def plot6(data, year, symbol, timeframe, t0, t1):
+    fig, axes = gridFig([4, 1, 2, 1], (16, 12))
+    jst = data['jst']
+    cl = data['close']
+    candle = CandleChart(fig, axes[0])
+    candle.drawCandle(jst, data['open'], data['high'], data['low'], data['close'])
+    candle.drawLine(jst, data[Indicators.SUPERTREND_U], color='green', linewidth=2.0)
+    candle.drawLine(jst, data[Indicators.SUPERTREND_L], color='red', linewidth=2.0)
+    candle.drawLine(jst, data['MA_LONG'], color='purple')
+    candle.drawLine(jst, data['MA_SHORT'], color='orange')
+            #axes[0].plot(jst, cl, label=symbol, color=cmap(i))
+    axes[1].plot(jst, data[Indicators.SUPERTREND], color=cmap(1), label=symbol, alpha=0.95)
+    axes[1].hlines(0, jst[0], jst[-1], color='yellow')
+    axes[2].plot(jst, data[Indicators.MA_GAP], color=cmap(2), label=symbol, alpha=0.95)
+    axes[2].hlines(0, jst[0], jst[-1], color='yellow')
+    axes[3].plot(jst, data[Indicators.MA_TREND], color=cmap(3))
         
+    [ax.grid() for ax in axes]
+    [ax.legend() for ax in axes]
+    [ax.set_xlim(t0, t1) for ax in axes]
+    candle.xlimit((t0, t1))
+    axes[2].set_ylim(-4, 4)
+    axes[1].set_title('SUPERTREND')
+    axes[2].set_title('MA_GAP')
+    axes[3].set_title('MA_TREND')
+    axes[0].set_title(timeframe)      
     
 if __name__ == '__main__':
-    main5()
+    main6()
     
 

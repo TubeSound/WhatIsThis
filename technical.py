@@ -995,7 +995,7 @@ def ATR_TRAIL(data: dict, atr_window: int, atr_multiply: float, peak_hold_term: 
     data[Indicators.ATR_TRAIL_SIGNAL] = signal
 
              
-def SUPERTREND(data: dict,  atr_window: int, multiply, ma_short, column=Columns.MID):
+def SUPERTREND(data: dict,  atr_window: int, multiply, column=Columns.MID):
     time = data[Columns.TIME]
     if column == Columns.MID:
         MID(data)
@@ -1005,16 +1005,15 @@ def SUPERTREND(data: dict,  atr_window: int, multiply, ma_short, column=Columns.
     atr_u, atr_l = band(data[column], atr, multiply)
     data[Indicators.ATR_UPPER] = atr_u
     data[Indicators.ATR_LOWER] = atr_l
-    ma = ema(data[Columns.CLOSE], ma_short)
-    data[Indicators.MA_SHORT] = ma
+
     
-def SUPERTREND_SIGNAL(data: dict, break_count):
+def SUPERTREND_SIGNAL(data: dict, short_term):
     time = data[Columns.TIME]
     n = len(time)
-    
+    cl = data[Columns.CLOSE]
     atr_u = data[Indicators.ATR_UPPER]
     atr_l = data[Indicators.ATR_LOWER]
-    price = data[Indicators.MA_SHORT] 
+    price = sma(cl, short_term)
     
     trend = nans(n)
     sig = full(n, 0)
@@ -1022,7 +1021,7 @@ def SUPERTREND_SIGNAL(data: dict, break_count):
     upper = nans(n)
     lower = nans(n)
     is_valid = False
-    for i in range(break_count, n):
+    for i in range(1, n):
         if is_valid == False:
             if is_nans([atr_l[i - 1], atr_u[i - 1]]):
                 continue
@@ -1039,12 +1038,7 @@ def SUPERTREND_SIGNAL(data: dict, break_count):
                     lower[i] = atr_l[i]
                 else:
                     lower[i] = lower[i - 1]
-            is_break = True
-            for j in range(i - break_count - 1, i + 1):
-                if price[i] >= lower[i]:
-                    is_break = False
-                    break
-            if is_break:
+            if price[i] < lower[i]:
                  # up->down trend 
                 trend[i] = DOWN
                 sig[i] = Signal.SHORT
@@ -1061,12 +1055,7 @@ def SUPERTREND_SIGNAL(data: dict, break_count):
                 else:
                     upper[i] = upper[i - 1]
                     
-            is_break = True
-            for j in range(i - break_count - 1, i + 1):
-                if price[i] <= upper[i]:
-                    is_break = False
-                    break
-            if is_break:
+            if price[i] > upper[i]:
                 # donw -> up trend
                 trend[i] = UP
                 sig[i] = Signal.LONG
@@ -1075,33 +1064,34 @@ def SUPERTREND_SIGNAL(data: dict, break_count):
                 trend[i] = DOWN
            
     data[Indicators.SUPERTREND] = trend  
-    data[Indicators.SUPERTREND_SIGNAL] = sig    
+    data[Indicators.SUPERTREND_SIGNAL] = sig      
     data[Indicators.SUPERTREND_U] = upper  
     data[Indicators.SUPERTREND_L] = lower  
     return 
 
-def FILTER_MA(data: dict, ma_long, ma_short, term=10):
+def TREND_MA(data: dict, long_term, short_term, term=10):
     op = data[Columns.OPEN]
     hi = data[Columns.HIGH]
     lo = data[Columns.LOW]
     cl = data[Columns.CLOSE]
     n = len(op)
-    filt = [0 for _ in range(n)]
-    i = -1
-    for h, l, long, short in zip(hi, lo, ma_long, ma_short):
-        i += 1
-        if i < term:
-            continue
-        if is_nans([h, l, long, short]):
-            continue
-        d = ma_short[i - term - 1: i + 1]
-        slp, _ = slope(d)
-        if l > long and slp > 0:
-            filt[i] = 1
-        elif long > h and slp < 0:
-            filt[i] = -1
-    data[Indicators.FILTER_MA] = filt
-    return filt
+    ma = sma(cl, long_term)
+    ma_short = sma(cl, short_term)
+    data[Indicators.MA_LONG] = ma
+    data[Indicators.MA_SHORT] = ma_short
+    gap = [0 for _ in range(n)]
+    for i in range(n):
+        gap[i] = (ma_short[i] - ma[i]) / ma[i] * 100.0
+    data[Indicators.MA_GAP] = gap
+    
+    trend = [ 0 for _ in range(n)]
+    for i in range(n):
+        if ma[i] < lo[i]:
+            trend[i] = 1 
+        elif ma[i] > hi[i]:
+            trend[i] = -1
+    data[Indicators.MA_TREND] = trend
+    
 
 def diff(data: dict, column: str):
     signal = data[column]
