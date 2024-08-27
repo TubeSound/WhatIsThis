@@ -264,7 +264,7 @@ def main6():
     plot6(data, 2024, symbol, timeframe, t0, t1)
 
 def plot6(data, year, symbol, timeframe, t0, t1):
-    fig, axes = gridFig([4, 1, 2, 1], (16, 12))
+    fig, axes = gridFig([4, 2, 1, 1], (16, 12))
     jst = data['jst']
     cl = data['close']
     candle = CandleChart(fig, axes[0])
