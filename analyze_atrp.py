@@ -274,19 +274,19 @@ def plot6(data, year, symbol, timeframe, t0, t1):
     candle.drawLine(jst, data['MA_LONG'], color='purple')
     candle.drawLine(jst, data['MA_SHORT'], color='orange')
             #axes[0].plot(jst, cl, label=symbol, color=cmap(i))
-    axes[1].plot(jst, data[Indicators.SUPERTREND], color=cmap(1), label=symbol, alpha=0.95)
-    axes[1].hlines(0, jst[0], jst[-1], color='yellow')
-    axes[2].plot(jst, data[Indicators.MA_GAP], color=cmap(2), label=symbol, alpha=0.95)
+    axes[2].plot(jst, data[Indicators.SUPERTREND], color=cmap(1), label=symbol, alpha=0.95)
     axes[2].hlines(0, jst[0], jst[-1], color='yellow')
+    axes[1].plot(jst, data[Indicators.MA_GAP], color=cmap(2), label=symbol, alpha=0.95)
+    axes[1].hlines(0, jst[0], jst[-1], color='yellow')
     axes[3].plot(jst, data[Indicators.MA_TREND], color=cmap(3))
         
     [ax.grid() for ax in axes]
     [ax.legend() for ax in axes]
     [ax.set_xlim(t0, t1) for ax in axes]
     candle.xlimit((t0, t1))
-    axes[2].set_ylim(-4, 4)
-    axes[1].set_title('SUPERTREND')
-    axes[2].set_title('MA_GAP')
+    axes[1].set_ylim(-2, 2)
+    axes[2].set_title('SUPERTREND')
+    axes[1].set_title('MA_GAP')
     axes[3].set_title('MA_TREND')
     axes[0].set_title(timeframe)      
     
