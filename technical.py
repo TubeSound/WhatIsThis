@@ -1089,6 +1089,12 @@ def TREND_MA(data: dict, long_term, short_term, smoothing_term=40, threshold=[0.
         
     data[Indicators.MA_GAP] = gap
     
+    
+    slope = full(n, 0.0)
+    for i in range(10, n):
+        slope[i] = (gap[i - 10] - gap[i]) / 10 
+    data[Indicators.MA_GAP_SLOPE] = slope
+    
     trend = [ 0 for _ in range(n)]
     for i in range(n):
         if gap[i] > 0:

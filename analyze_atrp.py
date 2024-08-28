@@ -265,7 +265,7 @@ def main6():
     plot6(data, long, short, xup, xdown, 2024, symbol, timeframe, t0, t1)
 
 def plot6(data, long, short, xup, xdown, year, symbol, timeframe, t0, t1):
-    fig, axes = gridFig([4, 2, 1], (16, 12))
+    fig, axes = gridFig([4, 2, 1, 1], (16, 12))
     jst = data['jst']
     cl = data['close']
     candle = CandleChart(fig, axes[0])
@@ -276,6 +276,8 @@ def plot6(data, long, short, xup, xdown, year, symbol, timeframe, t0, t1):
     axes[1].hlines(0, jst[0], jst[-1], color='yellow')
     axes[2].plot(jst, data[Indicators.MA_TREND], color=cmap(1), label=symbol, alpha=0.95)
     axes[2].hlines(0, jst[0], jst[-1], color='yellow')
+    axes[3].plot(jst, data[Indicators.MA_GAP_SLOPE], color=cmap(3), label=symbol, alpha=0.95)
+    axes[3].hlines(0, jst[0], jst[-1], color='yellow')
     
     
     for begin, end in long:

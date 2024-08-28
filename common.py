@@ -65,6 +65,7 @@ class Indicators:
     
     MA_GAP = 'MA_GAP'
     MA_TREND = 'MA_TREND'
+    MA_GAP_SLOPE= 'MA_GAP_SLOPE'
     
     TR = 'TR'
     ATR = 'ATR'
