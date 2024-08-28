@@ -1069,7 +1069,7 @@ def SUPERTREND_SIGNAL(data: dict, short_term):
     data[Indicators.SUPERTREND_L] = lower  
     return 
 
-def TREND_MA(data: dict, long_term, short_term, term=10):
+def TREND_MA(data: dict, long_term, short_term, smoothing_term=40, threshold=[0.5, 0.1]):
     op = data[Columns.OPEN]
     hi = data[Columns.HIGH]
     lo = data[Columns.LOW]
@@ -1082,16 +1082,46 @@ def TREND_MA(data: dict, long_term, short_term, term=10):
     gap = [0 for _ in range(n)]
     for i in range(n):
         gap[i] = (ma_short[i] - ma[i]) / ma[i] * 100.0
+        
+    gap = median(gap, 5)
+    gap = sma(gap, smoothing_term)
+        
     data[Indicators.MA_GAP] = gap
     
     trend = [ 0 for _ in range(n)]
     for i in range(n):
-        if ma[i] < lo[i]:
-            trend[i] = 1 
-        elif ma[i] > hi[i]:
-            trend[i] = -1
+        if gap[i] > 0:
+            if gap[i] > threshold[0]:
+                trend[i] = 1                 
+        elif gap[i] < 0:
+            if gap[i] < - threshold[1]:
+                trend[i] = -1
     data[Indicators.MA_TREND] = trend
     
+    
+def detect_trend_term(vector):
+    long = []
+    n = len(vector)
+    begin = None
+    for i in range(n):
+        if begin is None:
+            if vector[i] > 0:
+                begin = i
+        else:
+            if vector[i] <= 0:
+                long.append([begin, i - 1])
+                begin = None         
+    short = []
+    begin = None
+    for i in range(n):
+        if begin is None:
+            if vector[i] < 0:
+                begin = i
+        else:
+            if vector[i] >= 0:
+                short.append([begin, i - 1])
+                begin = None
+    return long, short
 
 def diff(data: dict, column: str):
     signal = data[column]

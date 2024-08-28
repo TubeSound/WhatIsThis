@@ -24,7 +24,7 @@ UTC = tz.gettz('utc')
 from common import Indicators, Signal
 from candle_chart import CandleChart, makeFig, gridFig
 from utils import TimeUtils
-from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, TREND_MA
+from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, TREND_MA, detect_trend_term
 
 
 cmap = plt.get_cmap("tab10")
@@ -254,41 +254,70 @@ def main6():
     symbol = 'DOW'
     timeframe = 'M15'
     data0 = from_pickle(symbol, timeframe, axiory=True)
-    SUPERTREND(data0, 40, 2.5)
-    SUPERTREND_SIGNAL(data0, 5)
-    ATRP(data0, 40, ma_window=40)
-    TREND_MA(data0, 4 * 24 * 2, 4 * 2)
+    TREND_MA(data0, 4 * 24 * 2, 4 * 8, smoothing_term = 40, threshold=[0.5, 0.1])
     t0 = datetime(2024, 7, 1).astimezone(JST)
     t1 = datetime(2024, 8, 8, 6).astimezone(JST)
     n, data = TimeUtils.slice(data0, data0['jst'], t0, t1)
     plot6(data, 2024, symbol, timeframe, t0, t1)
 
 def plot6(data, year, symbol, timeframe, t0, t1):
-    fig, axes = gridFig([4, 2, 1, 1], (16, 12))
+    fig, axes = gridFig([4, 2, 1], (16, 12))
     jst = data['jst']
     cl = data['close']
     candle = CandleChart(fig, axes[0])
     candle.drawCandle(jst, data['open'], data['high'], data['low'], data['close'])
-    candle.drawLine(jst, data[Indicators.SUPERTREND_U], color='green', linewidth=2.0)
-    candle.drawLine(jst, data[Indicators.SUPERTREND_L], color='red', linewidth=2.0)
     candle.drawLine(jst, data['MA_LONG'], color='purple')
     candle.drawLine(jst, data['MA_SHORT'], color='orange')
-            #axes[0].plot(jst, cl, label=symbol, color=cmap(i))
-    axes[2].plot(jst, data[Indicators.SUPERTREND], color=cmap(1), label=symbol, alpha=0.95)
-    axes[2].hlines(0, jst[0], jst[-1], color='yellow')
     axes[1].plot(jst, data[Indicators.MA_GAP], color=cmap(2), label=symbol, alpha=0.95)
     axes[1].hlines(0, jst[0], jst[-1], color='yellow')
-    axes[3].plot(jst, data[Indicators.MA_TREND], color=cmap(3))
-        
+    axes[2].plot(jst, data[Indicators.MA_TREND], color=cmap(1), label=symbol, alpha=0.95)
+    axes[2].hlines(0, jst[0], jst[-1], color='yellow')
+    
+    long, short = detect_trend_term(data[Indicators.MA_TREND])
+    df = calc_profit(data, long, short)
+    print(df)
+    for begin, end in long:
+        candle.drawMarker(jst[begin], cl[begin], color='green', marker='^', markersize=20)
+        candle.drawMarker(jst[end], cl[end], color='green', marker='x', markersize=20)
+    for begin, end in short:
+        candle.drawMarker(jst[begin], cl[begin], color='red', marker='v', markersize=20)
+        candle.drawMarker(jst[end], cl[end], color='red', marker='x', markersize=20)
+             
+
+
     [ax.grid() for ax in axes]
     [ax.legend() for ax in axes]
-    [ax.set_xlim(t0, t1) for ax in axes]
+    axes[1].set_xlim(t0, t1)
+    axes[2].set_xlim(t0, t1)
     candle.xlimit((t0, t1))
     axes[1].set_ylim(-2, 2)
-    axes[2].set_title('SUPERTREND')
     axes[1].set_title('MA_GAP')
-    axes[3].set_title('MA_TREND')
-    axes[0].set_title(timeframe)      
+    axes[2].set_title('MA_TREND')
+    axes[0].set_title(symbol + ' ' + timeframe + ' ' + str(year))      
+    
+def calc_profit(data, long, short):
+    jst = data['jst']
+    cl = data['close']
+    profits = []
+    for begin, end in long:
+        profit = cl[end] - cl[begin]
+        profits.append([1, jst[begin], cl[begin], jst[end], cl[end], profit])
+    for begin, end in short:
+        profit = cl[begin] - cl[end]
+        profits.append([-1, jst[begin], cl[begin], jst[end], cl[end], profit])
+        
+    df = pd.DataFrame(data=profits, columns=['L/S', 'time_entry', 'price_entry', 'time_exit', 'price_exit', 'profit'])
+    df = df.sort_values('time_exit')
+    prof = df['profit'].to_list()
+    s = 0 
+    acc = []
+    for p in prof:
+        s += p
+        acc.append(s)
+    df['acc'] = acc
+    return df
+    
+    
     
 if __name__ == '__main__':
     main6()
