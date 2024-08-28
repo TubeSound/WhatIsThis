@@ -24,7 +24,7 @@ UTC = tz.gettz('utc')
 from common import Indicators, Signal
 from candle_chart import CandleChart, makeFig, gridFig
 from utils import TimeUtils
-from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, TREND_MA, detect_trend_term
+from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, TREND_MA, detect_trend_term, detect_cross
 
 
 cmap = plt.get_cmap("tab10")
@@ -258,9 +258,13 @@ def main6():
     t0 = datetime(2024, 7, 1).astimezone(JST)
     t1 = datetime(2024, 8, 8, 6).astimezone(JST)
     n, data = TimeUtils.slice(data0, data0['jst'], t0, t1)
-    plot6(data, 2024, symbol, timeframe, t0, t1)
+    xup, xdown = detect_cross(data[Indicators.MA_LONG], data[Indicators.MA_SHORT])
+    long, short = detect_trend_term(data[Indicators.MA_TREND])
+    df = calc_profit(data, long, short)
+    print(df)
+    plot6(data, long, short, xup, xdown, 2024, symbol, timeframe, t0, t1)
 
-def plot6(data, year, symbol, timeframe, t0, t1):
+def plot6(data, long, short, xup, xdown, year, symbol, timeframe, t0, t1):
     fig, axes = gridFig([4, 2, 1], (16, 12))
     jst = data['jst']
     cl = data['close']
@@ -273,9 +277,7 @@ def plot6(data, year, symbol, timeframe, t0, t1):
     axes[2].plot(jst, data[Indicators.MA_TREND], color=cmap(1), label=symbol, alpha=0.95)
     axes[2].hlines(0, jst[0], jst[-1], color='yellow')
     
-    long, short = detect_trend_term(data[Indicators.MA_TREND])
-    df = calc_profit(data, long, short)
-    print(df)
+    
     for begin, end in long:
         candle.drawMarker(jst[begin], cl[begin], color='green', marker='^', markersize=20)
         candle.drawMarker(jst[end], cl[end], color='green', marker='x', markersize=20)
@@ -283,7 +285,15 @@ def plot6(data, year, symbol, timeframe, t0, t1):
         candle.drawMarker(jst[begin], cl[begin], color='red', marker='v', markersize=20)
         candle.drawMarker(jst[end], cl[end], color='red', marker='x', markersize=20)
              
-
+    print(xup)
+    ma = data['MA_LONG']
+    for x in xup:
+        candle.drawMarker(jst[x], ma[x], color='black', marker='o', markersize=10, alpha=0.3)
+    for x in xdown:
+        candle.drawMarker(jst[x], ma[x], color='black', marker='o', markersize=10, alpha=0.3)
+          
+    
+    
 
     [ax.grid() for ax in axes]
     [ax.legend() for ax in axes]

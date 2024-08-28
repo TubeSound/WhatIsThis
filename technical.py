@@ -1079,6 +1079,7 @@ def TREND_MA(data: dict, long_term, short_term, smoothing_term=40, threshold=[0.
     ma_short = sma(cl, short_term)
     data[Indicators.MA_LONG] = ma
     data[Indicators.MA_SHORT] = ma_short
+    
     gap = [0 for _ in range(n)]
     for i in range(n):
         gap[i] = (ma_short[i] - ma[i]) / ma[i] * 100.0
@@ -1098,6 +1099,16 @@ def TREND_MA(data: dict, long_term, short_term, smoothing_term=40, threshold=[0.
                 trend[i] = -1
     data[Indicators.MA_TREND] = trend
     
+def detect_cross(ma_long, ma_short):
+    xup = []
+    xdown = []
+    n = len(ma_long)
+    for i in range(1, n):
+        if ma_short[i - 1] < ma_long[i - 1] and ma_short[i] >= ma_long[i] :
+            xup.append(i)
+        if ma_short[i - 1] > ma_long[i - 1] and ma_short[i] <= ma_long[i] :
+            xdown.append(i)
+    return xup, xdown
     
 def detect_trend_term(vector):
     long = []
