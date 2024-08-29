@@ -1069,7 +1069,35 @@ def SUPERTREND_SIGNAL(data: dict, short_term):
     data[Indicators.SUPERTREND_L] = lower  
     return 
 
-def TREND_MA(data: dict, long_term, short_term, smoothing_term=40, threshold=[0.5, 0.1]):
+def TREND_MA(data: dict, long_term, short_term, tap, timeframe):
+    op = data[Columns.OPEN]
+    hi = data[Columns.HIGH]
+    lo = data[Columns.LOW]
+    cl = data[Columns.CLOSE]
+    n = len(op)
+    ma = sma(cl, long_term)
+    ma_short = sma(cl, short_term)
+    data[Indicators.MA_LONG] = ma
+    data[Indicators.MA_SHORT] = ma_short
+    
+    gap = [0 for _ in range(n)]
+    for i in range(n):
+        gap[i] = (ma_short[i] - ma[i]) / ma[i] * 100.0
+    data[Indicators.MA_GAP] = gap    
+    if timeframe[0] == 'M':
+        hour = int(timeframe[1:]) / 60  * tap
+    elif timeframe[0] == 'H':
+        hour = int(timeframe[1:]) * tap
+    else:
+        raise Exception('error')
+        
+    slope = full(n, 0.0)
+    for i in range(10, n):
+        slope[i] = (gap[i] - gap[i - tap + 1]) / hour
+    data[Indicators.MA_GAP_SLOPE] = slope
+    
+    
+def TREND_MA2(data: dict, long_term, short_term, tap, threshold=[0.5, 0.1]):
     op = data[Columns.OPEN]
     hi = data[Columns.HIGH]
     lo = data[Columns.LOW]
@@ -1105,15 +1133,20 @@ def TREND_MA(data: dict, long_term, short_term, smoothing_term=40, threshold=[0.
                 trend[i] = -1
     data[Indicators.MA_TREND] = trend
     
-def detect_cross(ma_long, ma_short):
+def detect_gap_cross(data, ma_long, ma_short, slope, threshold):
     xup = []
     xdown = []
+    jst = data[Columns.JST]
     n = len(ma_long)
     for i in range(1, n):
         if ma_short[i - 1] < ma_long[i - 1] and ma_short[i] >= ma_long[i] :
-            xup.append(i)
+            print('xup', jst[i], slope[i])
+            if slope[i] > threshold:
+                xup.append(i)
         if ma_short[i - 1] > ma_long[i - 1] and ma_short[i] <= ma_long[i] :
-            xdown.append(i)
+            print('xdown', jst[i], slope[i])
+            if slope[i] < - threshold:
+                xdown.append(i)
     return xup, xdown
     
 def detect_trend_term(vector):

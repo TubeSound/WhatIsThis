@@ -24,7 +24,7 @@ UTC = tz.gettz('utc')
 from common import Indicators, Signal
 from candle_chart import CandleChart, makeFig, gridFig
 from utils import TimeUtils
-from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, TREND_MA, detect_trend_term, detect_cross
+from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, TREND_MA, detect_gap_cross
 
 
 cmap = plt.get_cmap("tab10")
@@ -254,48 +254,38 @@ def main6():
     symbol = 'DOW'
     timeframe = 'M15'
     data0 = from_pickle(symbol, timeframe, axiory=True)
-    TREND_MA(data0, 4 * 24 * 2, 4 * 8, smoothing_term = 40, threshold=[0.5, 0.1])
+    TREND_MA(data0, 4 * 24 * 2, 4 * 8,  4, timeframe)
     t0 = datetime(2024, 7, 1).astimezone(JST)
     t1 = datetime(2024, 8, 8, 6).astimezone(JST)
     n, data = TimeUtils.slice(data0, data0['jst'], t0, t1)
-    xup, xdown = detect_cross(data[Indicators.MA_LONG], data[Indicators.MA_SHORT])
-    long, short = detect_trend_term(data[Indicators.MA_TREND])
-    df = calc_profit(data, long, short)
-    print(df)
-    plot6(data, long, short, xup, xdown, 2024, symbol, timeframe, t0, t1)
+    xup, xdown = detect_gap_cross(  data,
+                                    data[Indicators.MA_LONG],
+                                    data[Indicators.MA_SHORT],
+                                    data[Indicators.MA_GAP_SLOPE],
+                                    0.05)
+    #df = calc_profit(data, long, short)
+    #print(df)
+    plot6(data,xup, xdown, 2024, symbol, timeframe, t0, t1)
 
-def plot6(data, long, short, xup, xdown, year, symbol, timeframe, t0, t1):
-    fig, axes = gridFig([4, 2, 1, 1], (16, 12))
+def plot6(data, xup, xdown, year, symbol, timeframe, t0, t1):
+    fig, axes = gridFig([4, 2, 2], (16, 12))
     jst = data['jst']
     cl = data['close']
     candle = CandleChart(fig, axes[0])
     candle.drawCandle(jst, data['open'], data['high'], data['low'], data['close'])
     candle.drawLine(jst, data['MA_LONG'], color='purple')
     candle.drawLine(jst, data['MA_SHORT'], color='orange')
-    axes[1].plot(jst, data[Indicators.MA_GAP], color=cmap(2), label=symbol, alpha=0.95)
+    axes[1].plot(jst, data[Indicators.MA_GAP], color=cmap(2), alpha=0.95)
     axes[1].hlines(0, jst[0], jst[-1], color='yellow')
-    axes[2].plot(jst, data[Indicators.MA_TREND], color=cmap(1), label=symbol, alpha=0.95)
+    axes[2].plot(jst, data[Indicators.MA_GAP_SLOPE], color=cmap(3), alpha=0.95)
     axes[2].hlines(0, jst[0], jst[-1], color='yellow')
-    axes[3].plot(jst, data[Indicators.MA_GAP_SLOPE], color=cmap(3), label=symbol, alpha=0.95)
-    axes[3].hlines(0, jst[0], jst[-1], color='yellow')
     
-    
-    for begin, end in long:
-        candle.drawMarker(jst[begin], cl[begin], color='green', marker='^', markersize=20)
-        candle.drawMarker(jst[end], cl[end], color='green', marker='x', markersize=20)
-    for begin, end in short:
-        candle.drawMarker(jst[begin], cl[begin], color='red', marker='v', markersize=20)
-        candle.drawMarker(jst[end], cl[end], color='red', marker='x', markersize=20)
-             
-    print(xup)
-    ma = data['MA_LONG']
+    print('cross num', len(xup), len(xdown))
     for x in xup:
-        candle.drawMarker(jst[x], ma[x], color='black', marker='o', markersize=10, alpha=0.3)
+        candle.drawMarker(jst[x], cl[x], color='green', marker='^', markersize=20)
     for x in xdown:
-        candle.drawMarker(jst[x], ma[x], color='black', marker='o', markersize=10, alpha=0.3)
-          
-    
-    
+        candle.drawMarker(jst[x], cl[x], color='red', marker='v', markersize=20)
+             
 
     [ax.grid() for ax in axes]
     [ax.legend() for ax in axes]
@@ -304,7 +294,7 @@ def plot6(data, long, short, xup, xdown, year, symbol, timeframe, t0, t1):
     candle.xlimit((t0, t1))
     axes[1].set_ylim(-2, 2)
     axes[1].set_title('MA_GAP')
-    axes[2].set_title('MA_TREND')
+    axes[2].set_title('MA_GAP_SLOPE')
     axes[0].set_title(symbol + ' ' + timeframe + ' ' + str(year))      
     
 def calc_profit(data, long, short):
