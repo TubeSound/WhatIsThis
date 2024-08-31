@@ -266,9 +266,10 @@ class Simulation:
         
         
     
-    def run_doten(self, signal_column, entry_filter_column=None):        
+    def run_doten(self, entry_column, exit_column):        
         data = self.data
-        signal = data[signal_column]
+        entry = data[entry_column]
+        ext = data[exit_column]
         time = data[Columns.JST]
         op = data[Columns.OPEN]
         hi = data[Columns.HIGH]
@@ -276,38 +277,13 @@ class Simulation:
         cl = data[Columns.CLOSE]
         n = len(time)
         entry_filter = None
-        if entry_filter_column is not None:
-            entry_filter = data[entry_filter_column]
-        state = None
-        for i in range(1, n):
+        for i in range(n):
             t = time[i]
-            if i == n - 1:
-                self.positions.exit_all(i, time[i], cl[i])
-                break
-            self.positions.update(i, time[i], op[i], hi[i], lo[i], cl[i])
-            sig = signal[i]
-            if sig == Signal.LONG:
-                if state == Signal.SHORT:
-                    self.doten(sig, i, time[i], cl[i])
-                else:
-                    do = True
-                    if entry_filter is not None:
-                        if entry_filter[i] != sig:
-                            do = False
-                    if do:
-                        self.entry(sig, i, time[i], cl[i])
-                state = Signal.LONG
-            elif sig == Signal.SHORT:               
-                if state == Signal.LONG:
-                    self.doten(sig, i, time[i], cl[i])
-                else:
-                    do = True
-                    if entry_filter is not None:
-                        if entry_filter[i] != sig:
-                            do = False
-                    if do:
-                        self.entry(sig, i, time[i], cl[i])
-                state = Signal.SHORT
+            self.positions.update(i, t, op[i], hi[i], lo[i], cl[i])
+            if ext[i] == 1:
+                self.positions.exit_all(i, t, cl[i])
+            if entry[i] != 0:
+                self.entry(entry[i], i, t, cl[i])
         summary, profit_curve = self.positions.summary()
         return self.positions.to_dataFrame(self.strategy), summary, profit_curve
     

@@ -63,9 +63,10 @@ class Indicators:
     MABAND_LONG = 'MABAND_LONG'
     MABAND_SHORT = 'MABAND_SHORT'    
     
-    MA_GAP = 'MA_GAP'
-    MA_TREND = 'MA_TREND'
-    MA_GAP_SLOPE= 'MA_GAP_SLOPE'
+    MAGAP = 'MAGAP'
+    MAGAP_SLOPE= 'MAGAP_SLOPE'
+    MAGAP_ENTRY = 'MAGAP_ENTRY'
+    MAGAP_EXIT = 'MAGAP_EXIT'
     
     TR = 'TR'
     ATR = 'ATR'

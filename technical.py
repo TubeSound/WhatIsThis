@@ -1069,7 +1069,7 @@ def SUPERTREND_SIGNAL(data: dict, short_term):
     data[Indicators.SUPERTREND_L] = lower  
     return 
 
-def TREND_MA(data: dict, long_term, short_term, tap, timeframe):
+def MAGAP(data: dict, long_term, short_term, tap, timeframe):
     op = data[Columns.OPEN]
     hi = data[Columns.HIGH]
     lo = data[Columns.LOW]
@@ -1083,7 +1083,7 @@ def TREND_MA(data: dict, long_term, short_term, tap, timeframe):
     gap = [0 for _ in range(n)]
     for i in range(n):
         gap[i] = (ma_short[i] - ma[i]) / ma[i] * 100.0
-    data[Indicators.MA_GAP] = gap    
+    data[Indicators.MAGAP] = gap    
     if timeframe[0] == 'M':
         hour = int(timeframe[1:]) / 60  * tap
     elif timeframe[0] == 'H':
@@ -1094,57 +1094,45 @@ def TREND_MA(data: dict, long_term, short_term, tap, timeframe):
     slope = full(n, 0.0)
     for i in range(10, n):
         slope[i] = (gap[i] - gap[i - tap + 1]) / hour
-    data[Indicators.MA_GAP_SLOPE] = slope
+    data[Indicators.MAGAP_SLOPE] = slope
     
-    
-def TREND_MA2(data: dict, long_term, short_term, tap, threshold=[0.5, 0.1]):
-    op = data[Columns.OPEN]
-    hi = data[Columns.HIGH]
-    lo = data[Columns.LOW]
-    cl = data[Columns.CLOSE]
-    n = len(op)
-    ma = sma(cl, long_term)
-    ma_short = sma(cl, short_term)
-    data[Indicators.MA_LONG] = ma
-    data[Indicators.MA_SHORT] = ma_short
-    
-    gap = [0 for _ in range(n)]
+def MAGAP_SIGNAL(data, threshold):
+    ma_long = data[Indicators.MA_LONG]
+    ma_short = data[Indicators.MA_SHORT]
+    slope = data[Indicators.MAGAP_SLOPE]
+    xup, xdown = detect_gap_cross(data, ma_long, ma_short, slope, threshold)
+    jst = data[Columns.JST]
+    n = len(jst)
+    sig = full(n, 0)
+    for x in xup:
+        sig[x] = 1 
+    for x in xdown:
+        sig[x] = -1 
+    entry = full(n, 0)
+    ext = full(n, 0)
+    current = 0 
     for i in range(n):
-        gap[i] = (ma_short[i] - ma[i]) / ma[i] * 100.0
-        
-    gap = median(gap, 5)
-    gap = sma(gap, smoothing_term)
-        
-    data[Indicators.MA_GAP] = gap
-    
-    
-    slope = full(n, 0.0)
-    for i in range(10, n):
-        slope[i] = (gap[i - 10] - gap[i]) / 10 
-    data[Indicators.MA_GAP_SLOPE] = slope
-    
-    trend = [ 0 for _ in range(n)]
-    for i in range(n):
-        if gap[i] > 0:
-            if gap[i] > threshold[0]:
-                trend[i] = 1                 
-        elif gap[i] < 0:
-            if gap[i] < - threshold[1]:
-                trend[i] = -1
-    data[Indicators.MA_TREND] = trend
+        if sig[i] == 0:
+            continue
+        entry[i] = sig[i]
+        if current == 0:
+            current = sig[i]
+        elif current != sig[i]:
+            ext[i] = 1
+    data[Indicators.MAGAP_ENTRY] = entry
+    data[Indicators.MAGAP_EXIT] = ext
     
 def detect_gap_cross(data, ma_long, ma_short, slope, threshold):
     xup = []
     xdown = []
-    jst = data[Columns.JST]
     n = len(ma_long)
     for i in range(1, n):
         if ma_short[i - 1] < ma_long[i - 1] and ma_short[i] >= ma_long[i] :
-            print('xup', jst[i], slope[i])
+            #print('xup', jst[i], slope[i])
             if slope[i] > threshold:
                 xup.append(i)
         if ma_short[i - 1] > ma_long[i - 1] and ma_short[i] <= ma_long[i] :
-            print('xdown', jst[i], slope[i])
+            #print('xdown', jst[i], slope[i])
             if slope[i] < - threshold:
                 xdown.append(i)
     return xup, xdown

@@ -125,14 +125,21 @@ class TradeManager:
             print('<Closed by Meta Trader Stoploss or Takeprofit> ', self.symbol, 'tickets:', remove_tickets)
             
 class TradeBot:
-    def __init__(self, symbol:str, timeframe:str, interval_seconds:int, signal_name: str, technical_param: dict, trade_param:dict, entry_filter_column: str=None, simulate=False):
+    def __init__(self, symbol:str,
+                 timeframe:str,
+                 interval_seconds:int,
+                 entry_column: str,
+                 exit_column:str, 
+                 technical_param: dict,
+                 trade_param:dict,
+                 simulate=False):
         self.symbol = symbol
         self.timeframe = timeframe
         self.invterval_seconds = interval_seconds
-        self.signal_name = signal_name
+        self.entry_column = entry_column
+        self.exit_column = exit_column
         self.technical_param = technical_param
         self.trade_param = trade_param
-        self.entry_filter_column = entry_filter_column
         if not simulate:
             mt5 = Mt5Trade(symbol)
             self.mt5 = mt5
@@ -150,13 +157,13 @@ class TradeBot:
         print(s)    
         
     def calc_indicators(self, data: dict, param: dict):
-        p = param['SUPERTREND']
-        SUPERTREND(data, p['atr_window'], p['atr_multiply'], p['ma_window'])
-        SUPERTREND_SIGNAL(data, 0)
-        MA(data, param['MA']['window'])
-        p = param['ATRP']
-        ATRP(data, p['window'], ma_window=p['ma_window'] )
-        FILTER_MA_ATRP(data, data['MA'], data['ATRP'], p['threshold'])
+        magap = param['MAGAP']
+        long_term = magap['long_term']
+        short_term = magap['short_term']
+        slope_tap = magap['slope_tap']
+        threshold = magap['threshold']
+        MAGAP(data, long_term, short_term, slope_tap, self.timeframe)
+        MAGAP_SIGNAL(data, threshold)
         
         
     def set_sever_time(self, begin_month, begin_sunday, end_month, end_sunday, delta_hour_from_gmt_in_summer):
@@ -196,19 +203,17 @@ class TradeBot:
             current_index = self.buffer.last_index()
             save(self.buffer.data, './debug/update_' + self.symbol + '_' + datetime.now().strftime('%Y-%m-%d_%H_%M_%S') + '.xlsx')
             #self.check_timeup(current_index)
-            sig = self.detect_entry(self.buffer.data)
-            if sig == Signal.LONG or sig == Signal.SHORT:
-                self.debug_print('<Signal> ', sig)
-                if self.trade_param['trail_stop'] == 0 or self.trade_param['target'] == 0:
-                    # ドテン
-                    self.debug_print('<Closed All positions> Doten ', self.symbol,)
-                    positions = self.trade_manager.open_positions()
-                else:
-                    # trail not fired 
-                    self.debug_print('<Closed Trail Not fired positions> ', self.symbol)
-                    positions = self.trade_manager.untrail_positions()
-                self.close_positions(positions)
-                self.entry(self.buffer.data, sig, current_index, current_time)
+            entry_signal = self.buffer.data[self.entry_column]
+            exit_signal = self.buffer.data[self.exit_column]
+            if exit_signal > 0:
+                positions = self.trade_manager.open_positions()
+                if len(positions) > 0:
+                    self.close_positions(positions)
+                    self.debug_print('<Exit> position num:', len(positions))
+            if entry_signal == Signal.LONG or entry_signal == Signal.SHORT:
+                self.debug_print('<Signal> ', entry_signal)
+    
+                self.entry(self.buffer.data, entry_signal, current_index, current_time)
         return n
     
     def update_doten(self):
@@ -232,29 +237,6 @@ class TradeBot:
                 self.entry(self.buffer.data, sig, current_index, current_time)
         return n
     
-    
-    def detect_doten(self, data: dict):
-        if self.entry_filter_column == None:
-            entry_filter = None
-        else:
-            entry_filter = self.buffer.data[self.entry_filter_column]
-        signal = data[self.signal_name]
-        sig = signal[-1]
-        if sig != Signal.LONG and sig != Signal.SHORT:
-            return (0, False)
-        enable = True
-        if entry_filter is not None:
-            entry_filter = data[self.entry_filter_column]
-            if entry_filter[-1] != sig:
-                enable = False                
-        print('<Signal> ', sig, 'Entry enable: ', enable)
-        if enable:
-            entry_sig = sig
-        else:
-            entry_sig = 0
-        return (entry_sig, True)
-  
-        
                 
     def mt5_position_num(self):
         positions = self.mt5.get_positions()
@@ -343,14 +325,13 @@ class TradeBot:
         self.trade_manager.remove_positions(removed_tickets)
 
 def create_bot(symbol, timeframe):
-    technical = {'SUPERTREND': {
-                                    'atr_window':25,
-                                    'atr_multiply': 2.5,
-                                    'ma_window': 50,
-                                    'break_count': 0,
-                                },
-                'MA': {'window': 12 * 24 * 2},
-                'ATRP': {'window': 40, 'ma_window': 40, 'threshold': 1.5}
+    if symbol == 'DOW' and timeframe == 'M15':
+        technical = {'MAGAP': {
+                            'long_term':288,
+                            'short_term': 4,
+                            'slope_tap': 8,
+                            'threshold': 0.1,
+                                }
                 }
     
     trade_param = {'begin_hour':8, 
@@ -363,7 +344,7 @@ def create_bot(symbol, timeframe):
                    'trail_stop': 50,
                    'timelimit':0}
     
-    bot = TradeBot(symbol, timeframe, 1, Indicators.SUPERTREND_SIGNAL, technical, trade_param, entry_filter_column=Indicators.FILTER_MA_ATRP)    
+    bot = TradeBot(symbol, timeframe, 1, Indicators.MAGAP_ENTRY, Indicators.MAGAP_EXIT, technical, trade_param)    
     bot.set_sever_time(3, 2, 11, 1, 3.0)
     return bot
 
