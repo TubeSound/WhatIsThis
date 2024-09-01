@@ -325,8 +325,9 @@ class TradeBot:
         self.trade_manager.remove_positions(removed_tickets)
 
 def create_bot(symbol, timeframe):
-    if symbol == 'DOW' and timeframe == 'M15':
-        technical = {'MAGAP': {
+    if symbol == 'DOW' or symbol == 'NIKKEI':
+        if timeframe == 'M15':
+            technical = {'MAGAP': {
                             'long_term':288,
                             'short_term': 4,
                             'slope_tap': 8,
@@ -358,10 +359,10 @@ def create_usdjpy_bot():
      
 def test():
     
-    bot1 = create_bot( 'NIKKEI', 'M5')
+    bot1 = create_bot( 'NIKKEI', 'M15')
     Mt5Trade.connect()
     bot1.run()
-    bot2 = create_bot('DOW', 'M5')
+    bot2 = create_bot('DOW', 'M15')
     bot2.run()
     while True:
         scheduler.enter(10, 1, bot1.update_doten)

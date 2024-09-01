@@ -345,7 +345,7 @@ def optimize(symbol, timeframe):
     data0 = from_pickle(symbol, timeframe)
     root = f'./magap_optimize'
     data = data0.copy()
-    limit = 20000
+    limit = 25000
     title = f'{symbol}_{timeframe}_magap'    
     sim_opt(root, symbol, timeframe, title, data, limit)    
 
@@ -358,9 +358,9 @@ def sim_opt(root, symbol, timeframe, title, data, limit):
     tap = 8
     for p1 in [1, 2, 3, 4]:
         long_term = int(p1 * 4 * 24)
-        for p2 in range(1, 40):
+        for p2 in range(1, 40, 2):
             short_term = int(p2 * 4)
-            for threshold in [0.05, 0.1, 0.2, 0.3, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0]:
+            for threshold in [0.05, 0.1, 0.2, 0.3, 0.5, 1.0, 2.0, 4.0, 5.0]:
                 number += 1
                 param = {'long_term': long_term, 'short_term': short_term, 'slope_tap': tap, 'slope_threshold': threshold}
                 MAGAP(data, long_term, short_term, tap, timeframe)
@@ -371,7 +371,7 @@ def sim_opt(root, symbol, timeframe, title, data, limit):
                 df , summary, curve = r
                 p, columns = expand('magap', param)
                 out.append([number] + p + list(summary))
-                if summary[1]> limit:
+                if summary[0] > 200 and summary[1]> limit:
                     print(summary)
                     print(param)
                     path = f'profit_curve_#{number}_{title}.png'
