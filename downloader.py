@@ -93,7 +93,7 @@ def save_data():
     month_to = 8
     loader = DataLoader()
     for symbol in all_symbols():
-        for tf in ['M1', 'M5', 'M15', 'M30', 'H1']:
+        for tf in ['M1', 'M5', 'M15', 'M30', 'H1', 'H4']:
             n, data = loader.load_data(symbol, tf, year_from, month_from, year_to, month_to)
             os.makedirs('./data', exist_ok=True)
             save('./data/Axiory/' + symbol + '_' + tf + ".pkl", data)

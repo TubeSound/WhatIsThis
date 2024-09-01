@@ -24,7 +24,7 @@ UTC = tz.gettz('utc')
 from common import Indicators, Signal
 from candle_chart import CandleChart, makeFig, gridFig
 from utils import TimeUtils
-from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, TREND_MA, detect_gap_cross
+from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, detect_gap_cross
 
 
 cmap = plt.get_cmap("tab10")
@@ -178,16 +178,13 @@ def main4():
 def main5():
     symbols = ['NIKKEI', 'DOW', 'SP', 'NSDQ', 'USDJPY', 'XAUUSD']
     #symbols = ['DOW']
-    timeframe = 'H1'
+    timeframe = 'M30'
     data = {}
     atrp_threshold=0.1
     for symbol in symbols:
         data0 = from_pickle(symbol, timeframe, axiory=True)
-        SUPERTREND(data0, 40, 2.5, 25)
-        SUPERTREND_SIGNAL(data0, 0)
         ATRP(data0, 40, ma_window=40)
         MA(data0, 4 * 24 * 2, 4 * 8)
-        FILTER_MA(data0, data0['MA_LONG'], data0['MA_SHORT'])
         data[symbol] = data0
 
     dic = {}        
@@ -198,13 +195,10 @@ def main5():
             n, d1 = TimeUtils.slice(d, d['jst'], t0, t1)
             dic[symbol] = d1
             signals = []
-            if symbol == 'DOWx':
-                signal = detect_signal(d1[Indicators.SUPERTREND_SIGNAL], d1[Indicators.FILTER_MA])
-                signals.append(signal)
         plot_atrp(dic, signals, year, 'DOW', timeframe, t0, t1)
     
 def plot_atrp(dic, signals, year, symbol, timeframe, t0, t1):
-    fig, axes = gridFig([5, 2, 1], (20, 12))
+    fig, axes = gridFig([5, 3], (20, 12))
     i = 0
     for symb, data in dic.items():
         jst = data['jst']
@@ -213,13 +207,14 @@ def plot_atrp(dic, signals, year, symbol, timeframe, t0, t1):
         if symb == symbol:
             candle = CandleChart(fig, axes[0])
             candle.drawCandle(jst, data['open'], data['high'], data['low'], data['close'])
-            candle.drawLine(jst, data[Indicators.SUPERTREND_U], color='green', linewidth=2.0)
-            candle.drawLine(jst, data[Indicators.SUPERTREND_L], color='red', linewidth=2.0)
+            #candle.drawLine(jst, data[Indicators.SUPERTREND_U], color='green', linewidth=2.0)
+            #candle.drawLine(jst, data[Indicators.SUPERTREND_L], color='red', linewidth=2.0)
             candle.drawLine(jst, data['MA_LONG'], color='purple')
             candle.drawLine(jst, data['MA_SHORT'], color='orange')
             #axes[0].plot(jst, cl, label=symbol, color=cmap(i))
         axes[1].plot(jst, atrp, color=cmap(i), label=symb, alpha=0.95)
-        axes[2].plot(jst, data[Indicators.FILTER_MA], color='red')
+        axes[1].hlines(0.5, jst[0], jst[-1], color='yellow', linewidth=2.0)
+        #axes[2].plot(jst, data[Indicators.FILTER_MA], color='red')
         i += 1
         
     for signal in signals:
@@ -233,10 +228,11 @@ def plot_atrp(dic, signals, year, symbol, timeframe, t0, t1):
     [ax.legend() for ax in axes]
     [ax.set_xlim(t0, t1) for ax in axes]
     candle.xlimit((t0, t1))
-    axes[1].set_ylim(0, 0.4)
+    axes[1].set_ylim(0, 1.0)
     axes[1].set_title('ATRP')
-    axes[2].set_title('FILTER_MA_ATRP')
     axes[0].set_title(timeframe)
+    os.makedirs('./report/ATRP', exist_ok=True)
+    fig.savefig('./report/ATRP/' + f'{year}_H1.png')
     
 
 def detect_signal(signal, entry_filter):
@@ -322,6 +318,6 @@ def calc_profit(data, long, short):
     
     
 if __name__ == '__main__':
-    main6()
+    main5()
     
 

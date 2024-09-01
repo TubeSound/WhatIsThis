@@ -358,7 +358,7 @@ def sim_opt(root, symbol, timeframe, title, data, limit):
     tap = 8
     for p1 in [1, 2, 3, 4]:
         long_term = int(p1 * 4 * 24)
-        for p2 in range(1, 40, 2):
+        for p2 in range(2, 20, 2):
             short_term = int(p2 * 4)
             for threshold in [0.05, 0.1, 0.2, 0.3, 0.5, 1.0, 2.0, 4.0, 5.0]:
                 number += 1
