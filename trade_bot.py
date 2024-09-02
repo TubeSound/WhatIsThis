@@ -203,8 +203,8 @@ class TradeBot:
             current_index = self.buffer.last_index()
             save(self.buffer.data, './debug/update_' + self.symbol + '_' + datetime.now().strftime('%Y-%m-%d_%H_%M_%S') + '.xlsx')
             #self.check_timeup(current_index)
-            entry_signal = self.buffer.data[self.entry_column]
-            exit_signal = self.buffer.data[self.exit_column]
+            entry_signal = self.buffer.data[self.entry_column][-1]
+            exit_signal = self.buffer.data[self.exit_column][-1]
             if exit_signal > 0:
                 positions = self.trade_manager.open_positions()
                 if len(positions) > 0:
@@ -228,15 +228,18 @@ class TradeBot:
             os.makedirs('./debug', exist_ok=True)
             save(self.buffer.data, './debug/update_' + self.symbol + '_' + datetime.now().strftime('%Y-%m-%d_%H_%M_%S') + '.xlsx')
             #self.check_timeup(current_index)
-            entry_sig, do_exit = self.detect_doten(self.buffer.data)
-            if do_exit:
+            entry_signal = self.buffer.data[self.entry_column][-1]
+            exit_signal = self.buffer.data[self.exit_column][-1]
+            if exit_signal > 0:
                 positions = self.trade_manager.open_positions()
-                self.close_positions(positions)
-            if entry_sig == Signal.LONG or entry_sig == Signal.SHORT:
-                self.debug_print('<Signal> ', sig)
-                self.entry(self.buffer.data, sig, current_index, current_time)
+                if len(positions) > 0:
+                    self.close_positions(positions)
+            if entry_signal == Signal.LONG or entry_signal == Signal.SHORT:
+                self.debug_print('<Entry Signal:> ', entry_signal)
+                self.entry(self.buffer.data, entry_signal, current_index, current_time)
         return n
     
+            
                 
     def mt5_position_num(self):
         positions = self.mt5.get_positions()

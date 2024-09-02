@@ -1,5 +1,6 @@
 import os
 import shutil
+import glob
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta, timezone
@@ -112,9 +113,25 @@ def load_backtest_market():
     arrange(data)
     save('./data/BacktestMarket/BM_spi500_H1.pkl', data)
     
+    
+def load_225labo():
+    dirpath = './data/225labo'
+    files = glob.glob(os.path.join(dirpath, 'csv/*.csv'))
+    dfs = []
+    for file in files:
+        df = pd.read_csv(file)
+        dfs.append(df)
+    df = pd.concat(dfs)
+    
+    time = df['jst'].to_list()
+    jst = [datetime.strptime(tstr, '%Y/%m/%d %H:%M') for tstr in time]
+    df['jst'] = jst
+
+    save(os.path.join(dirpath, 'nikkei225f_h1.pkl'), df)    
+    
 if __name__ == '__main__':
-    load_backtest_market()
-        
+    #load_backtest_market()
+    load_225labo()   
         
         
         
