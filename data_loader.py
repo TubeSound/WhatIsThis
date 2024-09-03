@@ -113,6 +113,10 @@ def load_backtest_market():
     arrange(data)
     save('./data/BacktestMarket/BM_spi500_H1.pkl', data)
     
+
+def to_float(array):
+    return [float(v) for v in array]
+    
     
 def load_225labo():
     dirpath = './data/225labo'
@@ -123,11 +127,20 @@ def load_225labo():
         dfs.append(df)
     df = pd.concat(dfs)
     
+    df = df.sort_values('jst')
+    
     time = df['jst'].to_list()
-    jst = [datetime.strptime(tstr, '%Y/%m/%d %H:%M') for tstr in time]
-    df['jst'] = jst
+    jst = [datetime.strptime(tstr, '%Y/%m/%d %H:%M').astimezone(JST) for tstr in time]
+    
+    data = {}    
+    data['jst'] = jst
+    data['open'] = to_float(df['open'])
+    data['high'] = to_float(df['high'])
+    data['low'] = to_float(df['low'])
+    data['close'] = to_float(df['close'])
+    data['volume'] = to_float(df['volume'])
 
-    save(os.path.join(dirpath, 'nikkei225f_h1.pkl'), df)    
+    save(os.path.join(dirpath, 'nikkei225f_h1.pkl'), data)    
     
 if __name__ == '__main__':
     #load_backtest_market()

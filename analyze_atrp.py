@@ -29,12 +29,14 @@ from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, dete
 
 cmap = plt.get_cmap("tab10")
 
-def from_pickle(symbol, timeframe, axiory=False):
+def from_pickle(symbol, timeframe, source='Axiory'):
     import pickle
     symbol = symbol.lower()
     timeframe = timeframe.upper()
-    if axiory:
-        filepath = f'./data/Axiory/{symbol}_{timeframe}.pkl'
+    if source=='Axiory':
+        filepath = f'./data/{source}/{symbol}_{timeframe}.pkl'
+    elif source=='225labo' and symbol == 'nikkei' and timeframe == 'H1':
+        filepath = f'./data/{source}/nikkei225f_h1.pkl'
     else:
         filepath = f'./data/BacktestMarket/BM_{symbol}_{timeframe}.pkl'
     with open(filepath, 'rb') as f:
@@ -177,12 +179,12 @@ def main4():
     
 def main5():
     symbols = ['NIKKEI', 'DOW', 'SP', 'NSDQ', 'USDJPY', 'XAUUSD']
-    #symbols = ['DOW']
-    timeframe = 'M30'
+    symbols = ['NIKKEI']
+    timeframe = 'H1'
     data = {}
     atrp_threshold=0.1
     for symbol in symbols:
-        data0 = from_pickle(symbol, timeframe, axiory=True)
+        data0 = from_pickle(symbol, timeframe, source='225labo')
         ATRP(data0, 40, ma_window=40)
         MA(data0, 4 * 24 * 2, 4 * 8)
         data[symbol] = data0
@@ -195,7 +197,7 @@ def main5():
             n, d1 = TimeUtils.slice(d, d['jst'], t0, t1)
             dic[symbol] = d1
             signals = []
-        plot_atrp(dic, signals, year, 'DOW', timeframe, t0, t1)
+        plot_atrp(dic, signals, year, 'NIKKEI', timeframe, t0, t1)
     
 def plot_atrp(dic, signals, year, symbol, timeframe, t0, t1):
     fig, axes = gridFig([5, 3], (20, 12))
@@ -228,7 +230,7 @@ def plot_atrp(dic, signals, year, symbol, timeframe, t0, t1):
     [ax.legend() for ax in axes]
     [ax.set_xlim(t0, t1) for ax in axes]
     candle.xlimit((t0, t1))
-    axes[1].set_ylim(0, 1.0)
+    axes[1].set_ylim(0, 4.0)
     axes[1].set_title('ATRP')
     axes[0].set_title(timeframe)
     os.makedirs('./report/ATRP', exist_ok=True)
