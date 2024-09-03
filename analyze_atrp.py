@@ -190,7 +190,7 @@ def main5():
         data[symbol] = data0
 
     dic = {}        
-    for year in range(2020, 2025):
+    for year in range(2008, 2025):
         for symbol, d in data.items():
             t0 = datetime(year, 1, 1).astimezone(JST)
             t1 = datetime(year, 12, 31).astimezone(JST)
