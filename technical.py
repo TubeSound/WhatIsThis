@@ -2,6 +2,7 @@ import numpy as np
 import math
 import statistics as stat
 from scipy.stats import rankdata
+from scipy.signal import find_peaks
 from sklearn.cluster import KMeans 
 from common import Indicators, Signal, Columns, UP, DOWN, HIGH, LOW, HOLD
 from datetime import datetime, timedelta
@@ -1100,13 +1101,14 @@ def MAGAP_SIGNAL(data, threshold):
     ma_long = data[Indicators.MA_LONG]
     ma_short = data[Indicators.MA_SHORT]
     slope = data[Indicators.MAGAP_SLOPE]
-    xup, xdown = detect_gap_cross(data, ma_long, ma_short, slope, threshold)
+    gap = data[Indicators.MAGAP]
+    xup, xdown = detect_gap_cross(gap, slope, threshold)
     jst = data[Columns.JST]
     n = len(jst)
     sig = full(n, 0)
-    for x in xup:
+    for x, _ in xup:
         sig[x] = 1 
-    for x in xdown:
+    for x, _ in xdown:
         sig[x] = -1 
     entry = full(n, 0)
     ext = full(n, 0)
@@ -1122,19 +1124,19 @@ def MAGAP_SIGNAL(data, threshold):
     data[Indicators.MAGAP_ENTRY] = entry
     data[Indicators.MAGAP_EXIT] = ext
     
-def detect_gap_cross(data, ma_long, ma_short, slope, threshold):
+def detect_gap_cross(gap, slope, threshold):
     xup = []
     xdown = []
-    n = len(ma_long)
+    n = len(gap)
     for i in range(1, n):
-        if ma_short[i - 1] < ma_long[i - 1] and ma_short[i] >= ma_long[i] :
+        if gap[i - 1] < 0 and gap[i] >= 0:
             #print('xup', jst[i], slope[i])
             if slope[i] > threshold:
-                xup.append(i)
-        if ma_short[i - 1] > ma_long[i - 1] and ma_short[i] <= ma_long[i] :
+                xup.append([i, slope[i]])
+        if gap[i - 1] > 0 and gap[i] <= 0:
             #print('xdown', jst[i], slope[i])
             if slope[i] < - threshold:
-                xdown.append(i)
+                xdown.append([i, slope[i]])
     return xup, xdown
     
 def detect_trend_term(vector):
@@ -1170,6 +1172,10 @@ def diff(data: dict, column: str):
         dt = time[i] - time[i - 1]
         out[i] = (signal[i] - signal[i - 1]) / signal[i - 1] / (dt.seconds / 60) * 100.0
     return out
+
+def detect_peaks(vector):
+   peaks, _ = find_peaks(vector, plateau_size=1)
+   return peaks
 
 def test():
     sig = [29301.79, 29332.16, 28487.87, 28478.56, 28222.48,

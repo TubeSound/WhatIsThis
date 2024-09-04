@@ -25,23 +25,11 @@ from common import Indicators, Signal
 from candle_chart import CandleChart, makeFig, gridFig
 from utils import TimeUtils
 from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, detect_gap_cross
-
+from data_loader import from_pickle
 
 cmap = plt.get_cmap("tab10")
 
-def from_pickle(symbol, timeframe, source='Axiory'):
-    import pickle
-    symbol = symbol.lower()
-    timeframe = timeframe.upper()
-    if source=='Axiory':
-        filepath = f'./data/{source}/{symbol}_{timeframe}.pkl'
-    elif source=='225labo' and symbol == 'nikkei' and timeframe == 'H1':
-        filepath = f'./data/{source}/nikkei225f_h1.pkl'
-    else:
-        filepath = f'./data/BacktestMarket/BM_{symbol}_{timeframe}.pkl'
-    with open(filepath, 'rb') as f:
-        data0 = pickle.load(f)
-    return data0
+
 
     
     
@@ -178,13 +166,13 @@ def main4():
         
     
 def main5():
-    symbols = ['NIKKEI', 'DOW', 'SP', 'NSDQ', 'USDJPY', 'XAUUSD']
-    symbols = ['NIKKEI']
+    symbols = ['NIKKEI', 'DOW', 'SP', 'FTSE', 'DAX', 'USDJPY', 'XAUUSD']
+    #symbols = ['NIKKEI']
     timeframe = 'H1'
     data = {}
     atrp_threshold=0.1
     for symbol in symbols:
-        data0 = from_pickle(symbol, timeframe, source='225labo')
+        data0 = from_pickle(symbol, timeframe, source='Axiory')
         ATRP(data0, 40, ma_window=40)
         MA(data0, 4 * 24 * 2, 4 * 8)
         data[symbol] = data0
@@ -230,9 +218,9 @@ def plot_atrp(dic, signals, year, symbol, timeframe, t0, t1):
     [ax.legend() for ax in axes]
     [ax.set_xlim(t0, t1) for ax in axes]
     candle.xlimit((t0, t1))
-    axes[1].set_ylim(0, 4.0)
+    axes[1].set_ylim(0, 2.0)
     axes[1].set_title('ATRP')
-    axes[0].set_title(timeframe)
+    axes[0].set_title(symbol + ' '  + timeframe)
     os.makedirs('./report/ATRP', exist_ok=True)
     fig.savefig('./report/ATRP/' + f'{year}_H1.png')
     

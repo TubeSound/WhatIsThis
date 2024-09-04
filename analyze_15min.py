@@ -21,9 +21,11 @@ from dateutil import tz
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
 
+from common import Columns, Indicators
 from candle_chart import CandleChart, makeFig, gridFig
 from utils import TimeUtils
-from technical import sma
+from data_loader import from_pickle
+from technical import sma, MAGAP, MAGAP_SIGNAL, SUPERTREND, SUPERTREND_SIGNAL, detect_gap_cross, detect_peaks
 
 
 def round_time(time, interval_sec):
@@ -72,12 +74,7 @@ def save(filepath, obj):
     with open(filepath, mode='wb') as f:
         pickle.dump(obj, f)
 
-def from_pickle():
-    import pickle
-    filepath = './data/BacktestMarket/BM_dji_15min.pkl'
-    with open(filepath, 'rb') as f:
-        data0 = pickle.load(f)
-    return data0
+
 
 def arrange():
     
@@ -99,23 +96,53 @@ def arrange():
     
     
 def main():
-     
-    data0 = from_pickle()
+    symbol = 'NIKKEI'
+    timeframe = 'M15'     
+    data0 = from_pickle(symbol, timeframe)
     jst = data0['jst']
+    t0 = datetime(2024, 8, 1).astimezone(JST)
+    t1 = datetime(2024, 9, 30).astimezone(JST)
+    n, data1 = TimeUtils.slice(data0, jst, t0, t1)
+    MAGAP(data1, 4 * 24 * 4, 4 * 8, 8, timeframe)
+    MAGAP_SIGNAL(data1, 0.1)
+    SUPERTREND(data1, 40, 3.0)
+    SUPERTREND_SIGNAL(data1, 7)
+    t0 = datetime(2024, 8, 25).astimezone(JST)
+    t1 = datetime(2024, 9, 6,).astimezone(JST)
+    n, data = TimeUtils.slice(data1, data1['jst'], t0, t1)
+    jst = data['jst']
+    cl = data[Columns.CLOSE]
+    trend = data[Indicators.SUPERTREND]
+    gap = data[Indicators.MAGAP]
+    xup, xdown = detect_gap_cross(gap, data[Indicators.MAGAP_SLOPE], 0)
+    peaks = detect_peaks(gap)
     
-    t0 = datetime(2024, 8, 5, 15, 0).astimezone(JST)
-    t1 = datetime(2024, 8, 6, 12, 0).astimezone(JST)
-    n, data = TimeUtils.slice(data0, jst, t0, t1)
+    fig, axes = gridFig([5, 2, 2], (12, 6))
+    axes[0].plot(jst, cl, color='blue')
+    axes[0].plot(jst, data[Indicators.SUPERTREND_U], color='green', linewidth=2.0)
+    axes[0].plot(jst, data[Indicators.SUPERTREND_L], color='red', linewidth=2.0)
+    axes[1].plot(jst, gap, color='blue')
+    axes[2].plot(jst, trend, color='orange')
+    
+    for i, value in xup:
+        axes[1].scatter(jst[i], gap[i], mark='^', color='green', alpha=0.4, s=200)
+        axes[1].text(jst[i - 10], gap[i] + 2.0, str(value))
+        
+    for i, value in xdown:
+        axes[1].scatter(jst[i], gap[i], mark='v', color='red', alpha=0.4, s=200)
+        axes[1].text(jst[i - 10], gap[i] + 2.0, str(value))
+        
+    for i in peaks:
+        axes[1].scatter(jst[i], gap[i], mark='o', color='purple', alpha=0.2, s=200)
+    
+    for i in range(1, 2):
+        axes[i].hlines(0.0, jst[0], jst[1], color='black')
 
-    fig, ax = plt.subplots(1, 1, figsize=(12, 5))
-    chart = CandleChart(fig, ax, date_format='%d/%H:%M')
-    chart.drawCandle(data['jst'], data['open'], data['high'], data['low'], data['close'], xlabel=True)
-    #ma = sma(data['close'], 5)
-    #chart.drawLine(data['jst'], ma)
-    ax.legend()
-    locator = mdates.AutoDateLocator(minticks=6, maxticks=10)
-    ax.xaxis.set_major_locator(locator)
-
+    for ax in axes:
+        ax.legend()
+        ax.set_xlim(jst[0], jst[-1])
+        ax.grid()
+    
 
 
 def test():

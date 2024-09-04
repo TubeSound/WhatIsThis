@@ -9,6 +9,20 @@ JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc') 
 from common import Columns
 
+def from_pickle(symbol, timeframe, source='Axiory'):
+    import pickle
+    symbol = symbol.lower()
+    timeframe = timeframe.upper()
+    if source=='Axiory':
+        filepath = f'./data/{source}/{symbol}_{timeframe}.pkl'
+    elif source=='225labo' and symbol == 'nikkei' and timeframe == 'H1':
+        filepath = f'./data/{source}/nikkei225f_h1.pkl'
+    else:
+        filepath = f'./data/BacktestMarket/BM_{symbol}_{timeframe}.pkl'
+    with open(filepath, 'rb') as f:
+        data0 = pickle.load(f)
+    return data0
+
 class DataLoader:
     def server_time_str_2_datetime(self, server_time_str_list, server_timezone, format='%Y-%m-%d %H:%M:%S'):
         t_utc = []
