@@ -117,7 +117,7 @@ def main():
     xup, xdown = detect_gap_cross(gap, data[Indicators.MAGAP_SLOPE], 0)
     peaks = detect_peaks(gap)
     
-    fig, axes = gridFig([5, 2, 2], (12, 6))
+    fig, axes = gridFig([5, 4, 1], (20, 12))
     axes[0].plot(jst, cl, color='blue')
     axes[0].plot(jst, data[Indicators.SUPERTREND_U], color='green', linewidth=2.0)
     axes[0].plot(jst, data[Indicators.SUPERTREND_L], color='red', linewidth=2.0)
@@ -125,18 +125,18 @@ def main():
     axes[2].plot(jst, trend, color='orange')
     
     for i, value in xup:
-        axes[1].scatter(jst[i], gap[i], mark='^', color='green', alpha=0.4, s=200)
-        axes[1].text(jst[i - 10], gap[i] + 2.0, str(value))
+        axes[1].scatter(jst[i], gap[i], marker='^', color='green', alpha=0.4, s=200)
+        axes[1].text(jst[i - 10], gap[i] + 2.0, str(value)[:5])
         
     for i, value in xdown:
-        axes[1].scatter(jst[i], gap[i], mark='v', color='red', alpha=0.4, s=200)
-        axes[1].text(jst[i - 10], gap[i] + 2.0, str(value))
+        axes[1].scatter(jst[i], gap[i], marker='v', color='red', alpha=0.4, s=200)
+        axes[1].text(jst[i - 10], gap[i] + 1.0, str(value)[:5])
         
     for i in peaks:
-        axes[1].scatter(jst[i], gap[i], mark='o', color='purple', alpha=0.2, s=200)
+        axes[1].scatter(jst[i], gap[i], marker='o', color='purple', alpha=0.2, s=200)
     
     for i in range(1, 2):
-        axes[i].hlines(0.0, jst[0], jst[1], color='black')
+        axes[i].hlines(0.0, jst[0], jst[1], color='yellow')
 
     for ax in axes:
         ax.legend()
