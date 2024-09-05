@@ -100,40 +100,42 @@ def main():
     timeframe = 'M15'     
     data0 = from_pickle(symbol, timeframe)
     jst = data0['jst']
-    t0 = datetime(2024, 8, 1).astimezone(JST)
+    t0 = datetime(2024, 7, 1).astimezone(JST)
     t1 = datetime(2024, 9, 30).astimezone(JST)
     n, data1 = TimeUtils.slice(data0, jst, t0, t1)
-    MAGAP(data1, 4 * 24 * 4, 4 * 8, 8, timeframe)
+    MAGAP(data1, 4 * 24 * 2, 4 * 16, 16, timeframe)
     MAGAP_SIGNAL(data1, 0.1)
     SUPERTREND(data1, 40, 3.0)
     SUPERTREND_SIGNAL(data1, 7)
-    t0 = datetime(2024, 8, 25).astimezone(JST)
+    t0 = datetime(2024, 7, 20).astimezone(JST)
     t1 = datetime(2024, 9, 6,).astimezone(JST)
     n, data = TimeUtils.slice(data1, data1['jst'], t0, t1)
     jst = data['jst']
     cl = data[Columns.CLOSE]
     trend = data[Indicators.SUPERTREND]
     gap = data[Indicators.MAGAP]
-    xup, xdown = detect_gap_cross(gap, data[Indicators.MAGAP_SLOPE], 0)
+    xup, xdown = detect_gap_cross(gap, data[Indicators.MAGAP_SLOPE], 0.05)
     peaks = detect_peaks(gap)
     
     fig, axes = gridFig([5, 4, 1], (20, 12))
     axes[0].plot(jst, cl, color='blue')
-    axes[0].plot(jst, data[Indicators.SUPERTREND_U], color='green', linewidth=2.0)
-    axes[0].plot(jst, data[Indicators.SUPERTREND_L], color='red', linewidth=2.0)
+    axes[0].plot(jst, data[Indicators.MA_LONG], color='orange')
+    axes[0].plot(jst, data[Indicators.MA_SHORT], color='red')
+    axes[0].plot(jst, data[Indicators.SUPERTREND_U], color='green', linewidth=1.0)
+    axes[0].plot(jst, data[Indicators.SUPERTREND_L], color='red', linewidth=1.0)
     axes[1].plot(jst, gap, color='blue')
     axes[2].plot(jst, trend, color='orange')
     
     for i, value in xup:
         axes[1].scatter(jst[i], gap[i], marker='^', color='green', alpha=0.4, s=200)
-        axes[1].text(jst[i - 10], gap[i] + 2.0, str(value)[:5])
+        axes[1].text(jst[i - 20], gap[i] + 1.0, str(value)[:5])
         
     for i, value in xdown:
         axes[1].scatter(jst[i], gap[i], marker='v', color='red', alpha=0.4, s=200)
-        axes[1].text(jst[i - 10], gap[i] + 1.0, str(value)[:5])
+        axes[1].text(jst[i - 20], gap[i] - 1.0, str(value)[:5])
         
     for i in peaks:
-        axes[1].scatter(jst[i], gap[i], marker='o', color='purple', alpha=0.2, s=200)
+        axes[1].scatter(jst[i], gap[i], marker='o', color='gray', alpha=0.2, s=50)
     
     for i in range(1, 2):
         axes[i].hlines(0.0, jst[0], jst[1], color='yellow')
@@ -142,6 +144,8 @@ def main():
         ax.legend()
         ax.set_xlim(jst[0], jst[-1])
         ax.grid()
+        
+    fig.savefig('./debug/magap_chart.png')
     
 
 
