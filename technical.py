@@ -1003,6 +1003,7 @@ def SUPERTREND(data: dict,  atr_window: int, multiply, column=Columns.MID):
     price = data[column]
     n = len(time)
     atr = calc_atr(data, atr_window)
+    ATRP(data, atr_window, atr_window)
     atr_u, atr_l = band(data[column], atr, multiply)
     data[Indicators.ATR_UPPER] = atr_u
     data[Indicators.ATR_LOWER] = atr_l
@@ -1096,8 +1097,44 @@ def MAGAP(data: dict, long_term, short_term, tap, timeframe):
     for i in range(10, n):
         slope[i] = (gap[i] - gap[i - tap + 1]) / hour
     data[Indicators.MAGAP_SLOPE] = slope
+ 
+def MAGAP_SIGNAL(data, threshold, level):
+    gap = data[Indicators.MAGAP]
+    up, down, sig = detect_gap_breakout(gap, 7, 3, threshold, level)
+    return up, down
     
-def MAGAP_SIGNAL(data, threshold):
+ 
+def detect_gap_breakout(gap, term1, term2, threshold, level):
+    term = term1 + term2
+    n = len(gap)
+    signal = full(n, 0)
+    for i in range(term - 1, n):
+        d = gap[i - term + 1: i - term + term1]
+        height = max(d) - min(d)
+        if height < threshold:
+            if gap[i] >= max(d) + threshold:
+                signal[i] = Signal.LONG
+            elif gap[i] <=  min(d) - threshold:
+                signal[i] = Signal.SHORT
+    
+    current = 0 
+    up = []
+    down = []
+    for i in range(n):
+        if signal[i] == 0:
+            continue
+        if current != signal[i]:
+            current = signal[i]
+            if signal[i] == Signal.LONG:
+                if gap[i] > level or gap[i] < -level:
+                    up.append(i)
+            elif signal[i] == Signal.SHORT:
+                if gap[i] > level or gap[i] < -level:
+                    down.append(i)
+    return up, down, signal
+
+    
+def MAGAP_SIGNAL2(data, threshold):
     ma_long = data[Indicators.MA_LONG]
     ma_short = data[Indicators.MA_SHORT]
     slope = data[Indicators.MAGAP_SLOPE]
@@ -1123,6 +1160,7 @@ def MAGAP_SIGNAL(data, threshold):
             ext[i] = 1
     data[Indicators.MAGAP_ENTRY] = entry
     data[Indicators.MAGAP_EXIT] = ext
+    
     
 def detect_gap_cross(gap, slope, threshold):
     xup = []

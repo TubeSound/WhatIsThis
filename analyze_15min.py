@@ -100,52 +100,80 @@ def main():
     timeframe = 'M15'     
     data0 = from_pickle(symbol, timeframe)
     jst = data0['jst']
-    t0 = datetime(2024, 7, 1).astimezone(JST)
-    t1 = datetime(2024, 9, 30).astimezone(JST)
-    n, data1 = TimeUtils.slice(data0, jst, t0, t1)
-    MAGAP(data1, 4 * 24 * 2, 4 * 16, 16, timeframe)
-    MAGAP_SIGNAL(data1, 0.1)
-    SUPERTREND(data1, 40, 3.0)
-    SUPERTREND_SIGNAL(data1, 7)
-    t0 = datetime(2024, 7, 20).astimezone(JST)
-    t1 = datetime(2024, 9, 6,).astimezone(JST)
-    n, data = TimeUtils.slice(data1, data1['jst'], t0, t1)
+    
+    for year in range(2019, 2025):
+        t0 = datetime(year, 1, 1).astimezone(JST)
+        t1 = datetime(year, 12, 31).astimezone(JST)
+        n, data1 = TimeUtils.slice(data0, jst, t0, t1)
+        if n < 100:
+            continue
+        MAGAP(data1, 4 * 24 * 2, 4 * 16, 16, timeframe)
+        SUPERTREND(data1, 40, 3.0)
+        SUPERTREND_SIGNAL(data1, 7)
+        calc(data1, symbol, timeframe, year)
+    
+def calc(data, symbol, timeframe, year):
+    for month in range(1, 13):
+        t0 = datetime(year, month, 1).astimezone(JST)
+        t1 = t0 + timedelta(days=31)
+        n, data1 = TimeUtils.slice(data, data['jst'], t0, t1)
+        if n > 50:
+            plot(data1, symbol, timeframe, year, month)
+    
+    
+def plot(data, symbol, timeframe, year, month):
     jst = data['jst']
     cl = data[Columns.CLOSE]
     trend = data[Indicators.SUPERTREND]
+    atrp = data[Indicators.ATRP]
     gap = data[Indicators.MAGAP]
+    up, down = MAGAP_SIGNAL(data, 0.1, 1.0)
     xup, xdown = detect_gap_cross(gap, data[Indicators.MAGAP_SLOPE], 0.05)
     peaks = detect_peaks(gap)
     
-    fig, axes = gridFig([5, 4, 1], (20, 12))
-    axes[0].plot(jst, cl, color='blue')
-    axes[0].plot(jst, data[Indicators.MA_LONG], color='orange')
+    fig, axes = gridFig([4, 4, 2], (20, 12))
+    axes[0].scatter(jst, cl, color='cyan', alpha=0.1, s=5)
+    axes[0].plot(jst, data[Indicators.MA_LONG], color='blue')
     axes[0].plot(jst, data[Indicators.MA_SHORT], color='red')
-    axes[0].plot(jst, data[Indicators.SUPERTREND_U], color='green', linewidth=1.0)
-    axes[0].plot(jst, data[Indicators.SUPERTREND_L], color='red', linewidth=1.0)
+    axes[0].plot(jst, data[Indicators.SUPERTREND_U], color='green', linestyle='dotted', linewidth=2.0)
+    axes[0].plot(jst, data[Indicators.SUPERTREND_L], color='red', linestyle='dotted', linewidth=2.0)
     axes[1].plot(jst, gap, color='blue')
-    axes[2].plot(jst, trend, color='orange')
+    #ax = plt.twinx(axes[1])
+    #ax.scatter(jst, cl, color='cyan', alpha=0.1, s=5)
+    axes[2].plot(jst, atrp, color='orange')
     
     for i, value in xup:
         axes[1].scatter(jst[i], gap[i], marker='^', color='green', alpha=0.4, s=200)
-        axes[1].text(jst[i - 20], gap[i] + 1.0, str(value)[:5])
+        axes[1].text(jst[i - 50], gap[i] + 1.0, str(value)[:5])
         
     for i, value in xdown:
         axes[1].scatter(jst[i], gap[i], marker='v', color='red', alpha=0.4, s=200)
-        axes[1].text(jst[i - 20], gap[i] - 1.0, str(value)[:5])
+        axes[1].text(jst[i - 30], gap[i] - 1.0, str(value)[:5])
         
-    for i in peaks:
-        axes[1].scatter(jst[i], gap[i], marker='o', color='gray', alpha=0.2, s=50)
+    for i in up:
+        axes[1].scatter(jst[i], gap[i], marker='^', color='gray', alpha=0.8, s=100)
+        
+    for i in down:
+        axes[1].scatter(jst[i], gap[i], marker='v', color='gray', alpha=0.8, s=100)
     
     for i in range(1, 2):
-        axes[i].hlines(0.0, jst[0], jst[1], color='yellow')
+        axes[i].hlines(0.0, jst[0], jst[-1], color='yellow')
 
     for ax in axes:
         ax.legend()
         ax.set_xlim(jst[0], jst[-1])
         ax.grid()
-        
-    fig.savefig('./debug/magap_chart.png')
+    axes[1].set_ylim(-7.0, 7.0)
+    axes[2].set_ylim(0, 2.0)
+    title = f'{symbol} {timeframe} {year}/{month}'
+    axes[0].set_title(title)
+    axes[1].set_title('MAGAP')
+    axes[2].set_title('ATR')
+    dirpath = f'./chart/{symbol}/{timeframe}'
+    os.makedirs(dirpath, exist_ok=True)
+    name = f'magap_chart_{symbol}_{timeframe}_{year}_{month}.png'
+    fig.savefig(os.path.join(dirpath, name))
+    #plt.close(fig)
     
 
 
