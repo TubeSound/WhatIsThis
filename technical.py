@@ -1162,7 +1162,7 @@ def MAGAP_SIGNAL2(data, threshold):
     data[Indicators.MAGAP_EXIT] = ext
     
     
-def detect_gap_cross(gap, slope, threshold, delays=[0, 4, 8]):
+def detect_gap_cross(gap, slope, threshold, delays=[8]):
     xup = []
     xdown = []
     n = len(gap)
@@ -1176,8 +1176,10 @@ def detect_gap_cross(gap, slope, threshold, delays=[0, 4, 8]):
             #print('xdown', jst[i], slope[i])
                 if slope[i] < - threshold:
                     xdown.append(i)
+                    
     xup = list(set(xup))
     xdown = list(set(xdown))
+                    
     return xup, xdown
     
 def detect_trend_term(vector):
