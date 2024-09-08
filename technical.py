@@ -1162,7 +1162,7 @@ def MAGAP_SIGNAL2(data, threshold):
     data[Indicators.MAGAP_EXIT] = ext
     
     
-def detect_gap_cross(gap, slope, threshold, delays=[8]):
+def detect_gap_cross(gap, slope, threshold, delays=[10]):
     xup = []
     xdown = []
     n = len(gap)
