@@ -94,6 +94,22 @@ def arrange():
     
     save('./data/BacktestMarket/BM_dji_15min.pkl', data0)
     
+def expand(name: str, dic: dict):
+    data = []
+    columns = []
+    for key, value in dic.items():
+        if name == '':
+            column = key
+        else:
+            column = name + '.' + key
+        if type(value) == dict:
+            d, c = expand(column, value)                    
+            data += d
+            columns += c
+        else:
+            data.append(value)
+            columns.append(column)
+    return data, columns         
     
 def main():
     symbol = 'NIKKEI'
@@ -101,40 +117,59 @@ def main():
     data0 = from_pickle(symbol, timeframe)
     jst = data0['jst']
     
+    technical_param = {'MAGAP': {'long_term': 4 * 24 * 2 ,
+                                 'short_term': 4 * 16,
+                                 'tap': 16, 
+                                 'level': 0.1, 
+                                 'threshold': 0.1,
+                                  'slope_threshold': 0.01},
+                       'SUPERTREND': { 'atr_window': 40,
+                                      'atr_multiply': 3.0,
+                                      'short_term': 7
+                                      }
+                       
+                       }
+    
+    
     for year in range(2019, 2025):
         t0 = datetime(year, 1, 1).astimezone(JST)
         t1 = datetime(year, 12, 31).astimezone(JST)
         n, data1 = TimeUtils.slice(data0, jst, t0, t1)
         if n < 100:
             continue
-        MAGAP(data1, 4 * 24 * 2, 4 * 16, 16, timeframe)
-        SUPERTREND(data1, 40, 3.0)
-        SUPERTREND_SIGNAL(data1, 7)
-        calc(data1, symbol, timeframe, year)
+        param = technical_param['MAGAP']
+        MAGAP(data1, param['long_term'], param['short_term'], param['tap'], timeframe)
+        param = technical_param['SUPERTREND']
+        SUPERTREND(data1, param['atr_window'], param['atr_multiply'])
+        SUPERTREND_SIGNAL(data1, param['short_term'])
+        calc(data1, symbol, timeframe, year, technical_param)
     
-def calc(data, symbol, timeframe, year):
+def calc(data, symbol, timeframe, year, technical_param):
     for month in range(1, 13):
         t0 = datetime(year, month, 1).astimezone(JST)
         t1 = t0 + timedelta(days=31)
         n, data1 = TimeUtils.slice(data, data['jst'], t0, t1)
         if n > 50:
-            plot(data1, symbol, timeframe, year, month)
+            plot(data1, symbol, timeframe, year, month, technical_param)
     
     
-def plot(data, symbol, timeframe, year, month):
+def plot(data, symbol, timeframe, year, month, technical_param):
     jst = data['jst']
     cl = data[Columns.CLOSE]
     trend = data[Indicators.SUPERTREND]
     atrp = data[Indicators.ATRP]
     gap = data[Indicators.MAGAP]
-    up, down = MAGAP_SIGNAL(data, 0.1, 1.0)
-    xup, xdown = detect_gap_cross(gap, data[Indicators.MAGAP_SLOPE], 0.05)
+    slope = data[Indicators.MAGAP_SLOPE]
+    
+    param = technical_param['MAGAP']
+    up, down = MAGAP_SIGNAL(data, param['threshold'], param['level'])
+    xup, xdown = detect_gap_cross(gap, slope, param['slope_threshold'])
     peaks = detect_peaks(gap)
     
-    fig, axes = gridFig([4, 4, 2], (20, 12))
+    fig, axes = gridFig([4, 4, 2], (18, 12))
     axes[0].scatter(jst, cl, color='cyan', alpha=0.1, s=5)
-    axes[0].plot(jst, data[Indicators.MA_LONG], color='blue')
-    axes[0].plot(jst, data[Indicators.MA_SHORT], color='red')
+    axes[0].plot(jst, data[Indicators.MA_LONG], color='blue', label='Long')
+    axes[0].plot(jst, data[Indicators.MA_SHORT], color='red', label='Shor')
     axes[0].plot(jst, data[Indicators.SUPERTREND_U], color='green', linestyle='dotted', linewidth=2.0)
     axes[0].plot(jst, data[Indicators.SUPERTREND_L], color='red', linestyle='dotted', linewidth=2.0)
     axes[1].plot(jst, gap, color='blue')
@@ -142,13 +177,13 @@ def plot(data, symbol, timeframe, year, month):
     #ax.scatter(jst, cl, color='cyan', alpha=0.1, s=5)
     axes[2].plot(jst, atrp, color='orange')
     
-    for i, value in xup:
+    for i in xup:
         axes[1].scatter(jst[i], gap[i], marker='^', color='green', alpha=0.4, s=200)
-        axes[1].text(jst[i - 50], gap[i] + 1.0, str(value)[:5])
+        axes[1].text(jst[i - 50], gap[i] + 1.0, str(slope[i])[:5])
         
-    for i, value in xdown:
+    for i in xdown:
         axes[1].scatter(jst[i], gap[i], marker='v', color='red', alpha=0.4, s=200)
-        axes[1].text(jst[i - 30], gap[i] - 1.0, str(value)[:5])
+        axes[1].text(jst[i - 30], gap[i] - 1.0, str(slope[i])[:5])
         
     for i in up:
         axes[1].scatter(jst[i], gap[i], marker='^', color='gray', alpha=0.8, s=100)
@@ -156,27 +191,26 @@ def plot(data, symbol, timeframe, year, month):
     for i in down:
         axes[1].scatter(jst[i], gap[i], marker='v', color='gray', alpha=0.8, s=100)
     
+    t0 = datetime(year, month, 1)
+    t1 = t0 + timedelta(days=31)
     for i in range(1, 2):
-        axes[i].hlines(0.0, jst[0], jst[-1], color='yellow')
-
+        axes[i].hlines(0.0, t0, t1, color='yellow')
     for ax in axes:
-        ax.legend()
-        ax.set_xlim(jst[0], jst[-1])
+        #ax.legend()
+        ax.set_xlim(t0, t1)
         ax.grid()
-    axes[1].set_ylim(-7.0, 7.0)
+    axes[1].set_ylim(-4.0, 4.0)
     axes[2].set_ylim(0, 2.0)
-    title = f'{symbol} {timeframe} {year}/{month}'
+    title = f'{symbol} {timeframe} {year}/{month} {technical_param}'
     axes[0].set_title(title)
     axes[1].set_title('MAGAP')
-    axes[2].set_title('ATR')
+    axes[2].set_title('ATRP')
     dirpath = f'./chart/{symbol}/{timeframe}'
     os.makedirs(dirpath, exist_ok=True)
     name = f'magap_chart_{symbol}_{timeframe}_{year}_{month}.png'
     fig.savefig(os.path.join(dirpath, name))
     #plt.close(fig)
     
-
-
 def test():
     
     t = datetime(2024, 8, 10, 12, 15, 16)
