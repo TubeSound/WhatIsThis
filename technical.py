@@ -1162,24 +1162,55 @@ def MAGAP_SIGNAL2(data, threshold):
     data[Indicators.MAGAP_EXIT] = ext
     
     
-def detect_gap_cross(gap, slope, threshold, delays=[10]):
-    xup = []
-    xdown = []
+def detect_gap_cross(gap, slope, threshold, delay_max=10):
+    def seek_ahead(vector, value):
+        n = len(vector)
+        for i in range(n):
+            if i == value:
+                return i
+        return None
+        
+        
     n = len(gap)
-    for delay in delays:
-        for i in range(delay + 1, n):
-            if gap[i - 1 - delay] < 0 and gap[i - delay] >= 0:
-            #print('xup', jst[i], slope[i])
-                if slope[i] > threshold:
-                    xup.append(i)
-            if gap[i - 1 - delay]  > 0 and gap[i - delay] <= 0:
-            #print('xdown', jst[i], slope[i])
-                if slope[i] < - threshold:
-                    xdown.append(i)
-                    
-    xup = list(set(xup))
-    xdown = list(set(xdown))
-                    
+    sig_xup = full(n, 0)
+    sig_xdown = full(n, 0)
+    for i in range(1, n):
+        if gap[i - 1] < 0 and gap[i] >= 0:
+            sig_xup[i] = 1
+        elif gap[i - 1]  > 0 and gap[i] <= 0:
+            sig_xdown[i] = 1
+            
+    sig_up = full(n, 0)
+    for i in range(delay_max, n):
+        d = sig_xup[i - delay_max: i + 1]
+        if max(d) == 1 and min(d) == 0 and slope[i] > threshold:
+            sig_up[i] = 1
+    sig_down = full(n, 0)
+    for i in range(delay_max, n):
+        d = sig_xdown[i - delay_max: i + 1]
+        if max(d) == 1 and min(d) == 0 and slope[i] < -threshold:
+            sig_down[i] = 1
+            
+    xup = []
+    current = None
+    for i in range(n):
+        if current is None:
+            if sig_up[i] == 1:
+                xup.append(1)
+                current = 1 
+        elif current == 1:
+            if sig_up[i] == 0:
+                current = None
+    xdown = []
+    current = None
+    for i in range(n):
+        if current is None:
+            if sig_down[i] == 1:
+                xdown.append(1)
+                current = 1
+            elif current == 1:
+                if sig_down[i] == 0:
+                    current = None
     return xup, xdown
     
 def detect_trend_term(vector):

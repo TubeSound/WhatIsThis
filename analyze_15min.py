@@ -122,7 +122,7 @@ def main():
                                  'tap': 16, 
                                  'level': 0.1, 
                                  'threshold': 0.1,
-                                  'slope_threshold': 0.01},
+                                  'slope_threshold': 0.03},
                        'SUPERTREND': { 'atr_window': 40,
                                       'atr_multiply': 3.0,
                                       'short_term': 7
