@@ -508,9 +508,9 @@ def add_magap_chart(fig, data, row):
     up, down = MAGAP_SIGNAL(data, param['threshold'], param['level'])
     print(up, down)
     xup, xdown = detect_gap_cross(gap, data[Indicators.MAGAP_SLOPE], 0.05)
-    for i, level in xup:
+    for i in xup:
         add_marker(fig, jst[i], gap[i], 'triangle-up', 'green', row=row, col=1)
-    for i, level in xdown:
+    for i in xdown:
         add_marker(fig, jst[i], gap[i], 'triangle-down', 'red', row=row, col=1)
         
     for i in up:
