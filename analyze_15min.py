@@ -112,17 +112,19 @@ def expand(name: str, dic: dict):
     return data, columns         
     
 def main():
-    symbol = 'NIKKEI'
+    symbol = 'DOW'
     timeframe = 'M15'     
     data0 = from_pickle(symbol, timeframe)
     jst = data0['jst']
     
-    technical_param = {'MAGAP': {'long_term': 4 * 24 * 2 ,
+    technical_param = {'MAGAP': {'long_term': 4 * 24 * 4 ,
+                                 'mid_term': 4 * 24 * 2 ,
                                  'short_term': 4 * 16,
                                  'tap': 16, 
                                  'level': 0.1, 
                                  'threshold': 0.1,
-                                  'slope_threshold': 0.03},
+                                  'slope_threshold': 0.03,
+                                  'delay_max': 16},
                        'SUPERTREND': { 'atr_window': 40,
                                       'atr_multiply': 3.0,
                                       'short_term': 7
@@ -138,7 +140,7 @@ def main():
         if n < 100:
             continue
         param = technical_param['MAGAP']
-        MAGAP(data1, param['long_term'], param['short_term'], param['tap'], timeframe)
+        MAGAP(data1, param['long_term'], param['mid_term'], param['short_term'], param['tap'], timeframe)
         param = technical_param['SUPERTREND']
         SUPERTREND(data1, param['atr_window'], param['atr_multiply'])
         SUPERTREND_SIGNAL(data1, param['short_term'])
@@ -162,14 +164,14 @@ def plot(data, symbol, timeframe, year, month, technical_param):
     slope = data[Indicators.MAGAP_SLOPE]
     
     param = technical_param['MAGAP']
-    up, down = MAGAP_SIGNAL(data, param['threshold'], param['level'])
-    xup, xdown = detect_gap_cross(gap, slope, param['slope_threshold'])
+    xup, xdown = MAGAP_SIGNAL(data, param['slope_threshold'], param['delay_max'])
     peaks = detect_peaks(gap)
     
     fig, axes = gridFig([4, 4, 2], (18, 12))
     axes[0].scatter(jst, cl, color='cyan', alpha=0.1, s=5)
-    axes[0].plot(jst, data[Indicators.MA_LONG], color='blue', label='Long')
-    axes[0].plot(jst, data[Indicators.MA_SHORT], color='red', label='Shor')
+    axes[0].plot(jst, data[Indicators.MA_LONG], color='purple', label='Long')
+    axes[0].plot(jst, data[Indicators.MA_MID], color='blue', label='Mid')
+    axes[0].plot(jst, data[Indicators.MA_SHORT], color='red', label='Short')
     axes[0].plot(jst, data[Indicators.SUPERTREND_U], color='green', linestyle='dotted', linewidth=2.0)
     axes[0].plot(jst, data[Indicators.SUPERTREND_L], color='red', linestyle='dotted', linewidth=2.0)
     axes[1].plot(jst, gap, color='blue')
@@ -184,12 +186,6 @@ def plot(data, symbol, timeframe, year, month, technical_param):
     for i in xdown:
         axes[1].scatter(jst[i], gap[i], marker='v', color='red', alpha=0.4, s=200)
         axes[1].text(jst[i - 30], gap[i] - 1.0, str(slope[i])[:5])
-        
-    for i in up:
-        axes[1].scatter(jst[i], gap[i], marker='^', color='gray', alpha=0.8, s=100)
-        
-    for i in down:
-        axes[1].scatter(jst[i], gap[i], marker='v', color='gray', alpha=0.8, s=100)
     
     t0 = datetime(year, month, 1)
     t1 = t0 + timedelta(days=31)

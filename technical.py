@@ -1071,20 +1071,22 @@ def SUPERTREND_SIGNAL(data: dict, short_term):
     data[Indicators.SUPERTREND_L] = lower  
     return 
 
-def MAGAP(data: dict, long_term, short_term, tap, timeframe):
+def MAGAP(data: dict, long_term, mid_term, short_term, tap, timeframe):
     op = data[Columns.OPEN]
     hi = data[Columns.HIGH]
     lo = data[Columns.LOW]
     cl = data[Columns.CLOSE]
     n = len(op)
-    ma = sma(cl, long_term)
+    ma_long = sma(cl, long_term)
+    ma_mid = sma(cl, mid_term)
     ma_short = sma(cl, short_term)
-    data[Indicators.MA_LONG] = ma
+    data[Indicators.MA_LONG] = ma_long
+    data[Indicators.MA_MID] = ma_mid
     data[Indicators.MA_SHORT] = ma_short
     
     gap = [0 for _ in range(n)]
     for i in range(n):
-        gap[i] = (ma_short[i] - ma[i]) / ma[i] * 100.0
+        gap[i] = (ma_short[i] - ma_mid[i]) / ma_mid[i] * 100.0
     data[Indicators.MAGAP] = gap    
     if timeframe[0] == 'M':
         hour = int(timeframe[1:]) / 60  * tap
@@ -1098,12 +1100,27 @@ def MAGAP(data: dict, long_term, short_term, tap, timeframe):
         slope[i] = (gap[i] - gap[i - tap + 1]) / hour
     data[Indicators.MAGAP_SLOPE] = slope
  
-def MAGAP_SIGNAL(data, threshold, level):
+def MAGAP_SIGNAL(data, threshold, delay_max):
     gap = data[Indicators.MAGAP]
-    up, down, sig = detect_gap_breakout(gap, 7, 3, threshold, level)
+    slope = data[Indicators.MAGAP_SLOPE]
+    trnd = trend(data, Indicators.MA_LONG)
+    up, down, = detect_gap_cross(gap, slope, trnd, threshold, delay_max=delay_max)
     return up, down
     
- 
+
+def trend(data, column):
+    ma = data[column]
+    hi = data[Columns.HIGH]
+    lo = data[Columns.LOW]
+    n = len(ma)
+    out = full(n, 0)
+    for i, (h, l, m) in enumerate(zip(hi, lo, ma)):
+        if l > m:
+            out[i] = 1 
+        elif h < m:
+            out[i] = -1
+    return out 
+
 def detect_gap_breakout(gap, term1, term2, threshold, level):
     term = term1 + term2
     n = len(gap)
@@ -1162,7 +1179,7 @@ def MAGAP_SIGNAL2(data, threshold):
     data[Indicators.MAGAP_EXIT] = ext
     
     
-def detect_gap_cross(gap, slope, threshold, delay_max=12):
+def detect_gap_cross(gap, slope, trend, threshold, delay_max=12):
     n = len(gap)
     sig_xup = full(n, 0)
     sig_xdown = full(n, 0)
@@ -1189,7 +1206,7 @@ def detect_gap_cross(gap, slope, threshold, delay_max=12):
     current = None
     for i in range(n):
         if current is None:
-            if sig_up[i] == 1:
+            if sig_up[i] == 1 and trend[i] == 1:
                 xup.append(i)
                 current = 1 
         elif current == 1:
@@ -1199,7 +1216,7 @@ def detect_gap_cross(gap, slope, threshold, delay_max=12):
     current = None
     for i in range(n):
         if current is None:
-            if sig_down[i] == 1:
+            if sig_down[i] == 1 and trend[i] == -1:
                 xdown.append(i)
                 current = 1
             elif current == 1:

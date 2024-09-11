@@ -58,12 +58,14 @@ MINUTES = list(range(0, 60))
 INTERVAL_MSEC = 30 * 1000
 
 technical_param = { 'MAGAP': 
-                                {'long_term': 24 * 4 * 2,
-                                'short_term': 4 * 8 * 2,
-                                'tap': 16,
-                                'threshold': 0.1,
-                                'level': 1.0
-                           },
+                                {'long_term': 4 * 24 * 4 ,
+                                 'mid_term': 4 * 24 * 2 ,
+                                 'short_term': 4 * 16,
+                                 'tap': 16, 
+                                 'level': 0.1, 
+                                 'threshold': 0.1,
+                                 'slope_threshold': 0.03,
+                                 'delay_max': 16},
     
                     'SUPERTREND': {'atr_window': 40,
                                   'atr_multiply':2.5,
@@ -168,13 +170,14 @@ param2 = html.Div([html.P('multiply'), supertrend_atr_multiply])
 param3 = html.Div([html.P('MA window'), supertrend_short_term])
 
 magap_long_term = dcc.Input(id='magap_long_term',type="number", min=1, max=200, step=1, value=technical_param['MAGAP']['long_term'])
+magap_mid_term = dcc.Input(id='magap_mid_term',type="number", min=1, max=200, step=1, value=technical_param['MAGAP']['mid_term'])
 magap_short_term = dcc.Input(id='magap_short_term',type="number", min=1, max=100, step=1, value=technical_param['MAGAP']['short_term'])
 magap_tap = dcc.Input(id='magap_tap',type="number", min=1, max=50, step=1, value=technical_param['MAGAP']['tap'])
 magap_level = dcc.Input(id='magap_level',type="number", min=0, max=10, step=0.1, value=technical_param['MAGAP']['level'])
 magap_threshold = dcc.Input(id='magap_threshold',type="number", min=0, max=10, step=0.1, value=technical_param['MAGAP']['threshold'])
 
-
-param11 = html.Div([html.P('MAGAP long term'), magap_long_term])
+param10 = html.Div([html.P('MAGAP long term'), magap_long_term])
+param11 = html.Div([html.P('MAGAP mid term'), magap_mid_term])
 param12 = html.Div([html.P('short term'), magap_short_term])
 param13 = html.Div([html.P('tap'), magap_tap])
 param14 = html.Div([html.P('level'), magap_level])
@@ -190,6 +193,7 @@ sidebar =  html.Div([   html.Div([
                                     param2,
                                     param3,
                                     html.Hr(),
+                                    param10,
                                     param11,
                                     param12,
                                     param13,
@@ -270,6 +274,7 @@ def update_output(n_clicks1, n_clicks2, date):
     State('supertrend_atr_multiply', 'value'),
     State('supertrend_short_term', 'value'),
     State('magap_long_term', 'value'),
+    State('magap_mid_term', 'value'),
     State('magap_short_term', 'value'),
     State('magap_tap', 'value'),
     State('magap_level', 'value'),
@@ -286,6 +291,7 @@ def update_chart(interval,
                  supertrend_atr_multiply,
                  supertrend_short_term,
                  magap_long_term,
+                 magap_mid_term,
                  magap_short_term,
                  magap_tap,
                  magap_level,
@@ -315,6 +321,7 @@ def update_chart(interval,
     technical_param['SUPERTREND']['atr_multiply'] = supertrend_atr_multiply
     technical_param['SUPERTREND']['short_term'] = supertrend_short_term
     technical_param['MAGAP']['long_term'] = magap_long_term
+    technical_param['MAGAP']['mid_term'] = magap_mid_term
     technical_param['MAGAP']['short_term'] = magap_short_term
     technical_param['MAGAP']['tap'] = magap_tap
     technical_param['MAGAP']['level'] = magap_level
@@ -358,8 +365,8 @@ def indicators1(symbol, data, technical_param, timeframe):
     SUPERTREND_SIGNAL(data, param['short_term'])
     
     param = technical_param['MAGAP']
-    MAGAP(data, param['long_term'], param['short_term'],param['tap'], timeframe)
-    MAGAP_SIGNAL(data, param['threshold'], param['level'])
+    MAGAP(data, param['long_term'], param['mid_term'], param['short_term'], param['tap'], timeframe)
+    #MAGAP_SIGNAL(data, param['threshold'], param['delay_max'])
     
 def add_markers(fig, time, signal, data, value, symbol, color, row=1, col=1):
     if len(signal) == 0:
@@ -480,7 +487,7 @@ def add_vwap_line(fig, data, row):
 def add_ma_line(fig, data, row):
     jst = data['jst']
     r = row
-    for name, c in zip(['MA_SHORT', 'MA_LONG'], ['red', 'green']):
+    for name, c in zip([ 'MA_SHORT', 'MA_MID', 'MA_LONG'], ['red', 'blue', 'purple']):
         try:
             fig.add_trace(go.Scatter(x=jst, y=data[name], line=dict(color=c, width=2)), row=r, col=1)
         except:
@@ -505,19 +512,13 @@ def add_magap_chart(fig, data, row):
     
     gap = data[Indicators.MAGAP]
     param = technical_param['MAGAP']
-    up, down = MAGAP_SIGNAL(data, param['threshold'], param['level'])
-    print(up, down)
-    xup, xdown = detect_gap_cross(gap, data[Indicators.MAGAP_SLOPE], 0.05)
+    xup, xdown = MAGAP_SIGNAL(data, param['slope_threshold'], param['delay_max'])
+
     for i in xup:
         add_marker(fig, jst[i], gap[i], 'triangle-up', 'green', row=row, col=1)
     for i in xdown:
         add_marker(fig, jst[i], gap[i], 'triangle-down', 'red', row=row, col=1)
-        
-    for i in up:
-        add_marker(fig, jst[i], gap[i], 'circle', 'gray', row=row, col=1)
-    for i in down:
-        add_marker(fig, jst[i], gap[i], 'circle', 'gray', row=row, col=1)
-        
+
        
         
        
@@ -581,7 +582,7 @@ def create_graph(symbol, timeframe, data):
     #fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])])
     fig.update_yaxes(title_text="Price", row=1, col=1)
     fig.update_yaxes(title_text="Volume", row=2, col=1)
-    fig.update_yaxes(title_text="MAGAP", range=(-6, 6), row=3, col=1)
+    fig.update_yaxes(title_text="MAGAP", range=(-4, 4), row=3, col=1)
     return dcc.Graph(id='stock-graph', figure=fig)
 
 if __name__ == '__main__':    
