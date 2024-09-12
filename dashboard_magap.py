@@ -169,7 +169,7 @@ param1 = html.Div([html.P('SUPERTREND ATR window'), supertrend_atr_window])
 param2 = html.Div([html.P('multiply'), supertrend_atr_multiply])
 param3 = html.Div([html.P('MA window'), supertrend_short_term])
 
-magap_long_term = dcc.Input(id='magap_long_term',type="number", min=1, max=200, step=1, value=technical_param['MAGAP']['long_term'])
+magap_long_term = dcc.Input(id='magap_long_term',type="number", min=1, max=1000, step=1, value=technical_param['MAGAP']['long_term'])
 magap_mid_term = dcc.Input(id='magap_mid_term',type="number", min=1, max=200, step=1, value=technical_param['MAGAP']['mid_term'])
 magap_short_term = dcc.Input(id='magap_short_term',type="number", min=1, max=100, step=1, value=technical_param['MAGAP']['short_term'])
 magap_tap = dcc.Input(id='magap_tap',type="number", min=1, max=50, step=1, value=technical_param['MAGAP']['tap'])
