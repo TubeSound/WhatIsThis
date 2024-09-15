@@ -202,7 +202,7 @@ def opt():
     opt.run()
     
     
-def get_trade_param():
+def get_trade_param(sl, trailing_target, trailing_stop):
     param =  {
                 'strategy': 'supertrend',
                 'begin_hour': 0,
@@ -210,10 +210,10 @@ def get_trade_param():
                 'hours': 0,
                 'sl': {
                         'method': 'fix',
-                        'value': 400
+                        'value': sl
                     },
-                'target_profit': None,
-                'trailing_stop': None, 
+                'target_profit': trailing_target,
+                'trailing_stop': trailing_stop, 
                 'volume': 0.1, 
                 'position_max': 5, 
                 'timelimit': 0}
@@ -270,11 +270,12 @@ def plot_profit(path, number, param, curve):
     fig.savefig(path)
     plt.close()
     
-def trade(symbol, timeframe, param, data):
-    trade_param = get_trade_param()
+def trade(symbol, timeframe, param, data, sl, trailing_target, trailing_stop):
+    trade_param = get_trade_param(sl, trailing_target, trailing_stop)
     sim = Simulation(data, trade_param)        
     return sim.run_doten(Indicators.MAGAP_ENTRY, Indicators.MAGAP_EXIT)
-    
+    #return sim.run_trailing_stop(Indicators.MAGAP_ENTRY)
+
 def expand(name: str, dic: dict):
     data = []
     columns = []
@@ -344,8 +345,11 @@ def optimize(symbol, timeframe):
     print(symbol, timeframe)
     data0 = from_pickle(symbol, timeframe)
     root = f'./magap_optimize'
-    data = data0.copy()
-    limit = 25000
+    year = 2024
+    month_from = 7
+    month_to = 9
+    n, data = timefilter(data0, year, month_from, year, month_to)
+    limit = 100
     title = f'{symbol}_{timeframe}_magap'    
     sim_opt(root, symbol, timeframe, title, data, limit)    
 
@@ -353,29 +357,44 @@ def optimize(symbol, timeframe):
 def sim_opt(root, symbol, timeframe, title, data, limit):
     dir_path = os.path.join(root, f'{symbol}/{timeframe}')
     os.makedirs(dir_path, exist_ok=True)
+    
+    stop_loss = 400
+    trailing_target = 100
+    trailing_stop = 50
+    
     number = 0
     out = []
-    tap = 8
-    for p1 in [1, 2, 3, 4]:
+    for p1 in [1, 2, 3, 4, 5]:
         long_term = int(p1 * 4 * 24)
-        for p2 in range(2, 20, 2):
-            short_term = int(p2 * 4)
-            for threshold in [0.05, 0.1, 0.2, 0.3, 0.5, 1.0, 2.0, 4.0, 5.0]:
-                number += 1
-                param = {'long_term': long_term, 'short_term': short_term, 'slope_tap': tap, 'slope_threshold': threshold}
-                MAGAP(data, long_term, short_term, tap, timeframe)
-                MAGAP_SIGNAL(data, threshold)
-                r = trade(symbol, timeframe, param, data)
-                if r is None:
+        for p2 in [1, 2, 3, 4]:
+            if p2 > p1:
+                continue
+            mid_term = int(p2 * 4 * 24)
+            for p3 in range(2, 20, 2):
+                short_term = int(p3 * 4)
+                if short_term >= mid_term:
                     continue
-                df , summary, curve = r
-                p, columns = expand('magap', param)
-                out.append([number] + p + list(summary))
-                if summary[0] > 200 and summary[1]> limit:
-                    print(summary)
-                    print(param)
-                    path = f'profit_curve_#{number}_{title}.png'
-                    plot_profit(os.path.join(dir_path, path), number, param, curve)
+                for slope_threshold in [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]:
+                    number += 1
+                    param = {'long_term': long_term,
+                             'mid_term': mid_term,
+                             'short_term': short_term,
+                             'tap': 16, 
+                             'slope_threshold': 0.03,
+                             'delay_max': 16}
+                    MAGAP(data, param['long_term'], param['mid_term'], param['short_term'], param['tap'], timeframe)
+                    MAGAP_SIGNAL(data, param['slope_threshold'], param['delay_max'])
+                    r = trade(symbol, timeframe, param, data, stop_loss, trailing_target, trailing_stop)
+                    if r is None:
+                        continue
+                    df , summary, curve = r
+                    p, columns = expand('magap', param)
+                    out.append([number] + p + list(summary))
+                    if summary[0] > 10 and summary[1]> limit:
+                        print(summary)
+                        print(param)
+                        path = f'profit_curve_#{number}_{title}.png'
+                        plot_profit(os.path.join(dir_path, path), number, param, curve)
     df = pd.DataFrame(data=out, columns=['no'] + columns + ['n', 'profit', 'drawdown'])           
     path = os.path.join(dir_path, f'summary_{title}.xlsx')
     df.to_excel(path, index=False)           

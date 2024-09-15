@@ -1104,7 +1104,9 @@ def MAGAP_SIGNAL(data, threshold, delay_max):
     gap = data[Indicators.MAGAP]
     slope = data[Indicators.MAGAP_SLOPE]
     trnd = trend(data, Indicators.MA_LONG)
-    up, down, = detect_gap_cross(gap, slope, trnd, threshold, delay_max=delay_max)
+    up, down, entry, ext = detect_gap_cross(gap, slope, trnd, threshold, delay_max=delay_max)
+    data[Indicators.MAGAP_ENTRY] = entry
+    data[Indicators.MAGAP_EXIT] = ext
     return up, down
     
 
@@ -1137,6 +1139,7 @@ def detect_gap_breakout(gap, term1, term2, threshold, level):
     current = 0 
     up = []
     down = []
+    order_signal = full(n, 0)
     for i in range(n):
         if signal[i] == 0:
             continue
@@ -1145,39 +1148,15 @@ def detect_gap_breakout(gap, term1, term2, threshold, level):
             if signal[i] == Signal.LONG:
                 if gap[i] > level or gap[i] < -level:
                     up.append(i)
+                    order_signal[i] = Signal.LONG
             elif signal[i] == Signal.SHORT:
                 if gap[i] > level or gap[i] < -level:
                     down.append(i)
+                    order_signal[i] = Signal.SHORT
     return up, down, signal
 
     
-def MAGAP_SIGNAL2(data, threshold):
-    ma_long = data[Indicators.MA_LONG]
-    ma_short = data[Indicators.MA_SHORT]
-    slope = data[Indicators.MAGAP_SLOPE]
-    gap = data[Indicators.MAGAP]
-    xup, xdown = detect_gap_cross(gap, slope, threshold)
-    jst = data[Columns.JST]
-    n = len(jst)
-    sig = full(n, 0)
-    for x, _ in xup:
-        sig[x] = 1 
-    for x, _ in xdown:
-        sig[x] = -1 
-    entry = full(n, 0)
-    ext = full(n, 0)
-    current = 0 
-    for i in range(n):
-        if sig[i] == 0:
-            continue
-        entry[i] = sig[i]
-        if current == 0:
-            current = sig[i]
-        elif current != sig[i]:
-            ext[i] = 1
-    data[Indicators.MAGAP_ENTRY] = entry
-    data[Indicators.MAGAP_EXIT] = ext
-    
+
     
 def detect_gap_cross(gap, slope, trend, threshold, delay_max=12):
     n = len(gap)
@@ -1214,15 +1193,29 @@ def detect_gap_cross(gap, slope, trend, threshold, delay_max=12):
                 current = None
 
     current = None
+    entry = full(n, 0)
     for i in range(n):
         if current is None:
             if sig_down[i] == 1 and trend[i] == -1:
                 xdown.append(i)
+                entry[i] = Signal.LONG
                 current = 1
             elif current == 1:
                 if sig_down[i] == 0:
                     current = None
-    return xup, xdown
+
+    ext = full(n, 0)
+    current = None
+    for i in range(n):
+        if current is None:
+            if entry[i] != 0:
+                current = entry[i]
+        else:
+            if current != entry[i]:
+                current = entry[i]
+                ext[i] = 1 
+                    
+    return xup, xdown, entry, ext
     
 def detect_trend_term(vector):
     long = []

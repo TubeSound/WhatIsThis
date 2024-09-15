@@ -287,6 +287,24 @@ class Simulation:
         summary, profit_curve = self.positions.summary()
         return self.positions.to_dataFrame(self.strategy), summary, profit_curve
     
+    def run_trailing_stop(self, entry_column):        
+        data = self.data
+        entry = data[entry_column]
+        time = data[Columns.JST]
+        op = data[Columns.OPEN]
+        hi = data[Columns.HIGH]
+        lo = data[Columns.LOW]
+        cl = data[Columns.CLOSE]
+        n = len(time)
+        entry_filter = None
+        for i in range(n):
+            t = time[i]
+            self.positions.update(i, t, op[i], hi[i], lo[i], cl[i])
+            if entry[i] != 0:
+                self.entry(entry[i], i, t, cl[i])
+        summary, profit_curve = self.positions.summary()
+        return self.positions.to_dataFrame(self.strategy), summary, profit_curve
+    
     def run_doten2(self, time, entry_signal, exit_signal, op, hi, lo, cl):
         n = len(time)
         state = None
