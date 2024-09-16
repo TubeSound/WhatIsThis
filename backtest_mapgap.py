@@ -13,7 +13,7 @@ from dateutil import tz
 JST = tz.gettz('Asia/Tokyo')
 UTC = tz.gettz('utc')
 
-from common import Indicators
+from common import Indicators, Columns
 from technical import MAGAP, MAGAP_SIGNAL
 from strategy import Simulation
 from time_utils import TimeFilter, TimeUtils
@@ -49,11 +49,9 @@ def from_pickle(symbol, timeframe):
         data0 = pickle.load(f)
     return data0
 
-def timefilter(data, year_from, month_from, year_to, month_to):
-    t0 = datetime(year_from, month_from, 1).astimezone(JST)
-    t1 = datetime(year_to, month_to, 1).astimezone(JST)
-    t1 += relativedelta(months=1)
-    t1 -= timedelta(days=1)
+def timefilter(data, year_from, month_from, day_from, year_to, month_to, day_to):
+    t0 = datetime(year_from, month_from, day_from).astimezone(JST)
+    t1 = datetime(year_to, month_to, day_to).astimezone(JST)
     return TimeUtils.slice(data, data['jst'], t0, t1)
         
 class BackTest:
@@ -344,11 +342,11 @@ def sim(root, symbol, timeframe, title, data):
 def optimize(symbol, timeframe):
     print(symbol, timeframe)
     data0 = from_pickle(symbol, timeframe)
-    root = f'./magap_optimize'
+    root = f'./magap_2024'
     year = 2024
     month_from = 7
     month_to = 9
-    n, data = timefilter(data0, year, month_from, year, month_to)
+    n, data = timefilter(data0, year, month_from, 1, year, month_to, 16)
     limit = 100
     title = f'{symbol}_{timeframe}_magap'    
     sim_opt(root, symbol, timeframe, title, data, limit)    
@@ -358,6 +356,9 @@ def sim_opt(root, symbol, timeframe, title, data, limit):
     dir_path = os.path.join(root, f'{symbol}/{timeframe}')
     os.makedirs(dir_path, exist_ok=True)
     
+    coeff = {'M5': 1, 'M15': 2, 'M30': 4}
+    k = coeff[timeframe]
+    
     stop_loss = 400
     trailing_target = 100
     trailing_stop = 50
@@ -365,13 +366,13 @@ def sim_opt(root, symbol, timeframe, title, data, limit):
     number = 0
     out = []
     for p1 in [1, 2, 3, 4, 5]:
-        long_term = int(p1 * 4 * 24)
+        long_term = int(p1 * 2 * 24 * k)
         for p2 in [1, 2, 3, 4]:
             if p2 > p1:
                 continue
-            mid_term = int(p2 * 4 * 24)
+            mid_term = int(p2 * 2 * 24 * k)
             for p3 in range(2, 20, 2):
-                short_term = int(p3 * 4)
+                short_term = int(p3 * 2 * k)
                 if short_term >= mid_term:
                     continue
                 for slope_threshold in [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]:
@@ -380,7 +381,7 @@ def sim_opt(root, symbol, timeframe, title, data, limit):
                              'mid_term': mid_term,
                              'short_term': short_term,
                              'tap': 16, 
-                             'slope_threshold': 0.03,
+                             'slope_threshold': slope_threshold,
                              'delay_max': 16}
                     MAGAP(data, param['long_term'], param['mid_term'], param['short_term'], param['tap'], timeframe)
                     MAGAP_SIGNAL(data, param['slope_threshold'], param['delay_max'])
@@ -400,6 +401,54 @@ def sim_opt(root, symbol, timeframe, title, data, limit):
     df.to_excel(path, index=False)           
 
 
+def vis(symbol, timeframe):
+    print(symbol, timeframe)
+    data0 = from_pickle(symbol, timeframe)
+    root = f'./debug'
+    year = 2024
+    month_from = 7
+    month_to = 9
+    n, data = timefilter(data0, year, month_from, 1, year, month_to, 15)
+
+    title = f'{symbol}_{timeframe}_magap'    
+    param = { 'long_term': 4 * 24 * 4,
+                'mid_term': 4 * 24 * 2,
+                'short_term': 4 * 2,
+                'tap': 16, 
+                'slope_threshold': 0.05,
+                'delay_max': 16}
+    MAGAP(data, param['long_term'], param['mid_term'], param['short_term'], param['tap'], timeframe)
+    MAGAP_SIGNAL(data, param['slope_threshold'], param['delay_max'])
+    jst = data['jst']
+    cl = data[Columns.CLOSE]
+    gap = data[Indicators.MAGAP]
+    fig, ax = plt.subplots(2, 1, figsize=(20, 10))
+    ax[0].plot(jst, cl)
+    ax[0].plot(jst, data[Indicators.MA_LONG], color='purple')
+    ax[0].plot(jst, data[Indicators.MA_MID], color='blue')
+    ax[0].plot(jst, data[Indicators.MA_SHORT], color='red')
+    ax[1].plot(jst, gap, color='blue')
+    ax[1].hlines(0, jst[0], jst[-1], color='yellow')
+    
+    entry = data[Indicators.MAGAP_ENTRY]
+    for i, v in enumerate(entry):
+        if v == 1:
+            ax[1].scatter(jst[i], gap[i], marker='^', color='green', s=200)
+        elif v == -1:
+            ax[1].scatter(jst[i], gap[i], marker='v', color='red', s=200)
+    ext = data[Indicators.MAGAP_EXIT]
+    for i, v in enumerate(ext):
+        if v == 1:
+            ax[1].scatter(jst[i], gap[i], marker='x', color='gray', s=200)
+    
+    path = f'{symbol}_{timeframe}_entry_exit.png'
+    fig.savefig(os.path.join(root, path))
+    
+
+
+
+
+
 def optimize_crash(symbol, timeframe):
     print(symbol, timeframe)  
     data0 = from_pickle(symbol, timeframe)
@@ -415,15 +464,13 @@ def optimize_crash(symbol, timeframe):
 
 def main1():
     args = sys.argv
-    if len(args) == 4:
+    if len(args) == 3:
         symbol = args[1]
         timeframe = args[2]
-        year = int(args[3])
     else:
         symbol = 'DOW'
         timeframe = 'M15'
-        year = 2024
-    optimize(symbol, timeframe, year)
+    vis(symbol, timeframe)
     
 def main2():
     args = sys.argv
@@ -432,7 +479,7 @@ def main2():
         timeframe = args[2]
     else:
         symbol = 'NIKKEI'
-        timeframe = 'M15'
+        timeframe = 'M5'
     optimize(symbol, timeframe)
     #fulltime(symbol, timeframe)
     

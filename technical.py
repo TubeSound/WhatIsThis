@@ -1162,48 +1162,74 @@ def detect_gap_cross(gap, slope, trend, threshold, delay_max=12):
     n = len(gap)
     sig_xup = full(n, 0)
     sig_xdown = full(n, 0)
+    count = 0
     for i in range(1, n):
         if gap[i - 1] < 0 and gap[i] >= 0:
             sig_xup[i] = 1
+            count += 1
         elif gap[i - 1]  > 0 and gap[i] <= 0:
             sig_xdown[i] = 1
-            
+            count += 1
+             
+    #print('#1', count)
+
+    count = 0             
     sig_up = full(n, 0)
     for i in range(delay_max, n):
         d = sig_xup[i - delay_max: i + 1]
         if max(d) == 1 and slope[i] > threshold:
-            sig_up[i] = 1
-
+            if trend[i] == 1:
+                sig_up[i] = 1
+                count += 1
+                
+    #print('#2', count)
     sig_down = full(n, 0)
     for i in range(delay_max, n):
         d = sig_xdown[i - delay_max: i + 1]
         if max(d) == 1 and slope[i] < -threshold:
-            sig_down[i] = 1
-            
-    xup = []
-    xdown = []
-    current = None
-    for i in range(n):
-        if current is None:
-            if sig_up[i] == 1 and trend[i] == 1:
-                xup.append(i)
-                current = 1 
-        elif current == 1:
-            if sig_up[i] == 0:
-                current = None
-
+            if trend[i] == -1:
+                sig_down[i] = 1
+                count += 1
+                
+    #print('#3', count)
+                      
     current = None
     entry = full(n, 0)
+    count = 0
+    xup = []
+    xdown = []
     for i in range(n):
         if current is None:
-            if sig_down[i] == 1 and trend[i] == -1:
-                xdown.append(i)
+            if sig_up[i] == 1:
                 entry[i] = Signal.LONG
-                current = 1
-            elif current == 1:
+                current = Signal.LONG
+                xup.append(i)
+                count += 1
+            elif sig_down[i] == 1:
+                entry[i] = Signal.SHORT
+                current = Signal.SHORT
+                xdown.append(i)
+                count += 1
+        else:
+            if current == Signal.LONG:
+                if sig_up[i] == 0:
+                    current = None
+                if sig_down[i] == 1:
+                    entry[i] = Signal.SHORT
+                    current = Signal.SHORT
+                    xdown.append(i)
+                    count += 1
+            elif current == Signal.SHORT:
                 if sig_down[i] == 0:
                     current = None
-
+                if sig_up[i] == 1:
+                    entry[i] = Signal.LONG
+                    current = Signal.LONG
+                    xup.append(i)
+                    count += 1
+    
+    #print('#4', count)
+                
     ext = full(n, 0)
     current = None
     for i in range(n):
@@ -1213,8 +1239,7 @@ def detect_gap_cross(gap, slope, trend, threshold, delay_max=12):
         else:
             if current != entry[i]:
                 current = entry[i]
-                ext[i] = 1 
-                    
+                ext[i] = 1
     return xup, xdown, entry, ext
     
 def detect_trend_term(vector):
