@@ -159,11 +159,12 @@ class TradeBot:
     def calc_indicators(self, data: dict, param: dict):
         magap = param['MAGAP']
         long_term = magap['long_term']
+        mid_term = magap['mid_term']
         short_term = magap['short_term']
         slope_tap = magap['slope_tap']
-        threshold = magap['threshold']
-        MAGAP(data, long_term, short_term, slope_tap, self.timeframe)
-        MAGAP_SIGNAL(data, threshold)
+        threshold = magap['slope_threshold']
+        MAGAP(data, long_term, mid_term, short_term, slope_tap, self.timeframe)
+        MAGAP_SIGNAL(data, threshold, 16)
         
         
     def set_sever_time(self, begin_month, begin_sunday, end_month, end_sunday, delta_hour_from_gmt_in_summer):
@@ -329,12 +330,13 @@ class TradeBot:
 
 def create_bot(symbol, timeframe):
     if symbol == 'DOW' or symbol == 'NIKKEI':
-        if timeframe == 'M15':
+        if timeframe == 'M5':
             technical = {'MAGAP': {
-                            'long_term':288,
-                            'short_term': 4,
-                            'slope_tap': 8,
-                            'threshold': 0.1,
+                            'long_term':96,
+                            'mid_term': 48,
+                            'short_term': 20,
+                            'slope_tap': 16,
+                            'slope_threshold': 0.09,
                                 }
                 }
     
@@ -362,10 +364,10 @@ def create_usdjpy_bot():
      
 def test():
     
-    bot1 = create_bot( 'NIKKEI', 'M15')
+    bot1 = create_bot( 'NIKKEI', 'M5')
     Mt5Trade.connect()
     bot1.run()
-    bot2 = create_bot('DOW', 'M15')
+    bot2 = create_bot('DOW', 'M5')
     bot2.run()
     while True:
         scheduler.enter(10, 1, bot1.update_doten)

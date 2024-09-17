@@ -346,8 +346,8 @@ def optimize(symbol, timeframe):
     year = 2024
     month_from = 7
     month_to = 9
-    n, data = timefilter(data0, year, month_from, 1, year, month_to, 16)
-    limit = 100
+    n, data = timefilter(data0, year, month_from, 1, year, month_to, 30)
+    limit = 1000
     title = f'{symbol}_{timeframe}_magap'    
     sim_opt(root, symbol, timeframe, title, data, limit)    
 
