@@ -478,7 +478,7 @@ def main2():
         symbol = args[1]
         timeframe = args[2]
     else:
-        symbol = 'NIKKEI'
+        symbol = 'DOW'
         timeframe = 'M5'
     optimize(symbol, timeframe)
     #fulltime(symbol, timeframe)
