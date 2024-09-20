@@ -1195,7 +1195,7 @@ def detect_gap_cross(gap, slope, trend, threshold, delay_max=12):
                       
     current = None
     entry = full(n, 0)
-    ext = full(n, 0)
+    
     count = 0
     xup = []
     xdown = []
@@ -1217,7 +1217,6 @@ def detect_gap_cross(gap, slope, trend, threshold, delay_max=12):
                     current = None
                 if sig_down[i] == 1:
                     entry[i] = Signal.SHORT
-                    ext[i] = 1
                     current = Signal.SHORT
                     xdown.append(i)
                     count += 1
@@ -1226,11 +1225,21 @@ def detect_gap_cross(gap, slope, trend, threshold, delay_max=12):
                     current = None
                 if sig_up[i] == 1:
                     entry[i] = Signal.LONG
-                    ext[i] = 1
                     current = Signal.LONG
                     xup.append(i)
                     count += 1
 
+    ext = full(n, 0)
+    current = None
+    for i in range(n):
+        if entry[i] == 0:
+            continue
+        if current is None:
+            current = entry[i]
+        else:
+            if entry[i] != current:
+                ext[i] = 1
+                current = entry[i]
     #print('#4', count)
     return xup, xdown, entry, ext
     

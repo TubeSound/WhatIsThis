@@ -85,17 +85,14 @@ class TradeManager:
         else:
             print('move_to_closed, No tickt')
         
-    def save(self):
+    def summary(self):
         out = []
         for ticket, pos in self.positions_closed.items():
             d, columns = pos.array()
             out.append(d)
         df = pd.DataFrame(data=out, columns=columns)
-        os.makedirs('./log', exist_ok=True)
-        try:
-            df.to_csv(f'./log/Trade_report_{self.symbol}.csv', index=False)
-        except:
-            pass
+        return df
+
     def remove_positions(self, tickets):
         for ticket in tickets:
             self.move_to_closed(ticket)
@@ -124,6 +121,7 @@ class TradeManager:
             self.remove_positions(remove_tickets)    
             print('<Closed by Meta Trader Stoploss or Takeprofit> ', self.symbol, 'tickets:', remove_tickets)
             
+      
 class TradeBot:
     def __init__(self, symbol:str,
                  timeframe:str,
@@ -185,7 +183,7 @@ class TradeBot:
             buffer = DataBuffer(self.calc_indicators, self.symbol, self.timeframe, df, self.technical_param, self.delta_hour_from_gmt)
             self.buffer = buffer
             os.makedirs('./debug', exist_ok=True)
-            save(buffer.data, './debug/initial_' + self.symbol + '_' + datetime.now().strftime('%Y-%m-%d_%H_%M_%S') + '.xlsx')
+            #save(buffer.data, './debug/initial_' + self.symbol + '_' + datetime.now().strftime('%Y-%m-%d_%H_%M_%S') + '.xlsx')
             return True            
         else:
             print('<マーケットクローズ>')
@@ -195,14 +193,14 @@ class TradeBot:
     
     def update(self):
         self.remove_closed_positions()
-        self.trailing()
+        record = self.trailing()
         df = self.mt5.get_rates(self.timeframe, 2)
         df = df.iloc[:-1, :]
         n = self.buffer.update(df)
         if n > 0:
             current_time = self.buffer.last_time()
             current_index = self.buffer.last_index()
-            save(self.buffer.data, './debug/update_' + self.symbol + '_' + datetime.now().strftime('%Y-%m-%d_%H_%M_%S') + '.xlsx')
+            #save(self.buffer.data, './debug/update_' + self.symbol + '_' + datetime.now().strftime('%Y-%m-%d_%H_%M_%S') + '.xlsx')
             #self.check_timeup(current_index)
             entry_signal = self.buffer.data[self.entry_column][-1]
             exit_signal = self.buffer.data[self.exit_column][-1]
@@ -211,15 +209,22 @@ class TradeBot:
                 if len(positions) > 0:
                     self.close_positions(positions)
                     self.debug_print('<Exit> position num:', len(positions))
+                    record = True
             if entry_signal == Signal.LONG or entry_signal == Signal.SHORT:
                 self.debug_print('<Signal> ', entry_signal)
-    
                 self.entry(self.buffer.data, entry_signal, current_index, current_time)
+            if record:
+                try:
+                    df = self.trade_manager.summary()
+                    os.makedirs('./debug')
+                    df.to_excel('./debug/trade_summary.xlsx', index=False)
+                except:
+                    pass
         return n
     
     def update_doten(self):
         self.remove_closed_positions()
-        self.trailing()
+        record = self.trailing()
         df = self.mt5.get_rates(self.timeframe, 2)
         df = df.iloc[:-1, :]
         n = self.buffer.update(df)
@@ -227,7 +232,7 @@ class TradeBot:
             current_time = self.buffer.last_time()
             current_index = self.buffer.last_index()
             os.makedirs('./debug', exist_ok=True)
-            save(self.buffer.data, './debug/update_' + self.symbol + '_' + datetime.now().strftime('%Y-%m-%d_%H_%M_%S') + '.xlsx')
+            #save(self.buffer.data, './debug/update_' + self.symbol + '_' + datetime.now().strftime('%Y-%m-%d_%H_%M_%S') + '.xlsx')
             #self.check_timeup(current_index)
             entry_signal = self.buffer.data[self.entry_column][-1]
             exit_signal = self.buffer.data[self.exit_column][-1]
@@ -235,9 +240,17 @@ class TradeBot:
                 positions = self.trade_manager.open_positions()
                 if len(positions) > 0:
                     self.close_positions(positions)
+                    record = True
             if entry_signal == Signal.LONG or entry_signal == Signal.SHORT:
                 self.debug_print('<Entry Signal:> ', entry_signal)
                 self.entry(self.buffer.data, entry_signal, current_index, current_time)
+            if record:
+                try:
+                    df = self.trade_manager.summary()
+                    os.makedirs('./debug')
+                    df.to_excel('./debug/trade_summary.xlsx', index=False)
+                except:
+                    pass
         return n
     
             
@@ -300,6 +313,7 @@ class TradeBot:
                     self.debug_print('<Closed trailin stop> Fail', self.symbol, info.desc())    
         for ticket in remove_tickets:
             self.trade_manager.move_to_closed(ticket)
+        return len(remove_tickets) > 0
                 
     def check_timeup(self, current_index: int):
         positions = self.mt5.get_positions()
@@ -344,7 +358,7 @@ def create_bot(symbol, timeframe):
                    'begin_minute':0,
                    'hours': 24,
                    'sl': 200,
-                   'volume': 0.02,
+                   'volume': 0.1,
                    'position_max':5,
                    'trail_target':50, 
                    'trail_stop': 50,
