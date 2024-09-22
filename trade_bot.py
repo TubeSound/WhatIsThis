@@ -81,7 +81,7 @@ class TradeManager:
         if ticket in self.positions.keys():
             pos = self.positions.pop(ticket)
             self.positions_closed[ticket] = pos
-            self.save()
+
         else:
             print('move_to_closed, No tickt')
         
@@ -343,16 +343,30 @@ class TradeBot:
         self.trade_manager.remove_positions(removed_tickets)
 
 def create_bot(symbol, timeframe):
-    if symbol == 'DOW' or symbol == 'NIKKEI':
-        if timeframe == 'M5':
-            technical = {'MAGAP': {
-                            'long_term':96,
-                            'mid_term': 48,
-                            'short_term': 20,
+    
+    technical_nikkei = {'MAGAP': {
+                            'long_term':240,
+                            'mid_term': 96,
+                            'short_term': 36,
                             'slope_tap': 16,
-                            'slope_threshold': 0.09,
+                            'slope_threshold': 0.03,
                                 }
                 }
+    
+    technical_dow = {'MAGAP': {
+                            'long_term':192,
+                            'mid_term': 48,
+                            'short_term': 36,
+                            'slope_tap': 16,
+                            'slope_threshold': 0.03,
+                                }
+                }
+        
+    if symbol == 'DOW':
+        technical = technical_dow
+    elif symbol == 'NIKKEI':
+        technical = technical_nikkei
+
     
     trade_param = {'begin_hour':8, 
                    'begin_minute':0,

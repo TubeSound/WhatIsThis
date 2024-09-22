@@ -6,10 +6,14 @@ Created on Sat Jan 22 20:24:47 2022
 """
 
 import os
-import polars as pl
-from polars import DataFrame
+from pandas import DataFrame
 import numpy as np
 from time_utils import TimeUtils
+
+import numpy as np
+import matplotlib.pyplot as plt
+import io
+import base64
 
 class Utils:
 
@@ -225,5 +229,14 @@ class Utils:
             s = s[:-1]
             f.write(s + '\n')
         f.close()
-                    
         
+    @staticmethod
+    def fig_html(fig):
+        header = '<!doctype html><html lang="ja"><body>'
+        template = '<img src="data:image/png;base64,{image_bin}">'
+        fotter = '</body></html>'
+        sio = io.BytesIO()
+        fig.savefig(sio, format='png')
+        image_bin = base64.b64encode(sio.getvalue())
+        image_html = template.format(image_bin=str(image_bin)[2:-1])
+        return header, fotter, image_html 

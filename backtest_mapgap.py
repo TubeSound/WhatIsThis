@@ -347,7 +347,7 @@ def optimize(symbol, timeframe):
     month_from = 7
     month_to = 9
     n, data = timefilter(data0, year, month_from, 1, year, month_to, 30)
-    limit = 1000
+    limit = 1500
     title = f'{symbol}_{timeframe}_magap'    
     sim_opt(root, symbol, timeframe, title, data, limit)    
 
@@ -396,29 +396,18 @@ def sim_opt(root, symbol, timeframe, title, data, limit):
                         print(param)
                         path = f'profit_curve_#{number}_{title}.png'
                         plot_profit(os.path.join(dir_path, path), number, param, curve)
-    df = pd.DataFrame(data=out, columns=['no'] + columns + ['n', 'profit', 'drawdown'])           
+    df = pd.DataFrame(data=out, columns=['no'] + columns + ['n', 'profit', 'drawdown'])  
+    df = df.sort_values('profit', ascending=False)         
     path = os.path.join(dir_path, f'summary_{title}.xlsx')
     df.to_excel(path, index=False)           
 
 
-def vis(symbol, timeframe):
+def vis(symbol, timeframe, data, technical_param, trade_param):
     print(symbol, timeframe)
-    data0 = from_pickle(symbol, timeframe)
-    root = f'./debug'
-    year = 2024
-    month_from = 7
-    month_to = 9
-    n, data = timefilter(data0, year, month_from, 1, year, month_to, 15)
-
     title = f'{symbol}_{timeframe}_magap'    
-    param = { 'long_term': 4 * 24 * 4,
-                'mid_term': 4 * 24 * 2,
-                'short_term': 4 * 2,
-                'tap': 16, 
-                'slope_threshold': 0.05,
-                'delay_max': 16}
-    MAGAP(data, param['long_term'], param['mid_term'], param['short_term'], param['tap'], timeframe)
-    MAGAP_SIGNAL(data, param['slope_threshold'], param['delay_max'])
+    param = technical_param['MAGAP']
+    MAGAP(data, param['long_term'], param['mid_term'], param['short_term'], param['slope_tap'], timeframe)
+    MAGAP_SIGNAL(data, param['slope_threshold'], 16)
     jst = data['jst']
     cl = data[Columns.CLOSE]
     gap = data[Indicators.MAGAP]
@@ -440,7 +429,7 @@ def vis(symbol, timeframe):
     for i, v in enumerate(ext):
         if v == 1:
             ax[1].scatter(jst[i], gap[i], marker='x', color='gray', s=200)
-    
+    root = './debug'
     path = f'{symbol}_{timeframe}_entry_exit.png'
     fig.savefig(os.path.join(root, path))
     
@@ -468,9 +457,44 @@ def main1():
         symbol = args[1]
         timeframe = args[2]
     else:
-        symbol = 'DOW'
-        timeframe = 'M15'
-    vis(symbol, timeframe)
+        symbol = 'NIKKEI'
+        timeframe = 'M5'
+        
+    data0 = from_pickle(symbol, timeframe)
+    n, data = timefilter(data0, 2024, 9, 1, 2024, 9, 20)
+    technical_nikkei = {'MAGAP': {
+                            'long_term':240,
+                            'mid_term': 96,
+                            'short_term': 36,
+                            'slope_tap': 16,
+                            'slope_threshold': 0.03,
+                                }
+                }
+    
+    technical_dow = {'MAGAP': {
+                            'long_term':192,
+                            'mid_term': 48,
+                            'short_term': 36,
+                            'slope_tap': 16,
+                            'slope_threshold': 0.03,
+                                }
+                }
+    
+    trade_param = {'begin_hour':8, 
+                   'begin_minute':0,
+                   'hours': 24,
+                   'sl': 200,
+                   'volume': 0.1,
+                   'position_max':5,
+                   'trail_target':50, 
+                   'trail_stop': 50,
+                   'timelimit':0}
+        
+    if symbol == 'NIKKEI':
+        param = technical_nikkei
+    elif symbol == 'DOW':
+        param = technical_dow
+    vis(symbol, timeframe, data, param, trade_param)
     
 def main2():
     args = sys.argv
@@ -478,8 +502,8 @@ def main2():
         symbol = args[1]
         timeframe = args[2]
     else:
-        symbol = 'DOW'
-        timeframe = 'M5'
+        symbol = 'NIKKEI'
+        timeframe = 'M15'
     optimize(symbol, timeframe)
     #fulltime(symbol, timeframe)
     

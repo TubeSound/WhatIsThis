@@ -23,7 +23,7 @@ UTC = tz.gettz('utc')
 
 from common import Indicators, Signal
 from candle_chart import CandleChart, makeFig, gridFig
-from utils import TimeUtils
+from utils import TimeUtils, Utils
 from technical import sma, ATRP, is_nan, SUPERTREND, SUPERTREND_SIGNAL, MA, detect_gap_cross
 from data_loader import from_pickle
 
@@ -177,7 +177,8 @@ def main5():
         MA(data0, 4 * 24 * 2, 4 * 8)
         data[symbol] = data0
 
-    dic = {}        
+    dic = {}
+    html = None
     for year in range(2008, 2025):
         for symbol, d in data.items():
             t0 = datetime(year, 1, 1).astimezone(JST)
@@ -185,7 +186,18 @@ def main5():
             n, d1 = TimeUtils.slice(d, d['jst'], t0, t1)
             dic[symbol] = d1
             signals = []
-        plot_atrp(dic, signals, year, 'NIKKEI', timeframe, t0, t1)
+        header, fotter, image = plot_atrp(dic, signals, year, 'NIKKEI', timeframe, t0, t1)
+        if html is None:
+            html = header + image
+        else:
+            html += image
+    html += fotter
+    dirpath = './ATRP_1H'
+    os.makedirs(dirpath, exist_ok=True)
+    with open(os.path.join(dirpath, 'stock_atrp.html'), "w") as f:
+        f.write(html)
+    
+    
     
 def plot_atrp(dic, signals, year, symbol, timeframe, t0, t1):
     fig, axes = gridFig([5, 3], (20, 12))
@@ -221,8 +233,8 @@ def plot_atrp(dic, signals, year, symbol, timeframe, t0, t1):
     axes[1].set_ylim(0, 2.0)
     axes[1].set_title('ATRP')
     axes[0].set_title(symbol + ' '  + timeframe)
-    os.makedirs('./report/ATRP', exist_ok=True)
-    fig.savefig('./report/ATRP/' + f'{year}_H1.png')
+    return  Utils.fig_html(fig)
+    
     
 
 def detect_signal(signal, entry_filter):
