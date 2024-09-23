@@ -413,7 +413,7 @@ def vis(symbol, timeframe, data, technical_param, trade_param):
     trail_stop = trade_param['trail_stop']
     r = trade(symbol, timeframe, param, data, sl, trail_target, trail_stop)
     df , summary, curve = r
-    df.to_excel('./debug/summary.xlsc', index=False)
+    df.to_excel('./debug/summary.xlsx', index=False)
     
     jst = data['jst']
     cl = data[Columns.CLOSE]
@@ -468,7 +468,7 @@ def main1():
         timeframe = 'M5'
         
     data0 = from_pickle(symbol, timeframe)
-    n, data = timefilter(data0, 2024, 9, 1, 2024, 9, 20)
+    n, data = timefilter(data0, 2024, 9, 18, 2024, 9, 25)
     technical_nikkei = {'MAGAP': {
                             'long_term':240,
                             'mid_term': 96,
