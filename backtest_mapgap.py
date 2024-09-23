@@ -408,6 +408,13 @@ def vis(symbol, timeframe, data, technical_param, trade_param):
     param = technical_param['MAGAP']
     MAGAP(data, param['long_term'], param['mid_term'], param['short_term'], param['slope_tap'], timeframe)
     MAGAP_SIGNAL(data, param['slope_threshold'], 16)
+    sl = trade_param['sl']['value']
+    trail_target = trade_param['trail_target']
+    trail_stop = trade_param['trail_stop']
+    r = trade(symbol, timeframe, param, data, sl, trail_target, trail_stop)
+    df , summary, curve = r
+    df.to_excel('./debug/summary.xlsc', index=False)
+    
     jst = data['jst']
     cl = data[Columns.CLOSE]
     gap = data[Indicators.MAGAP]
@@ -483,7 +490,7 @@ def main1():
     trade_param = {'begin_hour':8, 
                    'begin_minute':0,
                    'hours': 24,
-                   'sl': 200,
+                   'sl': {'method': 1, 'value':200},
                    'volume': 0.1,
                    'position_max':5,
                    'trail_target':50, 
@@ -518,5 +525,5 @@ def main3():
     optimize_crash(symbol, timeframe)
     
 if __name__ == '__main__':
-    main2()
+    main1()
     #test()

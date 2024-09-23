@@ -153,17 +153,19 @@ class Positions:
         tacc = []
         acc = []
         time = []
-        for position in self.closed_positions:
-            profits.append(position.profit)
-            prf = position.profit
-            if prf is not None:
-                if not np.isnan(prf):
-                    profit_sum += prf
-            time.append(position.entry_time)
-            tacc.append(position.exit_time)
-            acc.append(profit_sum)
-            if position.profit > 0:
-                win += 1
+        for positions in [self.closed_positions, self.positions]:
+            for position in positions:
+                profits.append(position.profit)
+                prf = position.profit
+                if prf is not None:
+                    if not np.isnan(prf):
+                        profit_sum += prf
+                        if prf > 0:
+                            win += 1
+                time.append(position.entry_time)
+                tacc.append(position.exit_time)
+                acc.append(profit_sum)
+        
         n = len(self.closed_positions)
         if n > 0:
             win_rate = float(win) / float(n)
@@ -177,12 +179,13 @@ class Positions:
             return s
             
         data = []
-        for i, position in enumerate(self.closed_positions):
-            d = [strategy, position.signal, position.entry_index, str(position.entry_time), position.entry_price]
-            d += [position.exit_index, str(position.exit_time), position.exit_price, position.profit]
-            d += [bool2str(position.closed), bool2str(position.losscutted),  bool2str(position.trail_stopped)]
-            d += [bool2str(position.doten), bool2str(position.timelimit)]
-            data.append(d)
+        for positions in [self.closed_positions, self.positions]:
+            for position in positions:
+                d = [strategy, position.signal, position.entry_index, str(position.entry_time), position.entry_price]
+                d += [position.exit_index, str(position.exit_time), position.exit_price, position.profit]
+                d += [bool2str(position.closed), bool2str(position.losscutted),  bool2str(position.trail_stopped)]
+                d += [bool2str(position.doten), bool2str(position.timelimit)]
+                data.append(d)
         columns = ['Mode', 'signal', 'entry_index', 'entry_time', 'entry_price']
         columns += ['exit_index', 'exit_time', 'exit_price', 'profit']
         columns += ['closed', 'losscuted', 'trail_stopped', 'doten', 'timelimit']
@@ -204,7 +207,7 @@ class Simulation:
             begin_hour = self.trade_param['begin_hour']
             begin_minute = self.trade_param['begin_minute']
             hours = self.trade_param['hours']
-            if hours == 0:
+            if hours <= 0 or hours == 24:
                 self.timefilter = None
             else:
                 self.timefilter = TimeFilter(JST, begin_hour, begin_minute, hours)

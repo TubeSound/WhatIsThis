@@ -371,10 +371,10 @@ def create_bot(symbol, timeframe):
     trade_param = {'begin_hour':8, 
                    'begin_minute':0,
                    'hours': 24,
-                   'sl': 200,
+                   'sl': {'method': 1, 'value':200},
                    'volume': 0.1,
                    'position_max':5,
-                   'trail_target':50, 
+                   'trail_target':200, 
                    'trail_stop': 50,
                    'timelimit':0}
     
