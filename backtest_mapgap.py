@@ -325,8 +325,8 @@ def sim(root, symbol, timeframe, title, data):
     threshold = 0.1    
 
     param = {'long_term': long_term, 'short_term': short_term, 'slope_tap': tap, 'slope_threshold': threshold}
-    MAGAP(data, long_term, short_term, tap, timeframe)
-    MAGAP_SIGNAL(data, threshold)
+    MAGAP(timeframe, data, long_term, short_term, tap)
+    MAGAP_SIGNAL(timeframe, data, threshold)
     r = trade(symbol, timeframe, param, data)
     if r is not None:
         jst = data['jst']
@@ -383,8 +383,8 @@ def sim_opt(root, symbol, timeframe, title, data, limit):
                              'tap': 16, 
                              'slope_threshold': slope_threshold,
                              'delay_max': 16}
-                    MAGAP(data, param['long_term'], param['mid_term'], param['short_term'], param['tap'], timeframe)
-                    MAGAP_SIGNAL(data, param['slope_threshold'], param['delay_max'])
+                    MAGAP(timeframe, data, param['long_term'], param['mid_term'], param['short_term'], param['tap'])
+                    MAGAP_SIGNAL(timeframe, data, param['slope_threshold'], 0.1, param['delay_max'])
                     r = trade(symbol, timeframe, param, data, stop_loss, trailing_target, trailing_stop)
                     if r is None:
                         continue
@@ -406,8 +406,8 @@ def vis(symbol, timeframe, data, technical_param, trade_param):
     print(symbol, timeframe)
     title = f'{symbol}_{timeframe}_magap'    
     param = technical_param['MAGAP']
-    MAGAP(data, param['long_term'], param['mid_term'], param['short_term'], param['slope_tap'], timeframe)
-    MAGAP_SIGNAL(data, param['slope_threshold'], 16)
+    MAGAP(timeframe, data, param['long_term'], param['mid_term'], param['short_term'], param['slope_tap'])
+    MAGAP_SIGNAL(timeframe, data, param['slope_threshold'], 10, 16)
     sl = trade_param['sl']['value']
     trail_target = trade_param['trail_target']
     trail_stop = trade_param['trail_stop']
@@ -418,13 +418,15 @@ def vis(symbol, timeframe, data, technical_param, trade_param):
     jst = data['jst']
     cl = data[Columns.CLOSE]
     gap = data[Indicators.MAGAP]
-    fig, ax = plt.subplots(2, 1, figsize=(20, 10))
+    fig, ax = plt.subplots(3, 1, figsize=(20, 10))
     ax[0].plot(jst, cl)
     ax[0].plot(jst, data[Indicators.MA_LONG], color='purple')
     ax[0].plot(jst, data[Indicators.MA_MID], color='blue')
     ax[0].plot(jst, data[Indicators.MA_SHORT], color='red')
     ax[1].plot(jst, gap, color='blue')
     ax[1].hlines(0, jst[0], jst[-1], color='yellow')
+    ax[2].plot(jst, data['MA_LONG_SLOPE'], color='purple')
+    ax[2].hlines(0, jst[0], jst[-1], color='yellow')
     
     entry = data[Indicators.MAGAP_ENTRY]
     for i, v in enumerate(entry):

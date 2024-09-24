@@ -1071,7 +1071,7 @@ def SUPERTREND_SIGNAL(data: dict, short_term):
     data[Indicators.SUPERTREND_L] = lower  
     return 
 
-def MAGAP(data: dict, long_term, mid_term, short_term, tap, timeframe):
+def MAGAP(timeframe, data: dict, long_term, mid_term, short_term, tap):
     op = data[Columns.OPEN]
     hi = data[Columns.HIGH]
     lo = data[Columns.LOW]
@@ -1088,6 +1088,21 @@ def MAGAP(data: dict, long_term, mid_term, short_term, tap, timeframe):
     for i in range(n):
         gap[i] = (ma_short[i] - ma_mid[i]) / ma_mid[i] * 100.0
     data[Indicators.MAGAP] = gap    
+    slope = slope_by_hour(timeframe, gap)
+    data[Indicators.MAGAP_SLOPE] = slope
+ 
+def MAGAP_SIGNAL(timeframe, data, short_slope_threshold, long_slope_threshold, delay_max):
+    gap = data[Indicators.MAGAP]
+    slope = data[Indicators.MAGAP_SLOPE]
+    trnd = trend(timeframe, data, Indicators.MA_LONG, long_slope_threshold)
+    up, down, entry, ext = detect_gap_cross(gap, slope, trnd, short_slope_threshold, delay_max=delay_max)
+    data[Indicators.MAGAP_ENTRY] = entry
+    data[Indicators.MAGAP_EXIT] = ext
+    return up, down
+    
+
+def slope_by_hour(timeframe, vector, tap=10):
+    n = len(vector)
     if timeframe[0] == 'M':
         hour = int(timeframe[1:]) / 60  * tap
     elif timeframe[0] == 'H':
@@ -1096,27 +1111,22 @@ def MAGAP(data: dict, long_term, mid_term, short_term, tap, timeframe):
         raise Exception('error')
         
     slope = full(n, 0.0)
-    for i in range(10, n):
-        slope[i] = (gap[i] - gap[i - tap + 1]) / hour
-    data[Indicators.MAGAP_SLOPE] = slope
- 
-def MAGAP_SIGNAL(data, threshold, delay_max):
-    gap = data[Indicators.MAGAP]
-    slope = data[Indicators.MAGAP_SLOPE]
-    trnd = trend(data, Indicators.MA_LONG)
-    up, down, entry, ext = detect_gap_cross(gap, slope, trnd, threshold, delay_max=delay_max)
-    data[Indicators.MAGAP_ENTRY] = entry
-    data[Indicators.MAGAP_EXIT] = ext
-    return up, down
-    
+    for i in range(tap, n):
+        slope[i] = (vector[i] - vector[i - tap + 1]) / hour
+    return slope
 
-def trend(data, column):
+def trend(timeframe, data, column, slope_threshold):
     ma = data[column]
     hi = data[Columns.HIGH]
     lo = data[Columns.LOW]
+    slope = slope_by_hour(timeframe, ma, tap=20)
+    data['MA_LONG_SLOPE'] = slope
+    
     n = len(ma)
     out = full(n, 0)
     for i, (h, l, m) in enumerate(zip(hi, lo, ma)):
+        if abs(slope[i]) < slope_threshold:
+            continue
         if l > m:
             out[i] = 1 
         elif h < m:

@@ -161,8 +161,8 @@ class TradeBot:
         short_term = magap['short_term']
         slope_tap = magap['slope_tap']
         threshold = magap['slope_threshold']
-        MAGAP(data, long_term, mid_term, short_term, slope_tap, self.timeframe)
-        MAGAP_SIGNAL(data, threshold, 16)
+        MAGAP(self.timeframe, data, long_term, mid_term, short_term, slope_tap)
+        MAGAP_SIGNAL(self.timeframe, data, threshold, 10.0, 16)
         
         
     def set_sever_time(self, begin_month, begin_sunday, end_month, end_sunday, delta_hour_from_gmt_in_summer):
@@ -374,8 +374,8 @@ def create_bot(symbol, timeframe):
                    'sl': {'method': 1, 'value':200},
                    'volume': 0.1,
                    'position_max':5,
-                   'trail_target':200, 
-                   'trail_stop': 50,
+                   'trail_target':500, 
+                   'trail_stop': 200,
                    'timelimit':0}
     
     bot = TradeBot(symbol, timeframe, 1, Indicators.MAGAP_ENTRY, Indicators.MAGAP_EXIT, technical, trade_param)    
