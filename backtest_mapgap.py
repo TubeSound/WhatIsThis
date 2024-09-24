@@ -470,7 +470,7 @@ def main1():
         timeframe = 'M5'
         
     data0 = from_pickle(symbol, timeframe)
-    n, data = timefilter(data0, 2024, 9, 18, 2024, 9, 25)
+    n, data = timefilter(data0, 2024, 9, 18, 2024, 9, 27)
     technical_nikkei = {'MAGAP': {
                             'long_term':240,
                             'mid_term': 96,

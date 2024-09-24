@@ -58,9 +58,9 @@ MINUTES = list(range(0, 60))
 INTERVAL_MSEC = 30 * 1000
 
 technical_param = { 'MAGAP': 
-                                {'long_term': 4 * 24 * 4 ,
-                                 'mid_term': 4 * 24 * 2 ,
-                                 'short_term': 4 * 16,
+                                {'long_term': 192,
+                                 'mid_term': 24 * 2 ,
+                                 'short_term': 36,
                                  'tap': 16, 
                                  'level': 0.1, 
                                  'threshold': 0.1,
@@ -365,7 +365,7 @@ def indicators1(symbol, data, technical_param, timeframe):
     SUPERTREND_SIGNAL(data, param['short_term'])
     
     param = technical_param['MAGAP']
-    MAGAP(data, param['long_term'], param['mid_term'], param['short_term'], param['tap'], timeframe)
+    MAGAP(timeframe, data, param['long_term'], param['mid_term'], param['short_term'], param['tap'])
     #MAGAP_SIGNAL(data, param['threshold'], param['delay_max'])
     
 def add_markers(fig, time, signal, data, value, symbol, color, row=1, col=1):
@@ -506,13 +506,13 @@ def add_di_chart(fig, data, row):
     fig.add_trace(go.Scatter(x=jst, y=data['DI_MINUS'], line=dict(color='red', width=2)), row=r, col=1)
        
 
-def add_magap_chart(fig, data, row):
+def add_magap_chart(fig, timeframe, data, row):
     jst = data['jst']
     fig.add_trace(go.Scatter(x=jst, y=data['MAGAP'], line=dict(color='green', width=2)), row=row, col=1)
     
     gap = data[Indicators.MAGAP]
     param = technical_param['MAGAP']
-    xup, xdown = MAGAP_SIGNAL(data, param['slope_threshold'], param['delay_max'])
+    xup, xdown = MAGAP_SIGNAL(timeframe, data, param['slope_threshold'], 10, param['delay_max'])
 
     for i in xup:
         add_marker(fig, jst[i], gap[i], 'triangle-up', 'green', row=row, col=1)
@@ -567,7 +567,7 @@ def create_graph(symbol, timeframe, data):
     add_candle_chart(fig, data, 1)
     add_supertrend_line(fig, data, 1)
     add_ma_line(fig, data, 1)
-    add_magap_chart(fig, data, 3)
+    add_magap_chart(fig, timeframe, data, 3)
     fig.update_layout(height=CHART_HEIGHT, width=CHART_WIDTH, showlegend=False, xaxis_rangeslider_visible=False)
     fig.update_layout({  'title': symbol + '  ' + timeframe + '  ('  +  str(tfrom) + ')  ...  (' + str(tto) + ')'})
     #fig.update_xaxes(   {'title': 'Time',
