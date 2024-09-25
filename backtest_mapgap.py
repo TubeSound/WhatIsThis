@@ -403,7 +403,7 @@ def sim_opt(root, symbol, timeframe, title, data, limit):
 
 
 def vis(symbol, timeframe, data, technical_param, trade_param):
-    print(symbol, timeframe)
+    #print(symbol, timeframe)
     title = f'{symbol}_{timeframe}_magap'    
     param = technical_param['MAGAP']
     MAGAP(timeframe, data, param['long_term'], param['mid_term'], param['short_term'], param['slope_tap'])
@@ -469,8 +469,7 @@ def main1():
         symbol = 'NIKKEI'
         timeframe = 'M5'
         
-    data0 = from_pickle(symbol, timeframe)
-    n, data = timefilter(data0, 2024, 9, 18, 2024, 9, 27)
+    
     technical_nikkei = {'MAGAP': {
                             'long_term':240,
                             'mid_term': 96,
@@ -503,7 +502,17 @@ def main1():
         param = technical_nikkei
     elif symbol == 'DOW':
         param = technical_dow
-    vis(symbol, timeframe, data, param, trade_param)
+        
+    data0 = from_pickle(symbol, timeframe)
+    jst = data0[Columns.JST]
+    tbegin = jst[0]
+    tend = jst[-1]
+    t = tbegin
+    while t < tend:
+        t1 = t + timedelta(days=14)
+        n, data = timefilter(data0, t.year, t.month, t.day, t1.year, t1.month, t1.day)        
+        vis(symbol, timeframe, data, param, trade_param)
+        t = t1
     
 def main2():
     args = sys.argv
