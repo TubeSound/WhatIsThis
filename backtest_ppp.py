@@ -291,21 +291,6 @@ def expand(name: str, dic: dict):
             columns.append(column)
     return data, columns     
     
-
-def optimize(symbol, timeframe, year):
-    print(symbol, timeframe)
-    months = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]    
-    data0 = from_pickle(symbol, timeframe)
-    root = './optimize'
-    for m in range(len(months)):
-        data = data0.copy()
-        month = months[m]
-        month_from = month[0]
-        month_to = month[-1]
-        print(symbol, timeframe, year, month)
-        n, data = timefilter(data0, year, month_from, year, month_to)
-        title = f'{symbol}_{timeframe}_{year}_{month_from}'
-        sim(root, symbol, timeframe, title, data)
         
 def fulltime(symbol, timeframe):
     print(symbol, timeframe)
@@ -342,7 +327,7 @@ def sim(root, symbol, timeframe, title, data):
 def optimize(symbol, timeframe):
     print(symbol, timeframe)
     data0 = from_pickle(symbol, timeframe)
-    root = f'./magap_2024'
+    root = f'./ppp_2024-7'
     year = 2024
     month_from = 7
     month_to = 9
@@ -380,11 +365,8 @@ def sim_opt(root, symbol, timeframe, title, data, limit):
                     param = {'long_term': long_term,
                              'mid_term': mid_term,
                              'short_term': short_term,
-                             'tap': 16, 
-                             'slope_threshold': slope_threshold,
-                             'delay_max': 16}
-                    MAGAP(timeframe, data, param['long_term'], param['mid_term'], param['short_term'], param['tap'])
-                    MAGAP_SIGNAL(timeframe, data, param['slope_threshold'], 0.1, param['delay_max'])
+                             'tap': 16}
+                    PPP(timeframe, data, param['long_term'], param['mid_term'], param['short_term'], param['tap'])
                     r = trade(symbol, timeframe, param, data, stop_loss, trailing_target, trailing_stop)
                     if r is None:
                         continue
@@ -426,7 +408,7 @@ def vis(num, symbol, timeframe, data, technical_param, trade_param):
     ax2.plot(jst, data[Indicators.ATR], color='red')
     ax[3].plot(jst, slope, color='green')
     ax[3].hlines(0, jst[0], jst[-1], color='gray')
-    ax[3].set_ylim(-0.4, 0.4)
+    ax[3].set_ylim(-0.1, 0.1)
     #ax[2].hlines(0, jst[0], jst[-1], color='yellow')
     
     entry = data[Indicators.PPP_ENTRY]
@@ -529,7 +511,7 @@ def main2():
         timeframe = args[2]
     else:
         symbol = 'NIKKEI'
-        timeframe = 'M15'
+        timeframe = 'M5'
     optimize(symbol, timeframe)
     #fulltime(symbol, timeframe)
     
@@ -544,5 +526,5 @@ def main3():
     optimize_crash(symbol, timeframe)
     
 if __name__ == '__main__':
-    main1()
+    main2()
     #test()
