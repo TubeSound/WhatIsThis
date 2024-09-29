@@ -265,7 +265,7 @@ class TradeBot:
         
     def entry(self, data, signal, index, time):
         volume = self.trade_param['volume']
-        sl = self.trade_param['sl']
+        sl = self.trade_param['sl']['value']
         target_profit = self.trade_param['trail_target']
         trailing_stop = self.trade_param['trail_stop']          
         timelimit = self.trade_param['timelimit']                       

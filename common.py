@@ -58,6 +58,8 @@ class Indicators:
     MA_LONG = 'MA_LONG'
     MA_LONG_HIGH = 'MA_LONG_HIGH'
     MA_LONG_LOW = 'MA_LONG_LOW'
+    
+    MA_MID_SLOPE = 'MA_MID_SLOPE'
 
     MABAND = 'MABAND'
     MABAND_LONG = 'MABAND_LONG'
@@ -120,6 +122,9 @@ class Indicators:
     RCI_SIGNAL = 'RCI_SIGNAL'
     
     FILTER_MA = 'FILTER_MA'
+    
+    PPP_ENTRY = 'PPP_ENTRY'
+    PPP_EXIT = 'PPP_EXIT'
 
 class Signal:
     LONG = 1
