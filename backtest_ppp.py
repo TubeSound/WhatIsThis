@@ -344,7 +344,7 @@ def sim_opt(root, symbol, timeframe, title, data, limit):
     coeff = {'M5': 1, 'M15': 2, 'M30': 4}
     k = coeff[timeframe]
     
-    stop_loss = 400
+    stop_loss = 100
     trailing_target = 100
     trailing_stop = 50
     
@@ -359,25 +359,24 @@ def sim_opt(root, symbol, timeframe, title, data, limit):
             for p3 in range(2, 20, 2):
                 short_term = int(p3 * 2 * k)
                 if short_term >= mid_term:
+                    continue         
+                number += 1
+                param = {'long_term': long_term,
+                         'mid_term': mid_term,
+                         'short_term': short_term,
+                         'tap': 16}
+                PPP(timeframe, data, param['long_term'], param['mid_term'], param['short_term'], param['tap'])
+                r = trade(symbol, timeframe, param, data, stop_loss, trailing_target, trailing_stop)
+                if r is None:
                     continue
-                for slope_threshold in [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]:
-                    number += 1
-                    param = {'long_term': long_term,
-                             'mid_term': mid_term,
-                             'short_term': short_term,
-                             'tap': 16}
-                    PPP(timeframe, data, param['long_term'], param['mid_term'], param['short_term'], param['tap'])
-                    r = trade(symbol, timeframe, param, data, stop_loss, trailing_target, trailing_stop)
-                    if r is None:
-                        continue
-                    df , summary, curve = r
-                    p, columns = expand('magap', param)
-                    out.append([number] + p + list(summary))
-                    if summary[0] > 10 and summary[1]> limit:
-                        print(summary)
-                        print(param)
-                        path = f'profit_curve_#{number}_{title}.png'
-                        plot_profit(os.path.join(dir_path, path), number, param, curve)
+                df , summary, curve = r
+                p, columns = expand('magap', param)
+                out.append([number] + p + list(summary))
+                if summary[0] > 10 and summary[1]> limit:
+                    print(summary)
+                    print(param)
+                    path = f'profit_curve_#{number}_{title}.png'
+                    plot_profit(os.path.join(dir_path, path), number, param, curve)
     df = pd.DataFrame(data=out, columns=['no'] + columns + ['n', 'profit', 'drawdown'])  
     df = df.sort_values('profit', ascending=False)         
     path = os.path.join(dir_path, f'summary_{title}.xlsx')
