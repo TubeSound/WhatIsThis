@@ -345,38 +345,39 @@ def sim_opt(root, symbol, timeframe, title, data, limit):
     k = coeff[timeframe]
     
     stop_loss = 100
-    trailing_target = 100
-    trailing_stop = 50
+    trailing_target = 200
+    trailing_stop = 100
     
     number = 0
     out = []
-    for p1 in [1, 2, 3, 4, 5]:
+    for p1 in [1, 2, 3, 4, 5, 6, 7, 8]:
         long_term = int(p1 * 2 * 24 * k)
         for p2 in [1, 2, 3, 4]:
             if p2 > p1:
                 continue
             mid_term = int(p2 * 2 * 24 * k)
-            for p3 in range(2, 20, 2):
+            for p3 in range(2, 40, 2):
                 short_term = int(p3 * 2 * k)
                 if short_term >= mid_term:
-                    continue         
-                number += 1
-                param = {'long_term': long_term,
-                         'mid_term': mid_term,
-                         'short_term': short_term,
-                         'tap': 16}
-                PPP(timeframe, data, param['long_term'], param['mid_term'], param['short_term'], param['tap'])
-                r = trade(symbol, timeframe, param, data, stop_loss, trailing_target, trailing_stop)
-                if r is None:
-                    continue
-                df , summary, curve = r
-                p, columns = expand('magap', param)
-                out.append([number] + p + list(summary))
-                if summary[0] > 10 and summary[1]> limit:
-                    print(summary)
-                    print(param)
-                    path = f'profit_curve_#{number}_{title}.png'
-                    plot_profit(os.path.join(dir_path, path), number, param, curve)
+                    continue       
+                for tap in range(0, 10):
+                    number += 1
+                    param = {'long_term': long_term,
+                             'mid_term': mid_term,
+                             'short_term': short_term,
+                             'tap': tap}
+                    PPP(timeframe, data, param['long_term'], param['mid_term'], param['short_term'], tap = param['tap'])
+                    r = trade(symbol, timeframe, param, data, stop_loss, trailing_target, trailing_stop)
+                    if r is None:
+                        continue
+                    df , summary, curve = r
+                    p, columns = expand('magap', param)
+                    out.append([number] + p + list(summary))
+                    if summary[0] > 10 and summary[1]> limit:
+                        print(summary)
+                        print(param)
+                        path = f'profit_curve_#{number}_{title}.png'
+                        plot_profit(os.path.join(dir_path, path), number, param, curve)
     df = pd.DataFrame(data=out, columns=['no'] + columns + ['n', 'profit', 'drawdown'])  
     df = df.sort_values('profit', ascending=False)         
     path = os.path.join(dir_path, f'summary_{title}.xlsx')
@@ -387,8 +388,6 @@ def sim_opt(root, symbol, timeframe, title, data, limit):
 def vis(num, symbol, timeframe, data, technical_param, trade_param):
     #print(symbol, timeframe)
     title = f'{symbol}_{timeframe}_ppp'    
-    param = technical_param['PPP']
-    PPP(timeframe, data, param['long_term'], param['mid_term'], param['short_term'])
     
     
     jst = data['jst']
@@ -457,30 +456,28 @@ def main1():
         
     
     technical_nikkei = {'PPP': {
-                            'long_term':240,
-                            'mid_term': 120,
-                            'short_term': 48,
-                            'slope_tap': 16,
-                            'slope_threshold': 0.03,
-                                }
+                            'long_term':192,
+                            'mid_term': 48,
+                            'short_term': 12,
+                            'slope_tap': 12
+                        }
                 }
     
     technical_dow = {'PPP': {
                             'long_term': 240,
-                            'mid_term': 120,
-                            'short_term': 48,
+                            'mid_term': 144,
+                            'short_term': 28,
                             'slope_tap': 16,
-                            'slope_threshold': 0.03,
-                                }
+                            }
                 }
     
     trade_param = {'begin_hour':8, 
                    'begin_minute':0,
                    'hours': 24,
-                   'sl': {'method': 1, 'value':200},
+                   'sl': {'method': 1, 'value':100},
                    'volume': 0.1,
                    'position_max':5,
-                   'trail_target':50, 
+                   'trail_target':100, 
                    'trail_stop': 50,
                    'timelimit':0}
         
@@ -490,6 +487,8 @@ def main1():
         param = technical_dow
         
     data0 = from_pickle(symbol, timeframe)
+    p = param['PPP']
+    PPP(timeframe, data0, p['long_term'], p['mid_term'], p['short_term'])
     jst = data0[Columns.JST]
     tbegin = jst[0]
     tend = jst[-1]
@@ -525,5 +524,5 @@ def main3():
     optimize_crash(symbol, timeframe)
     
 if __name__ == '__main__':
-    main2()
+    main1()
     #test()

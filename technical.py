@@ -1101,7 +1101,70 @@ def MAGAP_SIGNAL(timeframe, data, short_slope_threshold, long_slope_threshold, d
     data[Indicators.MAGAP_EXIT] = ext
     return up, down
 
-def PPP(timeframe, data: dict, long_term, mid_term, short_term, threshold=20, tap=2):
+
+def PPP(timeframe, data: dict, long_term, mid_term, short_term, threshold=20, tap=10):
+    op = data[Columns.OPEN]
+    hi = data[Columns.HIGH]
+    lo = data[Columns.LOW]
+    cl = data[Columns.CLOSE]
+    n = len(op)
+    ma_long = sma(cl, long_term)
+    ma_mid = sma(cl, mid_term)
+    ma_short = sma(cl, short_term)
+    data[Indicators.MA_LONG] = ma_long
+    data[Indicators.MA_MID] = ma_mid
+    data[Indicators.MA_SHORT] = ma_short    
+    
+    slope = slope_by_hour(timeframe, ma_mid, tap=tap)
+    data[Indicators.MA_MID_SLOPE] = slope
+    
+    ATRP(data, 40, ma_window=40)
+    
+    golden_cross = full(n, 0)
+    for i in range(n):
+        if ma_short[i] > ma_mid[i] and ma_mid[i] > ma_long[i]:
+            golden_cross[i] = 1
+        elif ma_short[i] < ma_mid[i] and ma_mid[i] < ma_long[i]:
+            golden_cross[i] = - 1
+       
+    sig0 = full(n, 0)
+    for i in range(n):
+        d = golden_cross[i - tap: i + 1]
+        if abs(sum(d)) == tap + 1:
+            if d[0] == 1 and slope[i] >= threshold:
+                sig0[i] = 1
+            elif d[0] == -1 and slope[i] <= -threshold:
+                sig0[i] = -1
+            
+    sig = full(n, 0)
+    current = 0
+    i_current = None
+    for i in range(n):
+        if current != sig0[i]:
+            if i_current is not None:
+                if sig0[i] != 0 : #and (i - i_current + 1) == tap:
+                    sig[i] = sig0[i]
+            current = sig0[i]
+            i_current = i
+    entry =sig
+    data[Indicators.PPP_ENTRY] = entry
+    
+
+    ext = full(n, 0)
+    for i in range(n):
+        if entry[i] != 0:
+            if entry[i] == Signal.LONG:
+                s = Signal.SHORT
+            else:
+                s = Signal.LONG
+            j1 = seek(golden_cross, i + 1, 0)
+            j2 = seek(entry, i + 1, s)
+            j = min([j1, j2])
+            if j < n:
+                ext[j] = 1
+    data[Indicators.PPP_EXIT] = ext  
+    
+def PPP2(timeframe, data: dict, long_term, mid_term, short_term, threshold=20, tap=2):
     op = data[Columns.OPEN]
     hi = data[Columns.HIGH]
     lo = data[Columns.LOW]
@@ -1164,72 +1227,9 @@ def PPP(timeframe, data: dict, long_term, mid_term, short_term, threshold=20, ta
                 ext[j] = 1
     data[Indicators.PPP_EXIT] = ext     
     
-def PPP2(timeframe, data: dict, long_term, mid_term, short_term, tap=6):
-    op = data[Columns.OPEN]
-    hi = data[Columns.HIGH]
-    lo = data[Columns.LOW]
-    cl = data[Columns.CLOSE]
-    n = len(op)
-    ma_long = sma(cl, long_term)
-    ma_mid = sma(cl, mid_term)
-    ma_short = sma(cl, short_term)
-    data[Indicators.MA_LONG] = ma_long
-    data[Indicators.MA_MID] = ma_mid
-    data[Indicators.MA_SHORT] = ma_short    
-    
-    slope = slope_by_hour(timeframe, ma_mid, tap=tap)
-    data[Indicators.MA_MID_SLOPE] = slope
-    
-    ATRP(data, 40, ma_window=40)
-    
-    sig0 = full(n, 0)
-    for i in range(n):
-        d1 = ma_short[i] - ma_mid[i]
-        d2 = ma_mid[i] - ma_long[i]
-        if d1 > 0 and d2 > 0:
-            sig0[i] = 1
-        elif d1 < 0 and d2 < 0:
-            sig0[i] = -1
+
             
-
-
-    sig = full(n, 0)
-    for i in range(tap - 1, n):
-        d = sig0[i - tap + 1: i + 1]
-        d_short = ma_short[i] - ma_short[i - tap + 1]
-        d_mid = ma_mid[i] - ma_mid[i - tap + 1]
-        d_long = ma_long[i] - ma_long[i - tap + 1]
-        if sum(d) == tap:
-            if d_short > 0 and d_mid > 0 and d_long > 0:
-                sig[i] = Signal.LONG
-        elif sum(d) == -tap:
-            if d_short < 0 and d_mid < 0 and d_long < 0:
-                sig[i] = Signal.SHORT
-
-    
-    entry = full(n, 0)
-    current = 0
-    for i in range(n):
-        if current != sig[i]:
-            current = sig[i]
-            if sig[i] != 0:
-                entry[i] = sig[i]
-    data[Indicators.PPP_ENTRY] = entry
-    
-
-    ext = full(n, 0)
-    for i in range(n):
-        if entry[i] != 0:
-            if entry[i] == Signal.LONG:
-                s = Signal.SHORT
-            else:
-                s = Signal.LONG
-            j1 = seek(sig, i + 1, 0)
-            j2 = seek(entry, i + 1, s)
-            j = min([j1, j2])
-            if j < n:
-                ext[j] = 1
-    data[Indicators.PPP_EXIT] = ext            
+         
                 
             
             
