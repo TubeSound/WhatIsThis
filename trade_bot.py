@@ -154,15 +154,15 @@ class TradeBot:
             s += str(arg) 
         print(s)    
         
-    def calc_indicators(self, data: dict, param: dict):
-        magap = param['MAGAP']
-        long_term = magap['long_term']
-        mid_term = magap['mid_term']
-        short_term = magap['short_term']
-        slope_tap = magap['slope_tap']
-        threshold = magap['slope_threshold']
-        MAGAP(self.timeframe, data, long_term, mid_term, short_term, slope_tap)
-        MAGAP_SIGNAL(self.timeframe, data, threshold, 10.0, 16)
+    def calc_indicators(self, timeframe, data: dict, param: dict):
+        ppp = param['PPP']
+        long_term = ppp['long_term']
+        mid_term = ppp['mid_term']
+        short_term = ppp['short_term']
+        tap = ppp['tap']
+        threshold = ppp['threshold']
+        PPP(self.timeframe, data, long_term, mid_term, short_term, tap=tap, threshold=threshold)
+       
         
         
     def set_sever_time(self, begin_month, begin_sunday, end_month, end_sunday, delta_hour_from_gmt_in_summer):
@@ -341,44 +341,35 @@ class TradeBot:
             else:
                 self.debug_print('<Closed Doten> Fail', self.symbol, position.desc())           
         self.trade_manager.remove_positions(removed_tickets)
+        
+        
+        
+        
+def technical_param():
+    param = {'PPP': {
+                        'long_term': 240,
+                        'mid_term': 144,
+                        'short_term': 55,
+                        'tap': 0,
+                        'threshold': 0.01
+                    }
+            }
+    return param
+
+def trade_param():
+   param = {'begin_hour':8, 
+                  'begin_minute':0,
+                  'hours': 24,
+                  'sl': {'method': 1, 'value':100},
+                  'volume': 0.1,
+                  'position_max':5,
+                  'trail_target':100, 
+                  'trail_stop': 50,
+                  'timelimit':0}
+   return param        
 
 def create_bot(symbol, timeframe):
-    
-    technical_nikkei = {'MAGAP': {
-                            'long_term':240,
-                            'mid_term': 96,
-                            'short_term': 36,
-                            'slope_tap': 16,
-                            'slope_threshold': 0.03,
-                                }
-                }
-    
-    technical_dow = {'MAGAP': {
-                            'long_term':192,
-                            'mid_term': 48,
-                            'short_term': 36,
-                            'slope_tap': 16,
-                            'slope_threshold': 0.03,
-                                }
-                }
-        
-    if symbol == 'DOW':
-        technical = technical_dow
-    elif symbol == 'NIKKEI':
-        technical = technical_nikkei
-
-    
-    trade_param = {'begin_hour':8, 
-                   'begin_minute':0,
-                   'hours': 24,
-                   'sl': {'method': 1, 'value':200},
-                   'volume': 0.1,
-                   'position_max':5,
-                   'trail_target':500, 
-                   'trail_stop': 200,
-                   'timelimit':0}
-    
-    bot = TradeBot(symbol, timeframe, 1, Indicators.MAGAP_ENTRY, Indicators.MAGAP_EXIT, technical, trade_param)    
+    bot = TradeBot(symbol, timeframe, 1, Indicators.PPP_ENTRY, Indicators.PPP_EXIT, technical_param(), trade_param())    
     bot.set_sever_time(3, 2, 11, 1, 3.0)
     return bot
 

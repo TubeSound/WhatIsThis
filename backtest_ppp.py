@@ -444,6 +444,32 @@ def optimize_crash(symbol, timeframe):
         n, data = timefilter(data0, year, month_from, year, month_to)
         title = f'{symbol}_{timeframe}_MA{ma_window}_{year}_{month_from}'
         sim(root, symbol, timeframe, title, data, ma_window, 5000)
+        
+        
+        
+def technical_param():
+    param = {'PPP': {
+                        'long_term': 240,
+                        'mid_term': 144,
+                        'short_term': 55,
+                        'tap': 0,
+                        'threshold': 0.01
+                    }
+            }
+    return param
+
+def trade_param():
+   param = {'begin_hour':8, 
+                  'begin_minute':0,
+                  'hours': 24,
+                  'sl': {'method': 1, 'value':100},
+                  'volume': 0.1,
+                  'position_max':5,
+                  'trail_target':100, 
+                  'trail_stop': 50,
+                  'timelimit':0}
+   return param
+
 
 def main1():
     args = sys.argv
@@ -453,54 +479,28 @@ def main1():
     else:
         symbol = 'NIKKEI'
         timeframe = 'M5'
-        
-    
-    technical_nikkei = {'PPP': {
-                            'long_term':192,
-                            'mid_term': 48,
-                            'short_term': 12,
-                            'slope_tap': 12
-                        }
-                }
-    
-    technical_dow = {'PPP': {
-                            'long_term': 240,
-                            'mid_term': 144,
-                            'short_term': 28,
-                            'slope_tap': 16,
-                            }
-                }
-    
-    trade_param = {'begin_hour':8, 
-                   'begin_minute':0,
-                   'hours': 24,
-                   'sl': {'method': 1, 'value':100},
-                   'volume': 0.1,
-                   'position_max':5,
-                   'trail_target':100, 
-                   'trail_stop': 50,
-                   'timelimit':0}
-        
-    if symbol == 'NIKKEI':
-        param = technical_nikkei
-    elif symbol == 'DOW':
-        param = technical_dow
-        
+            
     data0 = from_pickle(symbol, timeframe)
-    p = param['PPP']
-    PPP(timeframe, data0, p['long_term'], p['mid_term'], p['short_term'])
+    param = technical_param()['PPP']
+    PPP(timeframe, 
+        data0, 
+        param['long_term'], 
+        param['mid_term'], 
+        param['short_term'],
+        tap=param['tap'],
+        threshold=param['threshold'])
+    
     jst = data0[Columns.JST]
-    tbegin = jst[0]
-    tend = jst[-1]
-    t = tbegin
-    num = 0
-    while t < tend:
-        num += 1
-        t1 = t + timedelta(days=7)
-        n, data = timefilter(data0, t.year, t.month, t.day, t1.year, t1.month, t1.day)        
-        print(num, symbol, timeframe, t, n)
-        vis(num, symbol, timeframe, data, param, trade_param)
-        t = t1
+    tbegin = datetime(2024, 7, 1).astimezone(JST) #jst[0]
+    tend = datetime(2024, 10, 1).astimezone(JST) #jst[-1]
+    n, data = TimeUtils.slice(data0, jst, tbegin, tend)    
+    r = trade(symbol, timeframe, param, data, 100, 100, 50)
+    if r is not None:
+        df , summary, curve = r
+        df.to_csv(f'./PPP/trade_{symbol}_{timeframe}.csv', index=False)
+    print(symbol, timeframe, n)
+    vis(0, symbol, timeframe, data, param, trade_param())
+    
     
 def main2():
     args = sys.argv

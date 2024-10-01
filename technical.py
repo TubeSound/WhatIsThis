@@ -1102,7 +1102,7 @@ def MAGAP_SIGNAL(timeframe, data, short_slope_threshold, long_slope_threshold, d
     return up, down
 
 
-def PPP(timeframe, data: dict, long_term, mid_term, short_term, threshold=20, tap=10):
+def PPP(timeframe, data: dict, long_term, mid_term, short_term, threshold=0.01, tap=0):
     op = data[Columns.OPEN]
     hi = data[Columns.HIGH]
     lo = data[Columns.LOW]
@@ -1114,12 +1114,9 @@ def PPP(timeframe, data: dict, long_term, mid_term, short_term, threshold=20, ta
     data[Indicators.MA_LONG] = ma_long
     data[Indicators.MA_MID] = ma_mid
     data[Indicators.MA_SHORT] = ma_short    
-    
-    slope = slope_by_hour(timeframe, ma_mid, tap=tap)
+    slope = slope_by_hour(timeframe, ma_mid, tap=10)
     data[Indicators.MA_MID_SLOPE] = slope
-    
     ATRP(data, 40, ma_window=40)
-    
     golden_cross = full(n, 0)
     for i in range(n):
         if ma_short[i] > ma_mid[i] and ma_mid[i] > ma_long[i]:
@@ -1253,7 +1250,8 @@ def slope_by_hour(timeframe, vector, tap=10):
         
     slope = full(n, 0.0)
     for i in range(tap, n):
-        slope[i] = (vector[i] - vector[i - tap + 1]) / hour / vector[i - tap + 1] * 100.0
+        if not np.isnan(vector[i - tap + 1]):
+            slope[i] = (vector[i] - vector[i - tap + 1]) / hour / vector[i - tap + 1] * 100.0
     return slope
 
 def trend(timeframe, data, column, slope_threshold):
