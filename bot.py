@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from mt5_trade import Mt5Trade, Columns, PositionInfo
 import sched
 
+import matplotlib.pyplot as plt
 from candle_chart import CandleChart, makeFig, gridFig
 from data_buffer import DataBuffer
 from time_utils import TimeUtils
@@ -32,7 +33,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %I:%M:%S %p"
 )
 
-INITIAL_DATA_LENGTH = 200
+INITIAL_DATA_LENGTH = 500
 
 # -----
 
@@ -142,17 +143,46 @@ class Bot:
             current_index = self.buffer.last_index()
             entry_signal = self.buffer.data[self.entry_column][-1]
             exit_signal = self.buffer.data[self.exit_column][-1]
-            if exit_signal > 0:
-                self.notify.message(f'{self.symbol} Close ')
-            elif entry_signal == Signal.LONG:
-                self.notify.messge(f'{self.symbol} Long')
-            elif entry_signal == Signal.SHORT:
-                 self.notify.messge(f'{self.symbol} Short')
+            if entry_signal != 0 or entry_signal != 0:
+                path = self.save_chart(f'{self.symbol}_{self.timeframe}', self.buffer.data, 100)
+                if exit_signal > 0:
+                    self.notify.send(f'{self.symbol} 手仕舞ってね ', image=path)
+                elif entry_signal == Signal.LONG:
+                    self.notify.send(f'{self.symbol} 買ってよし', image=path)
+                elif entry_signal == Signal.SHORT:
+                    self.notify.send(f'{self.symbol} 売ってよし', image=path)
         return n
 
+    def save_chart(self, title, data, length):
+    
+        jst = data[Columns.JST]
+        n = len(jst)
+        
+        jst = jst[n-length:]
+        op = data[Columns.OPEN][n-length:]
+        hi = data[Columns.HIGH][n-length:]
+        lo = data[Columns.LOW][n-length:]
+        cl = data[Columns.CLOSE][n-length:]
+        ma_l = data[Indicators.MA_LONG][n-length:]
+        ma_m = data[Indicators.MA_MID][n-length:]
+        ma_s = data[Indicators.MA_SHORT][n-length:]
+        
+        fig, ax = plt.subplots(1, 1, figsize=(7, 3))
+        chart = CandleChart(fig, ax, title=title, date_format=CandleChart.DATE_FORMAT_DATE_TIME)
+        chart.drawCandle(jst, op, hi, lo, cl)
+        chart.drawLine(jst, ma_l, color='blue')
+        chart.drawLine(jst, ma_m, color='green')
+        chart.drawLine(jst, ma_s, color='red')
+        dirpath = './tmp/chart/'
+        os.makedirs(dirpath, exist_ok=True)
+        path = os.path.join(dirpath, f'chart_{title}.png')
+        fig.savefig(path)
+        return path
+        
+        
 
-def technical_param():
-    param = {'PPP': {
+def technical_param(symbol):
+    param_nikkei = {'PPP': {
                         'long_term': 240,
                         'mid_term': 144,
                         'short_term': 55,
@@ -160,12 +190,24 @@ def technical_param():
                         'threshold': 0.01
                     }
             }
-    return param
+    if symbol.lower() == 'nikkei':
+        return param_nikkei
+    
+    param_dow = {'PPP': {
+                        'long_term': 384,
+                        'mid_term': 192,
+                        'short_term': 68,
+                        'tap': 0,
+                        'threshold': 0.01
+                    }
+            }
+    if symbol.lower() == 'dow':
+        return param_dow
+    
+    
 
 def create_bot(symbol, timeframe):
-    
-  
-    bot = Bot(symbol, timeframe, 1, Indicators.PPP_ENTRY, Indicators.PPP_EXIT, technical_param())    
+    bot = Bot(symbol, timeframe, 1, Indicators.PPP_ENTRY, Indicators.PPP_EXIT, technical_param(symbol))    
     bot.set_sever_time(3, 2, 11, 1, 3.0)
     return bot
 

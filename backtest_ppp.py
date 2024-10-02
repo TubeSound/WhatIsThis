@@ -447,8 +447,8 @@ def optimize_crash(symbol, timeframe):
         
         
         
-def technical_param():
-    param = {'PPP': {
+def technical_param(symbol):
+    param_nikkei = {'PPP': {
                         'long_term': 240,
                         'mid_term': 144,
                         'short_term': 55,
@@ -456,7 +456,19 @@ def technical_param():
                         'threshold': 0.01
                     }
             }
-    return param
+    if symbol.lower() == 'nikkei':
+        return param_nikkei
+    
+    param_dow = {'PPP': {
+                        'long_term': 384,
+                        'mid_term': 192,
+                        'short_term': 68,
+                        'tap': 0,
+                        'threshold': 0.01
+                    }
+            }
+    if symbol.lower() == 'dow':
+        return param_dow
 
 def trade_param():
    param = {'begin_hour':8, 
@@ -481,7 +493,7 @@ def main1():
         timeframe = 'M5'
             
     data0 = from_pickle(symbol, timeframe)
-    param = technical_param()['PPP']
+    param = technical_param(symbol)['PPP']
     PPP(timeframe, 
         data0, 
         param['long_term'], 

@@ -31,7 +31,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %I:%M:%S %p"
 )
 
-INITIAL_DATA_LENGTH = 200
+INITIAL_DATA_LENGTH = 500
 
 # -----
 
@@ -345,8 +345,8 @@ class TradeBot:
         
         
         
-def technical_param():
-    param = {'PPP': {
+def technical_param(symbol):
+    param_nikkei = {'PPP': {
                         'long_term': 240,
                         'mid_term': 144,
                         'short_term': 55,
@@ -354,7 +354,19 @@ def technical_param():
                         'threshold': 0.01
                     }
             }
-    return param
+    if symbol.lower() == 'nikkei':
+        return param_nikkei
+    
+    param_dow = {'PPP': {
+                        'long_term': 384,
+                        'mid_term': 192,
+                        'short_term': 68,
+                        'tap': 0,
+                        'threshold': 0.01
+                    }
+            }
+    if symbol.lower() == 'dow':
+        return param_dow
 
 def trade_param():
    param = {'begin_hour':8, 
@@ -369,7 +381,7 @@ def trade_param():
    return param        
 
 def create_bot(symbol, timeframe):
-    bot = TradeBot(symbol, timeframe, 1, Indicators.PPP_ENTRY, Indicators.PPP_EXIT, technical_param(), trade_param())    
+    bot = TradeBot(symbol, timeframe, 1, Indicators.PPP_ENTRY, Indicators.PPP_EXIT, technical_param(symbol), trade_param())    
     bot.set_sever_time(3, 2, 11, 1, 3.0)
     return bot
 
