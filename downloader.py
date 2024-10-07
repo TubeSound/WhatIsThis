@@ -32,7 +32,7 @@ def download(symbols, save_holder):
     for symbol in symbols:
         for tf in [TimeFrame.M1, TimeFrame.M5, TimeFrame.M15, TimeFrame.M30, TimeFrame.H1, TimeFrame.H4, TimeFrame.D1]:
             for year in range(2024, 2025):
-                for month in range(8, 10):
+                for month in range(10, 11):
                     t0 = datetime(year, month, 1, 7)
                     t0 = t0.replace(tzinfo=JST)
                     t1 = t0 + relativedelta(months=1) - timedelta(seconds=1)
@@ -90,10 +90,10 @@ def save_data():
     year_from = 2020
     month_from = 1
     year_to = 2024
-    month_to = 9
+    month_to = 10
     loader = DataLoader()
     for symbol in all_symbols():
-        for tf in ['M1', 'M5', 'M15', 'M30', 'H1', 'H4']:
+        for tf in ['M5', 'M15', 'M30', 'H1', 'H4']:
             n, data = loader.load_data(symbol, tf, year_from, month_from, year_to, month_to)
             os.makedirs('./data', exist_ok=True)
             save('./data/Axiory/' + symbol + '_' + tf + ".pkl", data)
