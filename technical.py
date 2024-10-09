@@ -1114,7 +1114,9 @@ def PPP(timeframe, data: dict, long_term, mid_term, short_term, threshold=0.01, 
     data[Indicators.MA_LONG] = ma_long
     data[Indicators.MA_MID] = ma_mid
     data[Indicators.MA_SHORT] = ma_short    
-    slope = slope_by_hour(timeframe, ma_mid, tap=10)
+    slope_long = slope_by_hour(timeframe, ma_long, tap=20)
+    slope_mid = slope_by_hour(timeframe, ma_mid, tap=20)
+    slope_short = slope_by_hour(timeframe, ma_short, tap=20)
     data[Indicators.MA_MID_SLOPE] = slope
     ATRP(data, 40, ma_window=40)
     golden_cross = full(n, 0)
@@ -1128,9 +1130,9 @@ def PPP(timeframe, data: dict, long_term, mid_term, short_term, threshold=0.01, 
     for i in range(n):
         d = golden_cross[i - tap: i + 1]
         if abs(sum(d)) == tap + 1:
-            if d[0] == 1 and slope[i] >= threshold:
+            if d[0] == 1 and slope_long[i] >= threshold and slope_mid[i] >= threshold and slope_short[i] >= threshold:
                 sig0[i] = 1
-            elif d[0] == -1 and slope[i] <= -threshold:
+            elif d[0] == -1 and slope_long[i] <= -threshold and slope_mid[i] <= threshold and slope_short[i] <= threshold:
                 sig0[i] = -1
             
     sig = full(n, 0)
