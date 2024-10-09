@@ -121,7 +121,7 @@ class DataBuffer:
                     else:
                         value += nans(n)
                 except:
-                    print(value[:10])
+                    print(value)
         self.indicator_function(self.timeframe, self.data, self.technical_params)
         return n
                 
