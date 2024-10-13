@@ -39,6 +39,8 @@ INITIAL_DATA_LENGTH = 500
 
 scheduler = sched.scheduler()
 
+page = 0
+
 # -----
 def utcnow():
     utc = datetime.utcnow()
@@ -88,6 +90,7 @@ class Bot:
         self.mt5 = mt5
         self.delta_hour_from_gmt = None
         self.server_timezone = None
+        self.page = 0
         
     def debug_print(self, *args):
         utc = utcnow()
@@ -143,7 +146,7 @@ class Bot:
             current_index = self.buffer.last_index()
             entry_signal = self.buffer.data[self.entry_column][-1]
             exit_signal = self.buffer.data[self.exit_column][-1]
-            if entry_signal != 0 or entry_signal != 0:
+            if entry_signal != 0 or exit_signal != 0:
                 path = self.save_chart(f'{self.symbol}_{self.timeframe}', self.buffer.data, 100)
                 if exit_signal > 0:
                     self.notify.send(f'{self.symbol} 手仕舞ってね ', image=path)
@@ -151,6 +154,15 @@ class Bot:
                     self.notify.send(f'{self.symbol} 買ってよし', image=path)
                 elif entry_signal == Signal.SHORT:
                     self.notify.send(f'{self.symbol} 売ってよし', image=path)
+                    
+                dirpath = './tmp/data/'
+                os.makedirs(dirpath, exist_ok=True)
+                path = os.path.join(dirpath, f'data_{self.page}')
+                df = pd.DataFrame(self.buffer.data)
+                df.to_csv(path, index=False)
+                self.page += 1
+                    
+                    
         return n
 
     def save_chart(self, title, data, length):
