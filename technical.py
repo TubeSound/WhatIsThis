@@ -1102,6 +1102,22 @@ def MAGAP_SIGNAL(timeframe, data, short_slope_threshold, long_slope_threshold, d
     return up, down
 
 
+def detect_terms(vector, value):
+    terms = []
+    n = len(vector)
+    begin = None
+    for i in range(n):
+        if begin is None:
+            if vector[i] == value:
+                begin = i
+        else:
+            if vector[i] != value:
+                terms.append([begin, i - 1])
+                begin = None
+    if begin is not None:
+        terms.append([begin, n - 1])
+    return terms
+
 def PPP(timeframe, data: dict, long_term, mid_term, short_term, threshold=0.01, tap=0):
     op = data[Columns.OPEN]
     hi = data[Columns.HIGH]
@@ -1124,9 +1140,15 @@ def PPP(timeframe, data: dict, long_term, mid_term, short_term, threshold=0.01, 
     golden_cross = full(n, 0)
     for i in range(n):
         if ma_short[i] > ma_mid[i] and ma_mid[i] > ma_long[i]:
-            golden_cross[i] = 1
+            if slope_long[i] > threshold and slope_mid[i] > threshold and slope_short[i] > threshold:
+                golden_cross[i] = 1
         elif ma_short[i] < ma_mid[i] and ma_mid[i] < ma_long[i]:
-            golden_cross[i] = - 1
+            if slope_long[i] < -threshold and slope_mid[i] < -threshold and slope_short[i] < -threshold:
+                golden_cross[i] = - 1
+                
+    data[Indicators.MA_GOLDEN_CROSS] = golden_cross
+    
+    
        
     sig0 = full(n, 0)
     for i in range(n):

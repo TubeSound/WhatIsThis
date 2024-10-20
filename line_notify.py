@@ -8,19 +8,28 @@ Created on Tue Oct  1 23:35:10 2024
 """
 
 import requests
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+JST = ZoneInfo("Asia/Tokyo")
+
+
 
 
 class LineNotify(object):
     
     API_URL = 'https://notify-api.line.me/api/notify'
-    token =''
+    token ='pyBbJHApy1WeeZd67bHr0F983nnRIZzvfNJ82ek7s19'
+    black_swan = 'DNIZO7pUe4auG0Qt6ITnZbI8NOKlG9g0Q83wW4Xc5qc'
     
     def __init__(self):
-        self.__headers = {'Authorization': 'Bearer ' + self.token}
+        self.__headers = {'Authorization': 'Bearer ' + self.black_swan}
 
     def send(self, message, image=None, sticker_package_id=None, sticker_id=None):
+        t = datetime.now().astimezone(JST)
+        tstr = t.strftime('%H:%M:%S')
         payload = {
-            'message': message,
+            'message': tstr + "\r " + message,
             'stickerPackageId': sticker_package_id,
             'stickerId': sticker_id,
         }
@@ -37,4 +46,7 @@ class LineNotify(object):
         
 def test():       
     notify = LineNotify()
-    notify.send('Tensai')
+    notify.send('テスト')
+    
+if __name__ == '__main__':
+    test()

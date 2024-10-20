@@ -127,6 +127,8 @@ class Indicators:
     
     PPP_ENTRY = 'PPP_ENTRY'
     PPP_EXIT = 'PPP_EXIT'
+    
+    MA_GOLDEN_CROSS = 'MA_GOLDEN_CROSS'
 
 class Signal:
     LONG = 1

@@ -412,12 +412,16 @@ def vis(num, symbol, timeframe, data, technical_param, trade_param):
     entry = data[Indicators.PPP_ENTRY]
     for i, v in enumerate(entry):
         if v == 1:
+            ax[0].scatter(jst[i], cl[i], marker='^', color='green', s=200)
             ax[1].scatter(jst[i], ma[i], marker='^', color='green', s=200)
+            
         elif v == -1:
+            ax[0].scatter(jst[i], cl[i], marker='v', color='red', s=200)
             ax[1].scatter(jst[i], ma[i], marker='v', color='red', s=200)
     ext = data[Indicators.PPP_EXIT]
     for i, v in enumerate(ext):
         if v == 1:
+            ax[0].scatter(jst[i], cl[i], marker='x', color='gray', s=300)
             ax[1].scatter(jst[i], ma[i], marker='x', color='gray', s=300)
 
     
@@ -503,8 +507,8 @@ def main1():
         threshold=param['threshold'])
     
     jst = data0[Columns.JST]
-    tbegin = datetime(2024, 7, 1).astimezone(JST) #jst[0]
-    tend = datetime(2024, 10, 1).astimezone(JST) #jst[-1]
+    tbegin = datetime(2024, 10, 10).astimezone(JST) #jst[0]
+    tend = datetime(2024, 10, 12).astimezone(JST) #jst[-1]
     n, data = TimeUtils.slice(data0, jst, tbegin, tend)    
     r = trade(symbol, timeframe, param, data, 100, 100, 50)
     if r is not None:
@@ -531,10 +535,32 @@ def main3():
         symbol = args[1]
         timeframe = args[2]
     else:
-        symbol = 'DOW'
+        symbol = 'NIKKEI'
         timeframe = 'M5'
-    optimize_crash(symbol, timeframe)
+            
+    data0 = from_pickle(symbol, timeframe)
+    param = technical_param(symbol)['PPP']
+    PPP(timeframe, 
+        data0, 
+        param['long_term'], 
+        param['mid_term'], 
+        param['short_term'],
+        tap=param['tap'],
+        threshold=param['threshold'])
+    
+    jst = data0[Columns.JST]
+    tbegin = jst[0]
+    tend = jst[-1]
+    t = tbegin
+    i = 0
+    while t < tend:
+        t1 = t + timedelta(days=14)
+        n, data = TimeUtils.slice(data0, jst, t, t1)    
+        print(symbol, timeframe, n)
+        vis(i, symbol, timeframe, data, param, trade_param())
+        t = t1
+        i += 1
     
 if __name__ == '__main__':
-    main1()
+    main3()
     #test()
